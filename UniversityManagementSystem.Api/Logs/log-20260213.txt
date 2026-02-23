@@ -1,0 +1,453 @@
+2026-02-13 00:00:04.642 +02:00 [INF] Server desktop-f4er2rh:6056:9c2af8a5 caught stopping signal...
+2026-02-13 00:00:04.661 +02:00 [INF] Application is shutting down...
+2026-02-13 00:00:04.662 +02:00 [INF] Server desktop-f4er2rh:6056:9c2af8a5 All dispatchers stopped
+2026-02-13 00:00:04.667 +02:00 [INF] Server desktop-f4er2rh:6056:9c2af8a5 successfully reported itself as stopped in 3.1232 ms
+2026-02-13 00:00:04.668 +02:00 [INF] Server desktop-f4er2rh:6056:9c2af8a5 has been stopped in total 7.2586 ms
+2026-02-13 00:00:04.699 +02:00 [INF] Bus stopped: "rabbitmq://localhost/"
+2026-02-13 00:03:16.058 +02:00 [INF] Start installing Hangfire SQL objects...
+2026-02-13 00:03:16.384 +02:00 [INF] Hangfire SQL objects installed.
+2026-02-13 00:03:16.567 +02:00 [INF] Configured endpoint Attendance, Consumer: UniversityManagementSystem.Infrastructure.Consumers.AttendanceConsumer
+2026-02-13 00:03:17.023 +02:00 [WRN] Entity 'Subject' has a global query filter defined and is the required end of a relationship with the entity 'SubjectAssistant'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-02-13 00:03:17.024 +02:00 [WRN] Entity 'Doctor' has a global query filter defined and is the required end of a relationship with the entity 'SubjectDoctor'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-02-13 00:03:17.272 +02:00 [INF] Executed DbCommand (13ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1
+2026-02-13 00:03:17.281 +02:00 [INF] Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+2026-02-13 00:03:17.293 +02:00 [INF] Executed DbCommand (8ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DECLARE @result int;
+EXEC @result = sp_getapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session', @LockMode = 'Exclusive';
+SELECT @result
+2026-02-13 00:03:17.337 +02:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+BEGIN
+    CREATE TABLE [__EFMigrationsHistory] (
+        [MigrationId] nvarchar(150) NOT NULL,
+        [ProductVersion] nvarchar(32) NOT NULL,
+        CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
+    );
+END;
+2026-02-13 00:03:17.351 +02:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1
+2026-02-13 00:03:17.355 +02:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT OBJECT_ID(N'[__EFMigrationsHistory]');
+2026-02-13 00:03:17.361 +02:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT [MigrationId], [ProductVersion]
+FROM [__EFMigrationsHistory]
+ORDER BY [MigrationId];
+2026-02-13 00:03:17.372 +02:00 [INF] No migrations were applied. The database is already up to date.
+2026-02-13 00:03:17.379 +02:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DECLARE @result int;
+EXEC @result = sp_releaseapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session';
+SELECT @result
+2026-02-13 00:03:17.558 +02:00 [INF] Executed DbCommand (8ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT CASE
+    WHEN EXISTS (
+        SELECT 1
+        FROM [SystemUsers] AS [s]
+        WHERE [s].[DeletedAt] IS NULL AND [s].[Role] = 4) THEN CAST(1 AS bit)
+    ELSE CAST(0 AS bit)
+END
+2026-02-13 00:03:17.942 +02:00 [INF] Executed DbCommand (19ms) [Parameters=[@p0='?' (DbType = Int32), @p1='?' (DbType = DateTime2), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime2), @p4='?' (Size = 450), @p5='?' (Size = 4000), @p6='?' (DbType = Boolean), @p7='?' (DbType = DateTime2), @p8='?' (Size = 4000), @p9='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SET IMPLICIT_TRANSACTIONS OFF;
+SET NOCOUNT ON;
+INSERT INTO [SystemUsers] ([AccessFailedCount], [CreatedAt], [CreatedByUserId], [DeletedAt], [Email], [FullName], [IsActive], [LockoutEnd], [PasswordHash], [Role])
+OUTPUT INSERTED.[Id]
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, @p9);
+2026-02-13 00:03:17.978 +02:00 [INF] Executed DbCommand (3ms) [Parameters=[@p0='?' (DbType = DateTime2), @p1='?' (DbType = DateTime2), @p2='?' (Size = 4000), @p3='?' (Size = 4000), @p4='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SET IMPLICIT_TRANSACTIONS OFF;
+SET NOCOUNT ON;
+INSERT INTO [Admins] ([CreatedAt], [DeletedAt], [Email], [FullName], [SystemUserId])
+OUTPUT INSERTED.[Id]
+VALUES (@p0, @p1, @p2, @p3, @p4);
+2026-02-13 00:03:17.997 +02:00 [INF] User profile is available. Using 'C:\Users\Dell\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-02-13 00:03:18.050 +02:00 [INF] Now listening on: http://localhost:5200
+2026-02-13 00:03:18.054 +02:00 [INF] Starting Hangfire Server using job storage: 'SQL Server: localhost@UniversityManagementDb'
+2026-02-13 00:03:18.055 +02:00 [INF] Using the following options for SQL Server job storage: Queue poll interval: 00:00:00.
+2026-02-13 00:03:18.055 +02:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-02-13 00:03:18.062 +02:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-02-13 00:03:18.063 +02:00 [INF] Hosting environment: Development
+2026-02-13 00:03:18.064 +02:00 [INF] Content root path: F:\مشروع التخرج\UniversityManagementSystem.Api
+2026-02-13 00:03:18.122 +02:00 [INF] Server desktop-f4er2rh:28492:39e8fc22 successfully announced in 57.8157 ms
+2026-02-13 00:03:18.124 +02:00 [INF] Server desktop-f4er2rh:28492:39e8fc22 is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, SqlServerHeartbeatProcess, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-02-13 00:03:18.130 +02:00 [INF] Server desktop-f4er2rh:28492:39e8fc22 all the dispatchers started
+2026-02-13 00:03:18.206 +02:00 [INF] Bus started: "rabbitmq://localhost/"
+2026-02-13 00:04:46.681 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/swagger/index.html - null null
+2026-02-13 00:04:46.793 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/swagger/index.html - 200 null text/html;charset=utf-8 111.926ms
+2026-02-13 00:04:47.360 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/swagger/v1/swagger.json - null null
+2026-02-13 00:04:47.447 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 86.6395ms
+2026-02-13 00:05:16.934 +02:00 [INF] Request starting HTTP/1.1 POST http://localhost:5200/api/Auth/login - application/json 79
+2026-02-13 00:05:16.939 +02:00 [WRN] Failed to determine the https port for redirect.
+2026-02-13 00:05:16.994 +02:00 [INF] Executing endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 00:05:17.005 +02:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[UniversityManagementSystem.Core.DTOs.AuthResponseDto]] Login(UniversityManagementSystem.Core.DTOs.UserLoginDto) on controller UniversityManagementSystem.Api.Controllers.AuthController (UniversityManagementSystem.Api).
+2026-02-13 00:05:17.011 +02:00 [INF] Executed action UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api) in 1.8531ms
+2026-02-13 00:05:17.015 +02:00 [INF] Executed endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 00:05:17.019 +02:00 [ERR] HTTP POST /api/Auth/login responded 500 in 78.8048 ms
+System.InvalidOperationException: Unable to resolve service for type 'UniversityManagementSystem.Core.Interfaces.IAuthService' while attempting to activate 'UniversityManagementSystem.Api.Controllers.AuthController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method275(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+   at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+   at Microsoft.AspNetCore.RateLimiting.RateLimitingMiddleware.InvokeInternal(HttpContext context, EnableRateLimitingAttribute enableRateLimitingAttribute)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+2026-02-13 00:05:17.030 +02:00 [ERR] An unhandled exception occurred: Unable to resolve service for type 'UniversityManagementSystem.Core.Interfaces.IAuthService' while attempting to activate 'UniversityManagementSystem.Api.Controllers.AuthController'.
+System.InvalidOperationException: Unable to resolve service for type 'UniversityManagementSystem.Core.Interfaces.IAuthService' while attempting to activate 'UniversityManagementSystem.Api.Controllers.AuthController'.
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at lambda_method275(Closure, IServiceProvider, Object[])
+   at Microsoft.AspNetCore.Mvc.Controllers.ControllerFactoryProvider.<>c__DisplayClass6_0.<CreateControllerFactory>g__CreateController|0(ControllerContext controllerContext)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.InvokeInnerFilterAsync()
+--- End of stack trace from previous location ---
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+   at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+   at Microsoft.AspNetCore.RateLimiting.RateLimitingMiddleware.InvokeInternal(HttpContext context, EnableRateLimitingAttribute enableRateLimitingAttribute)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at UniversityManagementSystem.Api.Middleware.ExceptionMiddleware.InvokeAsync(HttpContext context) in F:\مشروع التخرج\UniversityManagementSystem.Api\Middleware\ExceptionMiddleware.cs:line 21
+2026-02-13 00:05:17.045 +02:00 [INF] Request finished HTTP/1.1 POST http://localhost:5200/api/Auth/login - 500 null application/json 111.0176ms
+2026-02-13 00:07:11.499 +02:00 [INF] Server desktop-f4er2rh:28492:39e8fc22 caught stopping signal...
+2026-02-13 00:07:11.501 +02:00 [INF] Application is shutting down...
+2026-02-13 00:07:11.502 +02:00 [INF] Server desktop-f4er2rh:28492:39e8fc22 All dispatchers stopped
+2026-02-13 00:07:11.512 +02:00 [INF] Server desktop-f4er2rh:28492:39e8fc22 successfully reported itself as stopped in 7.7416 ms
+2026-02-13 00:07:11.512 +02:00 [INF] Server desktop-f4er2rh:28492:39e8fc22 has been stopped in total 11.6596 ms
+2026-02-13 00:07:11.539 +02:00 [INF] Bus stopped: "rabbitmq://localhost/"
+2026-02-13 00:18:15.467 +02:00 [INF] Start installing Hangfire SQL objects...
+2026-02-13 00:18:15.797 +02:00 [INF] Hangfire SQL objects installed.
+2026-02-13 00:18:15.966 +02:00 [INF] Configured endpoint Attendance, Consumer: UniversityManagementSystem.Infrastructure.Consumers.AttendanceConsumer
+2026-02-13 00:18:16.396 +02:00 [WRN] Entity 'Subject' has a global query filter defined and is the required end of a relationship with the entity 'SubjectAssistant'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-02-13 00:18:16.398 +02:00 [WRN] Entity 'Doctor' has a global query filter defined and is the required end of a relationship with the entity 'SubjectDoctor'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-02-13 00:18:16.615 +02:00 [INF] Executed DbCommand (7ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1
+2026-02-13 00:18:16.623 +02:00 [INF] Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+2026-02-13 00:18:16.633 +02:00 [INF] Executed DbCommand (7ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DECLARE @result int;
+EXEC @result = sp_getapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session', @LockMode = 'Exclusive';
+SELECT @result
+2026-02-13 00:18:16.676 +02:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+BEGIN
+    CREATE TABLE [__EFMigrationsHistory] (
+        [MigrationId] nvarchar(150) NOT NULL,
+        [ProductVersion] nvarchar(32) NOT NULL,
+        CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
+    );
+END;
+2026-02-13 00:18:16.689 +02:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1
+2026-02-13 00:18:16.691 +02:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT OBJECT_ID(N'[__EFMigrationsHistory]');
+2026-02-13 00:18:16.696 +02:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT [MigrationId], [ProductVersion]
+FROM [__EFMigrationsHistory]
+ORDER BY [MigrationId];
+2026-02-13 00:18:16.707 +02:00 [INF] No migrations were applied. The database is already up to date.
+2026-02-13 00:18:16.715 +02:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DECLARE @result int;
+EXEC @result = sp_releaseapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session';
+SELECT @result
+2026-02-13 00:18:16.892 +02:00 [INF] Executed DbCommand (21ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT CASE
+    WHEN EXISTS (
+        SELECT 1
+        FROM [SystemUsers] AS [s]
+        WHERE [s].[DeletedAt] IS NULL AND [s].[Role] = 4) THEN CAST(1 AS bit)
+    ELSE CAST(0 AS bit)
+END
+2026-02-13 00:18:16.912 +02:00 [INF] User profile is available. Using 'C:\Users\Dell\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-02-13 00:18:16.968 +02:00 [INF] Now listening on: http://localhost:5200
+2026-02-13 00:18:16.973 +02:00 [INF] Starting Hangfire Server using job storage: 'SQL Server: localhost@UniversityManagementDb'
+2026-02-13 00:18:16.974 +02:00 [INF] Using the following options for SQL Server job storage: Queue poll interval: 00:00:00.
+2026-02-13 00:18:16.974 +02:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-02-13 00:18:16.981 +02:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-02-13 00:18:16.982 +02:00 [INF] Hosting environment: Development
+2026-02-13 00:18:16.983 +02:00 [INF] Content root path: F:\مشروع التخرج\UniversityManagementSystem.Api
+2026-02-13 00:18:17.049 +02:00 [INF] Server desktop-f4er2rh:21924:77512c13 successfully announced in 66.0027 ms
+2026-02-13 00:18:17.051 +02:00 [INF] Server desktop-f4er2rh:21924:77512c13 is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, SqlServerHeartbeatProcess, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-02-13 00:18:17.058 +02:00 [INF] Server desktop-f4er2rh:21924:77512c13 all the dispatchers started
+2026-02-13 00:18:17.124 +02:00 [INF] Bus started: "rabbitmq://localhost/"
+2026-02-13 00:18:44.290 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/swagger/index.html - null null
+2026-02-13 00:18:44.364 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/swagger/index.html - 200 null text/html;charset=utf-8 73.9432ms
+2026-02-13 00:18:45.027 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/swagger/v1/swagger.json - null null
+2026-02-13 00:18:45.126 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 98.9145ms
+2026-02-13 00:19:16.898 +02:00 [INF] Request starting HTTP/1.1 POST http://localhost:5200/api/Auth/login - application/json 79
+2026-02-13 00:19:16.907 +02:00 [WRN] Failed to determine the https port for redirect.
+2026-02-13 00:19:16.947 +02:00 [INF] Executing endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 00:19:16.962 +02:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[UniversityManagementSystem.Core.DTOs.AuthResponseDto]] Login(UniversityManagementSystem.Core.DTOs.UserLoginDto) on controller UniversityManagementSystem.Api.Controllers.AuthController (UniversityManagementSystem.Api).
+2026-02-13 00:19:17.087 +02:00 [INF] Executed DbCommand (8ms) [Parameters=[@__Trim_0='?' (Size = 450)], CommandType='"Text"', CommandTimeout='30']
+SELECT TOP(1) [s].[Id], [s].[AccessFailedCount], [s].[CreatedAt], [s].[CreatedByUserId], [s].[DeletedAt], [s].[Email], [s].[FullName], [s].[IsActive], [s].[LockoutEnd], [s].[PasswordHash], [s].[Role]
+FROM [SystemUsers] AS [s]
+WHERE [s].[DeletedAt] IS NULL AND [s].[Email] = @__Trim_0
+2026-02-13 00:19:17.445 +02:00 [INF] Executed action UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api) in 479.3472ms
+2026-02-13 00:19:17.448 +02:00 [INF] Executed endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 00:19:17.451 +02:00 [ERR] HTTP POST /api/Auth/login responded 500 in 544.2122 ms
+System.ArgumentNullException: Value cannot be null. (Parameter 's')
+   at System.ArgumentNullException.Throw(String paramName)
+   at System.Text.Encoding.GetBytes(String s)
+   at UniversityManagementSystem.Infrastructure.Services.AuthService.GenerateJwtToken(SystemUser user) in F:\مشروع التخرج\UniversityManagementSystem.Infrastructure\Services\AuthService.cs:line 273
+   at UniversityManagementSystem.Infrastructure.Services.AuthService.GenerateAuthResponseAsync(SystemUser user) in F:\مشروع التخرج\UniversityManagementSystem.Infrastructure\Services\AuthService.cs:line 244
+   at UniversityManagementSystem.Infrastructure.Services.AuthService.LoginAsync(UserLoginDto loginDto) in F:\مشروع التخرج\UniversityManagementSystem.Infrastructure\Services\AuthService.cs:line 52
+   at UniversityManagementSystem.Api.Controllers.AuthController.Login(UserLoginDto loginDto) in F:\مشروع التخرج\UniversityManagementSystem.Api\Controllers\AuthController.cs:line 21
+   at lambda_method45(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+   at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+   at Microsoft.AspNetCore.RateLimiting.RateLimitingMiddleware.InvokeInternal(HttpContext context, EnableRateLimitingAttribute enableRateLimitingAttribute)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+2026-02-13 00:19:17.466 +02:00 [ERR] An unhandled exception occurred: Value cannot be null. (Parameter 's')
+System.ArgumentNullException: Value cannot be null. (Parameter 's')
+   at System.ArgumentNullException.Throw(String paramName)
+   at System.Text.Encoding.GetBytes(String s)
+   at UniversityManagementSystem.Infrastructure.Services.AuthService.GenerateJwtToken(SystemUser user) in F:\مشروع التخرج\UniversityManagementSystem.Infrastructure\Services\AuthService.cs:line 273
+   at UniversityManagementSystem.Infrastructure.Services.AuthService.GenerateAuthResponseAsync(SystemUser user) in F:\مشروع التخرج\UniversityManagementSystem.Infrastructure\Services\AuthService.cs:line 244
+   at UniversityManagementSystem.Infrastructure.Services.AuthService.LoginAsync(UserLoginDto loginDto) in F:\مشروع التخرج\UniversityManagementSystem.Infrastructure\Services\AuthService.cs:line 52
+   at UniversityManagementSystem.Api.Controllers.AuthController.Login(UserLoginDto loginDto) in F:\مشروع التخرج\UniversityManagementSystem.Api\Controllers\AuthController.cs:line 21
+   at lambda_method45(Closure, Object)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+   at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Logged|17_1(ResourceInvoker invoker)
+   at Microsoft.AspNetCore.Routing.EndpointMiddleware.<Invoke>g__AwaitRequestTask|7_0(Endpoint endpoint, Task requestTask, ILogger logger)
+   at Microsoft.AspNetCore.RateLimiting.RateLimitingMiddleware.InvokeInternal(HttpContext context, EnableRateLimitingAttribute enableRateLimitingAttribute)
+   at Microsoft.AspNetCore.Authorization.AuthorizationMiddleware.Invoke(HttpContext context)
+   at Microsoft.AspNetCore.Authentication.AuthenticationMiddleware.Invoke(HttpContext context)
+   at Serilog.AspNetCore.RequestLoggingMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.SwaggerUI.SwaggerUIMiddleware.Invoke(HttpContext httpContext)
+   at Swashbuckle.AspNetCore.Swagger.SwaggerMiddleware.Invoke(HttpContext httpContext, ISwaggerProvider swaggerProvider)
+   at UniversityManagementSystem.Api.Middleware.ExceptionMiddleware.InvokeAsync(HttpContext context) in F:\مشروع التخرج\UniversityManagementSystem.Api\Middleware\ExceptionMiddleware.cs:line 21
+2026-02-13 00:19:17.484 +02:00 [INF] Request finished HTTP/1.1 POST http://localhost:5200/api/Auth/login - 500 null application/json 585.6185ms
+2026-02-13 00:22:06.981 +02:00 [INF] Server desktop-f4er2rh:21924:77512c13 caught stopping signal...
+2026-02-13 00:22:06.984 +02:00 [INF] Application is shutting down...
+2026-02-13 00:22:06.999 +02:00 [INF] Server desktop-f4er2rh:21924:77512c13 All dispatchers stopped
+2026-02-13 00:22:07.005 +02:00 [INF] Server desktop-f4er2rh:21924:77512c13 successfully reported itself as stopped in 3.2935 ms
+2026-02-13 00:22:07.006 +02:00 [INF] Server desktop-f4er2rh:21924:77512c13 has been stopped in total 21.9083 ms
+2026-02-13 00:22:07.020 +02:00 [INF] Bus stopped: "rabbitmq://localhost/"
+2026-02-13 00:23:45.133 +02:00 [INF] Start installing Hangfire SQL objects...
+2026-02-13 00:23:45.486 +02:00 [INF] Hangfire SQL objects installed.
+2026-02-13 00:23:45.645 +02:00 [INF] Configured endpoint Attendance, Consumer: UniversityManagementSystem.Infrastructure.Consumers.AttendanceConsumer
+2026-02-13 00:23:46.069 +02:00 [WRN] Entity 'Subject' has a global query filter defined and is the required end of a relationship with the entity 'SubjectAssistant'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-02-13 00:23:46.071 +02:00 [WRN] Entity 'Doctor' has a global query filter defined and is the required end of a relationship with the entity 'SubjectDoctor'. This may lead to unexpected results when the required entity is filtered out. Either configure the navigation as optional, or define matching query filters for both entities in the navigation. See https://go.microsoft.com/fwlink/?linkid=2131316 for more information.
+2026-02-13 00:23:46.277 +02:00 [INF] Executed DbCommand (7ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1
+2026-02-13 00:23:46.285 +02:00 [INF] Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+2026-02-13 00:23:46.296 +02:00 [INF] Executed DbCommand (7ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DECLARE @result int;
+EXEC @result = sp_getapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session', @LockMode = 'Exclusive';
+SELECT @result
+2026-02-13 00:23:46.345 +02:00 [INF] Executed DbCommand (8ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+BEGIN
+    CREATE TABLE [__EFMigrationsHistory] (
+        [MigrationId] nvarchar(150) NOT NULL,
+        [ProductVersion] nvarchar(32) NOT NULL,
+        CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
+    );
+END;
+2026-02-13 00:23:46.358 +02:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1
+2026-02-13 00:23:46.361 +02:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT OBJECT_ID(N'[__EFMigrationsHistory]');
+2026-02-13 00:23:46.366 +02:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT [MigrationId], [ProductVersion]
+FROM [__EFMigrationsHistory]
+ORDER BY [MigrationId];
+2026-02-13 00:23:46.377 +02:00 [INF] No migrations were applied. The database is already up to date.
+2026-02-13 00:23:46.385 +02:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DECLARE @result int;
+EXEC @result = sp_releaseapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session';
+SELECT @result
+2026-02-13 00:23:46.541 +02:00 [INF] Executed DbCommand (3ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT CASE
+    WHEN EXISTS (
+        SELECT 1
+        FROM [SystemUsers] AS [s]
+        WHERE [s].[DeletedAt] IS NULL AND [s].[Role] = 4) THEN CAST(1 AS bit)
+    ELSE CAST(0 AS bit)
+END
+2026-02-13 00:23:46.557 +02:00 [INF] User profile is available. Using 'C:\Users\Dell\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-02-13 00:23:46.608 +02:00 [INF] Now listening on: http://localhost:5200
+2026-02-13 00:23:46.612 +02:00 [INF] Starting Hangfire Server using job storage: 'SQL Server: localhost@UniversityManagementDb'
+2026-02-13 00:23:46.613 +02:00 [INF] Using the following options for SQL Server job storage: Queue poll interval: 00:00:00.
+2026-02-13 00:23:46.613 +02:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-02-13 00:23:46.621 +02:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-02-13 00:23:46.621 +02:00 [INF] Hosting environment: Development
+2026-02-13 00:23:46.622 +02:00 [INF] Content root path: F:\مشروع التخرج\UniversityManagementSystem.Api
+2026-02-13 00:23:46.684 +02:00 [INF] Server desktop-f4er2rh:17616:001c002f successfully announced in 61.4088 ms
+2026-02-13 00:23:46.687 +02:00 [INF] Server desktop-f4er2rh:17616:001c002f is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, SqlServerHeartbeatProcess, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-02-13 00:23:46.692 +02:00 [INF] Server desktop-f4er2rh:17616:001c002f all the dispatchers started
+2026-02-13 00:23:46.733 +02:00 [INF] Bus started: "rabbitmq://localhost/"
+2026-02-13 00:24:35.650 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/swagger/index.html - null null
+2026-02-13 00:24:35.715 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/swagger/index.html - 200 null text/html;charset=utf-8 65.6548ms
+2026-02-13 00:24:36.394 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/swagger/v1/swagger.json - null null
+2026-02-13 00:24:36.535 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 141.2932ms
+2026-02-13 00:25:21.956 +02:00 [INF] Request starting HTTP/1.1 POST http://localhost:5200/api/Auth/login - application/json 79
+2026-02-13 00:25:21.966 +02:00 [WRN] Failed to determine the https port for redirect.
+2026-02-13 00:25:22.011 +02:00 [INF] Executing endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 00:25:22.024 +02:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[UniversityManagementSystem.Core.DTOs.AuthResponseDto]] Login(UniversityManagementSystem.Core.DTOs.UserLoginDto) on controller UniversityManagementSystem.Api.Controllers.AuthController (UniversityManagementSystem.Api).
+2026-02-13 00:25:22.111 +02:00 [INF] Executed DbCommand (4ms) [Parameters=[@__Trim_0='?' (Size = 450)], CommandType='"Text"', CommandTimeout='30']
+SELECT TOP(1) [s].[Id], [s].[AccessFailedCount], [s].[CreatedAt], [s].[CreatedByUserId], [s].[DeletedAt], [s].[Email], [s].[FullName], [s].[IsActive], [s].[LockoutEnd], [s].[PasswordHash], [s].[Role]
+FROM [SystemUsers] AS [s]
+WHERE [s].[DeletedAt] IS NULL AND [s].[Email] = @__Trim_0
+2026-02-13 00:25:22.693 +02:00 [INF] Executed DbCommand (6ms) [Parameters=[@p0='?' (DbType = DateTime2), @p1='?' (DbType = DateTime2), @p2='?' (DbType = DateTime2), @p3='?' (DbType = DateTime2), @p4='?' (DbType = Boolean), @p5='?' (Size = 4000), @p6='?' (Size = 4000), @p7='?' (DbType = Boolean), @p8='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SET IMPLICIT_TRANSACTIONS OFF;
+SET NOCOUNT ON;
+INSERT INTO [RefreshTokens] ([CreatedAt], [CreationDate], [DeletedAt], [ExpiryDate], [Invalidated], [JwtId], [Token], [Used], [UserId])
+OUTPUT INSERTED.[Id]
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8);
+2026-02-13 00:25:22.724 +02:00 [INF] Executing OkObjectResult, writing value of type 'UniversityManagementSystem.Core.DTOs.AuthResponseDto'.
+2026-02-13 00:25:22.735 +02:00 [INF] Executed action UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api) in 705.676ms
+2026-02-13 00:25:22.737 +02:00 [INF] Executed endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 00:25:22.739 +02:00 [INF] HTTP POST /api/Auth/login responded 200 in 774.8316 ms
+2026-02-13 00:25:22.746 +02:00 [INF] Request finished HTTP/1.1 POST http://localhost:5200/api/Auth/login - 200 null application/json; charset=utf-8 790.4017ms
+2026-02-13 03:02:35.683 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/swagger/index.html - null null
+2026-02-13 03:02:35.686 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/swagger/index.html - 200 null text/html;charset=utf-8 2.9157ms
+2026-02-13 03:02:36.230 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/swagger/v1/swagger.json - null null
+2026-02-13 03:02:36.257 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 27.7162ms
+2026-02-13 03:03:43.512 +02:00 [INF] Request starting HTTP/1.1 POST http://localhost:5200/api/Auth/login - application/json 79
+2026-02-13 03:03:43.543 +02:00 [INF] Failed to validate the token.
+Microsoft.IdentityModel.Tokens.SecurityTokenMalformedException: IDX14310: JWE authentication tag is missing.
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebToken.ReadToken(ReadOnlyMemory`1 encodedTokenMemory)
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebToken..ctor(String jwtEncodedString)
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler.ReadToken(String token, TokenValidationParameters validationParameters)
+2026-02-13 03:03:43.556 +02:00 [INF] Bearer was not authenticated. Failure message: IDX14310: JWE authentication tag is missing.
+2026-02-13 03:03:43.559 +02:00 [INF] Executing endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 03:03:43.561 +02:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[UniversityManagementSystem.Core.DTOs.AuthResponseDto]] Login(UniversityManagementSystem.Core.DTOs.UserLoginDto) on controller UniversityManagementSystem.Api.Controllers.AuthController (UniversityManagementSystem.Api).
+2026-02-13 03:03:43.621 +02:00 [INF] Executed DbCommand (3ms) [Parameters=[@__Trim_0='?' (Size = 450)], CommandType='"Text"', CommandTimeout='30']
+SELECT TOP(1) [s].[Id], [s].[AccessFailedCount], [s].[CreatedAt], [s].[CreatedByUserId], [s].[DeletedAt], [s].[Email], [s].[FullName], [s].[IsActive], [s].[LockoutEnd], [s].[PasswordHash], [s].[Role]
+FROM [SystemUsers] AS [s]
+WHERE [s].[DeletedAt] IS NULL AND [s].[Email] = @__Trim_0
+2026-02-13 03:03:43.868 +02:00 [INF] Executed DbCommand (4ms) [Parameters=[@p0='?' (DbType = DateTime2), @p1='?' (DbType = DateTime2), @p2='?' (DbType = DateTime2), @p3='?' (DbType = DateTime2), @p4='?' (DbType = Boolean), @p5='?' (Size = 4000), @p6='?' (Size = 4000), @p7='?' (DbType = Boolean), @p8='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SET IMPLICIT_TRANSACTIONS OFF;
+SET NOCOUNT ON;
+INSERT INTO [RefreshTokens] ([CreatedAt], [CreationDate], [DeletedAt], [ExpiryDate], [Invalidated], [JwtId], [Token], [Used], [UserId])
+OUTPUT INSERTED.[Id]
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8);
+2026-02-13 03:03:43.871 +02:00 [INF] Executing OkObjectResult, writing value of type 'UniversityManagementSystem.Core.DTOs.AuthResponseDto'.
+2026-02-13 03:03:43.873 +02:00 [INF] Executed action UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api) in 310.368ms
+2026-02-13 03:03:43.876 +02:00 [INF] Executed endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 03:03:43.878 +02:00 [INF] HTTP POST /api/Auth/login responded 200 in 361.1884 ms
+2026-02-13 03:03:43.881 +02:00 [INF] Request finished HTTP/1.1 POST http://localhost:5200/api/Auth/login - 200 null application/json; charset=utf-8 369.241ms
+2026-02-13 03:06:24.320 +02:00 [INF] Request starting HTTP/1.1 POST http://localhost:5200/api/Auth/register/admin - application/json 96
+2026-02-13 03:06:24.325 +02:00 [INF] Failed to validate the token.
+Microsoft.IdentityModel.Tokens.SecurityTokenMalformedException: IDX14310: JWE authentication tag is missing.
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebToken.ReadToken(ReadOnlyMemory`1 encodedTokenMemory)
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebToken..ctor(String jwtEncodedString)
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler.ReadToken(String token, TokenValidationParameters validationParameters)
+2026-02-13 03:06:24.326 +02:00 [INF] Bearer was not authenticated. Failure message: IDX14310: JWE authentication tag is missing.
+2026-02-13 03:06:24.339 +02:00 [INF] Authorization failed. These requirements were not met:
+RolesAuthorizationRequirement:User.IsInRole must be true for one of the following roles: (SuperAdmin)
+2026-02-13 03:06:24.345 +02:00 [INF] AuthenticationScheme: Bearer was challenged.
+2026-02-13 03:06:24.347 +02:00 [INF] HTTP POST /api/Auth/register/admin responded 401 in 23.3840 ms
+2026-02-13 03:06:24.349 +02:00 [INF] Request finished HTTP/1.1 POST http://localhost:5200/api/Auth/register/admin - 401 0 null 28.4067ms
+2026-02-13 03:13:52.692 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/swagger/index.html - null null
+2026-02-13 03:13:52.694 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/swagger/index.html - 200 null text/html;charset=utf-8 2.2441ms
+2026-02-13 03:13:53.199 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/swagger/v1/swagger.json - null null
+2026-02-13 03:13:53.214 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 14.3481ms
+2026-02-13 03:15:23.220 +02:00 [INF] Request starting HTTP/1.1 POST http://localhost:5200/api/Auth/login - application/json 79
+2026-02-13 03:15:23.222 +02:00 [INF] Executing endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 03:15:23.223 +02:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[UniversityManagementSystem.Core.DTOs.AuthResponseDto]] Login(UniversityManagementSystem.Core.DTOs.UserLoginDto) on controller UniversityManagementSystem.Api.Controllers.AuthController (UniversityManagementSystem.Api).
+2026-02-13 03:15:23.240 +02:00 [INF] Executed DbCommand (11ms) [Parameters=[@__Trim_0='?' (Size = 450)], CommandType='"Text"', CommandTimeout='30']
+SELECT TOP(1) [s].[Id], [s].[AccessFailedCount], [s].[CreatedAt], [s].[CreatedByUserId], [s].[DeletedAt], [s].[Email], [s].[FullName], [s].[IsActive], [s].[LockoutEnd], [s].[PasswordHash], [s].[Role]
+FROM [SystemUsers] AS [s]
+WHERE [s].[DeletedAt] IS NULL AND [s].[Email] = @__Trim_0
+2026-02-13 03:15:23.384 +02:00 [INF] Executed DbCommand (4ms) [Parameters=[@p0='?' (DbType = DateTime2), @p1='?' (DbType = DateTime2), @p2='?' (DbType = DateTime2), @p3='?' (DbType = DateTime2), @p4='?' (DbType = Boolean), @p5='?' (Size = 4000), @p6='?' (Size = 4000), @p7='?' (DbType = Boolean), @p8='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SET IMPLICIT_TRANSACTIONS OFF;
+SET NOCOUNT ON;
+INSERT INTO [RefreshTokens] ([CreatedAt], [CreationDate], [DeletedAt], [ExpiryDate], [Invalidated], [JwtId], [Token], [Used], [UserId])
+OUTPUT INSERTED.[Id]
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8);
+2026-02-13 03:15:23.387 +02:00 [INF] Executing OkObjectResult, writing value of type 'UniversityManagementSystem.Core.DTOs.AuthResponseDto'.
+2026-02-13 03:15:23.388 +02:00 [INF] Executed action UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api) in 163.1963ms
+2026-02-13 03:15:23.390 +02:00 [INF] Executed endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 03:15:23.392 +02:00 [INF] HTTP POST /api/Auth/login responded 200 in 169.3900 ms
+2026-02-13 03:15:23.393 +02:00 [INF] Request finished HTTP/1.1 POST http://localhost:5200/api/Auth/login - 200 null application/json; charset=utf-8 173.452ms
+2026-02-13 03:17:04.814 +02:00 [INF] Request starting HTTP/1.1 POST http://localhost:5200/api/Auth/register/admin - application/json 95
+2026-02-13 03:17:04.818 +02:00 [INF] Failed to validate the token.
+Microsoft.IdentityModel.Tokens.SecurityTokenMalformedException: IDX14310: JWE authentication tag is missing.
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebToken.ReadToken(ReadOnlyMemory`1 encodedTokenMemory)
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebToken..ctor(String jwtEncodedString)
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler.ReadToken(String token, TokenValidationParameters validationParameters)
+2026-02-13 03:17:04.819 +02:00 [INF] Bearer was not authenticated. Failure message: IDX14310: JWE authentication tag is missing.
+2026-02-13 03:17:04.822 +02:00 [INF] Authorization failed. These requirements were not met:
+RolesAuthorizationRequirement:User.IsInRole must be true for one of the following roles: (SuperAdmin)
+2026-02-13 03:17:04.824 +02:00 [INF] AuthenticationScheme: Bearer was challenged.
+2026-02-13 03:17:04.825 +02:00 [INF] HTTP POST /api/Auth/register/admin responded 401 in 7.4724 ms
+2026-02-13 03:17:04.827 +02:00 [INF] Request finished HTTP/1.1 POST http://localhost:5200/api/Auth/register/admin - 401 0 null 12.7985ms
+2026-02-13 03:19:54.374 +02:00 [INF] Request starting HTTP/1.1 POST http://localhost:5200/api/Auth/login - application/json 95
+2026-02-13 03:19:54.379 +02:00 [INF] Failed to validate the token.
+Microsoft.IdentityModel.Tokens.SecurityTokenMalformedException: IDX14310: JWE authentication tag is missing.
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebToken.ReadToken(ReadOnlyMemory`1 encodedTokenMemory)
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebToken..ctor(String jwtEncodedString)
+   at Microsoft.IdentityModel.JsonWebTokens.JsonWebTokenHandler.ReadToken(String token, TokenValidationParameters validationParameters)
+2026-02-13 03:19:54.380 +02:00 [INF] Bearer was not authenticated. Failure message: IDX14310: JWE authentication tag is missing.
+2026-02-13 03:19:54.381 +02:00 [INF] Executing endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 03:19:54.382 +02:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[UniversityManagementSystem.Core.DTOs.AuthResponseDto]] Login(UniversityManagementSystem.Core.DTOs.UserLoginDto) on controller UniversityManagementSystem.Api.Controllers.AuthController (UniversityManagementSystem.Api).
+2026-02-13 03:19:54.393 +02:00 [INF] Executed DbCommand (6ms) [Parameters=[@__Trim_0='?' (Size = 450)], CommandType='"Text"', CommandTimeout='30']
+SELECT TOP(1) [s].[Id], [s].[AccessFailedCount], [s].[CreatedAt], [s].[CreatedByUserId], [s].[DeletedAt], [s].[Email], [s].[FullName], [s].[IsActive], [s].[LockoutEnd], [s].[PasswordHash], [s].[Role]
+FROM [SystemUsers] AS [s]
+WHERE [s].[DeletedAt] IS NULL AND [s].[Email] = @__Trim_0
+2026-02-13 03:19:54.395 +02:00 [INF] Executing UnauthorizedObjectResult, writing value of type 'System.String'.
+2026-02-13 03:19:54.397 +02:00 [INF] Executed action UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api) in 12.7755ms
+2026-02-13 03:19:54.398 +02:00 [INF] Executed endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 03:19:54.399 +02:00 [INF] HTTP POST /api/Auth/login responded 401 in 20.5981 ms
+2026-02-13 03:19:54.401 +02:00 [INF] Request finished HTTP/1.1 POST http://localhost:5200/api/Auth/login - 401 null text/plain; charset=utf-8 27.2134ms
+2026-02-13 03:32:51.131 +02:00 [INF] Request starting HTTP/1.1 POST http://localhost:5200/api/Auth/login - application/json 79
+2026-02-13 03:32:51.134 +02:00 [INF] Executing endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 03:32:51.135 +02:00 [INF] Route matched with {action = "Login", controller = "Auth"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.ActionResult`1[UniversityManagementSystem.Core.DTOs.AuthResponseDto]] Login(UniversityManagementSystem.Core.DTOs.UserLoginDto) on controller UniversityManagementSystem.Api.Controllers.AuthController (UniversityManagementSystem.Api).
+2026-02-13 03:32:51.151 +02:00 [INF] Executed DbCommand (12ms) [Parameters=[@__Trim_0='?' (Size = 450)], CommandType='"Text"', CommandTimeout='30']
+SELECT TOP(1) [s].[Id], [s].[AccessFailedCount], [s].[CreatedAt], [s].[CreatedByUserId], [s].[DeletedAt], [s].[Email], [s].[FullName], [s].[IsActive], [s].[LockoutEnd], [s].[PasswordHash], [s].[Role]
+FROM [SystemUsers] AS [s]
+WHERE [s].[DeletedAt] IS NULL AND [s].[Email] = @__Trim_0
+2026-02-13 03:32:51.282 +02:00 [INF] Executed DbCommand (3ms) [Parameters=[@p0='?' (DbType = DateTime2), @p1='?' (DbType = DateTime2), @p2='?' (DbType = DateTime2), @p3='?' (DbType = DateTime2), @p4='?' (DbType = Boolean), @p5='?' (Size = 4000), @p6='?' (Size = 4000), @p7='?' (DbType = Boolean), @p8='?' (DbType = Int32)], CommandType='"Text"', CommandTimeout='30']
+SET IMPLICIT_TRANSACTIONS OFF;
+SET NOCOUNT ON;
+INSERT INTO [RefreshTokens] ([CreatedAt], [CreationDate], [DeletedAt], [ExpiryDate], [Invalidated], [JwtId], [Token], [Used], [UserId])
+OUTPUT INSERTED.[Id]
+VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8);
+2026-02-13 03:32:51.286 +02:00 [INF] Executing OkObjectResult, writing value of type 'UniversityManagementSystem.Core.DTOs.AuthResponseDto'.
+2026-02-13 03:32:51.288 +02:00 [INF] Executed action UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api) in 151.7111ms
+2026-02-13 03:32:51.291 +02:00 [INF] Executed endpoint 'UniversityManagementSystem.Api.Controllers.AuthController.Login (UniversityManagementSystem.Api)'
+2026-02-13 03:32:51.292 +02:00 [INF] HTTP POST /api/Auth/login responded 200 in 158.6557 ms
+2026-02-13 03:32:51.294 +02:00 [INF] Request finished HTTP/1.1 POST http://localhost:5200/api/Auth/login - 200 null application/json; charset=utf-8 163.6663ms
+2026-02-13 03:52:25.312 +02:00 [INF] Request starting HTTP/1.1 GET http://localhost:5200/api/Auth/me - null null
+2026-02-13 03:52:25.318 +02:00 [INF] Authorization failed. These requirements were not met:
+DenyAnonymousAuthorizationRequirement: Requires an authenticated user.
+2026-02-13 03:52:25.319 +02:00 [INF] AuthenticationScheme: Bearer was challenged.
+2026-02-13 03:52:25.320 +02:00 [INF] HTTP GET /api/Auth/me responded 401 in 4.5257 ms
+2026-02-13 03:52:25.322 +02:00 [INF] Request finished HTTP/1.1 GET http://localhost:5200/api/Auth/me - 401 0 null 9.247ms

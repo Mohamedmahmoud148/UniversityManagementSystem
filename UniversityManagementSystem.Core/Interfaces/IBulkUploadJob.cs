@@ -1,0 +1,10 @@
+using System.Threading.Tasks;
+
+namespace UniversityManagementSystem.Core.Interfaces
+{
+    public interface IBulkUploadJob
+    {
+        Task ProcessStudentUpload(int fileId, int uploaderUserId);
+        Task ProcessDoctorUpload(int fileId, int uploaderUserId);
+    }
+}

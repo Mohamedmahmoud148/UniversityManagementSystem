@@ -1,0 +1,62 @@
+2026-02-16 23:07:56.639 +02:00 [INF] Start installing Hangfire SQL objects...
+2026-02-16 23:07:57.556 +02:00 [INF] Hangfire SQL objects installed.
+2026-02-16 23:07:57.744 +02:00 [INF] Configured endpoint Attendance, Consumer: UniversityManagementSystem.Infrastructure.Consumers.AttendanceConsumer
+2026-02-16 23:07:58.863 +02:00 [INF] Executed DbCommand (9ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1
+2026-02-16 23:07:58.872 +02:00 [INF] Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+2026-02-16 23:07:58.884 +02:00 [INF] Executed DbCommand (9ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DECLARE @result int;
+EXEC @result = sp_getapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session', @LockMode = 'Exclusive';
+SELECT @result
+2026-02-16 23:07:58.929 +02:00 [INF] Executed DbCommand (2ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+BEGIN
+    CREATE TABLE [__EFMigrationsHistory] (
+        [MigrationId] nvarchar(150) NOT NULL,
+        [ProductVersion] nvarchar(32) NOT NULL,
+        CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
+    );
+END;
+2026-02-16 23:07:58.944 +02:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT 1
+2026-02-16 23:07:58.946 +02:00 [INF] Executed DbCommand (1ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT OBJECT_ID(N'[__EFMigrationsHistory]');
+2026-02-16 23:07:58.953 +02:00 [INF] Executed DbCommand (3ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT [MigrationId], [ProductVersion]
+FROM [__EFMigrationsHistory]
+ORDER BY [MigrationId];
+2026-02-16 23:07:58.965 +02:00 [INF] No migrations were applied. The database is already up to date.
+2026-02-16 23:07:58.973 +02:00 [INF] Executed DbCommand (3ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+DECLARE @result int;
+EXEC @result = sp_releaseapplock @Resource = '__EFMigrationsLock', @LockOwner = 'Session';
+SELECT @result
+2026-02-16 23:07:59.144 +02:00 [INF] Executed DbCommand (9ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT CASE
+    WHEN EXISTS (
+        SELECT 1
+        FROM [SystemUsers] AS [s]
+        WHERE [s].[DeletedAt] IS NULL AND [s].[Role] = N'SuperAdmin') THEN CAST(1 AS bit)
+    ELSE CAST(0 AS bit)
+END
+2026-02-16 23:07:59.163 +02:00 [INF] User profile is available. Using 'C:\Users\Dell\AppData\Local\ASP.NET\DataProtection-Keys' as key repository and Windows DPAPI to encrypt keys at rest.
+2026-02-16 23:07:59.254 +02:00 [INF] Now listening on: http://localhost:5200
+2026-02-16 23:07:59.259 +02:00 [INF] Starting Hangfire Server using job storage: 'SQL Server: localhost@UniversityManagementDb'
+2026-02-16 23:07:59.260 +02:00 [INF] Using the following options for SQL Server job storage: Queue poll interval: 00:00:00.
+2026-02-16 23:07:59.260 +02:00 [INF] Using the following options for Hangfire Server:
+    Worker count: 20
+    Listening queues: 'default'
+    Shutdown timeout: 00:00:15
+    Schedule polling interval: 00:00:15
+2026-02-16 23:07:59.273 +02:00 [INF] Application started. Press Ctrl+C to shut down.
+2026-02-16 23:07:59.274 +02:00 [INF] Hosting environment: Development
+2026-02-16 23:07:59.275 +02:00 [INF] Content root path: F:\مشروع التخرج\UniversityManagementSystem.Api
+2026-02-16 23:07:59.402 +02:00 [INF] Server desktop-f4er2rh:33368:e2a648ee successfully announced in 128.0344 ms
+2026-02-16 23:07:59.405 +02:00 [INF] Server desktop-f4er2rh:33368:e2a648ee is starting the registered dispatchers: ServerWatchdog, ServerJobCancellationWatcher, ExpirationManager, CountersAggregator, SqlServerHeartbeatProcess, Worker, DelayedJobScheduler, RecurringJobScheduler...
+2026-02-16 23:07:59.410 +02:00 [INF] Server desktop-f4er2rh:33368:e2a648ee all the dispatchers started
+2026-02-16 23:07:59.569 +02:00 [INF] Bus started: "rabbitmq://localhost/"
+2026-02-16 23:18:08.115 +02:00 [INF] Server desktop-f4er2rh:33368:e2a648ee caught stopping signal...
+2026-02-16 23:18:08.117 +02:00 [INF] Application is shutting down...
+2026-02-16 23:18:08.118 +02:00 [INF] Server desktop-f4er2rh:33368:e2a648ee All dispatchers stopped
+2026-02-16 23:18:08.123 +02:00 [INF] Server desktop-f4er2rh:33368:e2a648ee successfully reported itself as stopped in 2.996 ms
+2026-02-16 23:18:08.123 +02:00 [INF] Server desktop-f4er2rh:33368:e2a648ee has been stopped in total 6.1342 ms
+2026-02-16 23:18:08.175 +02:00 [INF] Bus stopped: "rabbitmq://localhost/"
