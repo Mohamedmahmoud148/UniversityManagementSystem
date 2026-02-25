@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "F0HNLAfNJDQ=",
+  "dgSpecHash": "VzHoBXzf2Q4=",
   "success": true,
-  "projectFilePath": "F:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj",
+  "projectFilePath": "f:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Dell\\.nuget\\packages\\azure.core\\1.38.0\\azure.core.1.38.0.nupkg.sha512",
     "C:\\Users\\Dell\\.nuget\\packages\\azure.identity\\1.11.4\\azure.identity.1.11.4.nupkg.sha512",

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "F:\\مشروع التخرج\\UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj": {}
+    "f:\\مشروع التخرج\\UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj": {}
   },
   "projects": {
-    "F:\\مشروع التخرج\\UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj": {
+    "f:\\مشروع التخرج\\UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "F:\\مشروع التخرج\\UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj",
+        "projectUniqueName": "f:\\مشروع التخرج\\UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj",
         "projectName": "UniversityManagementSystem.Api",
-        "projectPath": "F:\\مشروع التخرج\\UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj",
+        "projectPath": "f:\\مشروع التخرج\\UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj",
         "packagesPath": "C:\\Users\\Dell\\.nuget\\packages\\",
-        "outputPath": "F:\\مشروع التخرج\\UniversityManagementSystem.Api\\obj\\",
+        "outputPath": "f:\\مشروع التخرج\\UniversityManagementSystem.Api\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -32,11 +32,11 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "F:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj": {
-                "projectPath": "F:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj"
+              "f:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj": {
+                "projectPath": "f:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj"
               },
-              "F:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj": {
-                "projectPath": "F:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj"
+              "f:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj": {
+                "projectPath": "f:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj"
               }
             }
           }
@@ -127,14 +127,14 @@
         }
       }
     },
-    "F:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj": {
+    "f:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "F:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj",
+        "projectUniqueName": "f:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj",
         "projectName": "UniversityManagementSystem.Core",
-        "projectPath": "F:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj",
+        "projectPath": "f:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj",
         "packagesPath": "C:\\Users\\Dell\\.nuget\\packages\\",
-        "outputPath": "F:\\مشروع التخرج\\UniversityManagementSystem.Core\\obj\\",
+        "outputPath": "f:\\مشروع التخرج\\UniversityManagementSystem.Core\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -201,14 +201,14 @@
         }
       }
     },
-    "F:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj": {
+    "f:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "F:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj",
+        "projectUniqueName": "f:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj",
         "projectName": "UniversityManagementSystem.Infrastructure",
-        "projectPath": "F:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj",
+        "projectPath": "f:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\UniversityManagementSystem.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\Dell\\.nuget\\packages\\",
-        "outputPath": "F:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\obj\\",
+        "outputPath": "f:\\مشروع التخرج\\UniversityManagementSystem.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -229,8 +229,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "F:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj": {
-                "projectPath": "F:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj"
+              "f:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj": {
+                "projectPath": "f:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj"
               }
             }
           }

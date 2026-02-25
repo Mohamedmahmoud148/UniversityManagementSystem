@@ -209,3 +209,4 @@ F:\مشروع التخرج\UniversityManagementSystem.Api\obj\Debug\net9.0\refin
 F:\مشروع التخرج\UniversityManagementSystem.Api\obj\Debug\net9.0\UniversityManagementSystem.Api.pdb
 F:\مشروع التخرج\UniversityManagementSystem.Api\obj\Debug\net9.0\UniversityManagementSystem.Api.genruntimeconfig.cache
 F:\مشروع التخرج\UniversityManagementSystem.Api\obj\Debug\net9.0\ref\UniversityManagementSystem.Api.dll
+f:\مشروع التخرج\UniversityManagementSystem.Api\obj\Debug\net9.0\UniversityManagementSystem.Api.sourcelink.json

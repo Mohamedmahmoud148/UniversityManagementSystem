@@ -15,3 +15,4 @@ F:\مشروع التخرج\UniversityManagementSystem.Infrastructure\obj\Debug\n
 F:\مشروع التخرج\UniversityManagementSystem.Infrastructure\obj\Debug\net9.0\UniversityManagementSystem.Infrastructure.pdb
 F:\مشروع التخرج\UniversityManagementSystem.Infrastructure\obj\Debug\net9.0\UniversityManagementSystem.Infrastructure.genruntimeconfig.cache
 F:\مشروع التخرج\UniversityManagementSystem.Infrastructure\obj\Debug\net9.0\ref\UniversityManagementSystem.Infrastructure.dll
+f:\مشروع التخرج\UniversityManagementSystem.Infrastructure\obj\Debug\net9.0\UniversityManagementSystem.Infrastructure.sourcelink.json

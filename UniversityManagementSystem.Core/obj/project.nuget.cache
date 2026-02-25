@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "rrRTG4WzA5E=",
+  "dgSpecHash": "zqNQnHB7prc=",
   "success": true,
-  "projectFilePath": "F:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj",
+  "projectFilePath": "f:\\مشروع التخرج\\UniversityManagementSystem.Core\\UniversityManagementSystem.Core.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Dell\\.nuget\\packages\\closedxml\\0.105.0\\closedxml.0.105.0.nupkg.sha512",
     "C:\\Users\\Dell\\.nuget\\packages\\closedxml.parser\\2.0.0\\closedxml.parser.2.0.0.nupkg.sha512",

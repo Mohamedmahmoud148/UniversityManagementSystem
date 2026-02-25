@@ -10,3 +10,4 @@ F:\مشروع التخرج\UniversityManagementSystem.Core\obj\Debug\net9.0\Univ
 F:\مشروع التخرج\UniversityManagementSystem.Core\obj\Debug\net9.0\refint\UniversityManagementSystem.Core.dll
 F:\مشروع التخرج\UniversityManagementSystem.Core\obj\Debug\net9.0\UniversityManagementSystem.Core.pdb
 F:\مشروع التخرج\UniversityManagementSystem.Core\obj\Debug\net9.0\ref\UniversityManagementSystem.Core.dll
+f:\مشروع التخرج\UniversityManagementSystem.Core\obj\Debug\net9.0\UniversityManagementSystem.Core.sourcelink.json

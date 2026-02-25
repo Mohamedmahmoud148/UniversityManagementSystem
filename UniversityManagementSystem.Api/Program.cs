@@ -39,11 +39,10 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .Enrich.FromLogContext());
 
 // 2. Database
-var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
-                       ?? builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
 
 if (string.IsNullOrEmpty(connectionString))
-    throw new InvalidOperationException("Connection string is missing.");
+    throw new InvalidOperationException("Critical Failure: The 'CONNECTION_STRING' environment variable is missing. This is required for production SQL Server operations.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));

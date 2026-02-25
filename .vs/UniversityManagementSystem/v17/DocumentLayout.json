@@ -3,12 +3,12 @@
   "WorkspaceRootPath": "F:\\\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u062E\u0631\u062C\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{75FAA298-A07B-49B0-94A6-3113E1519100}|UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj|f:\\\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u062E\u0631\u062C\\universitymanagementsystem.api\\controllers\\academiccontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{75FAA298-A07B-49B0-94A6-3113E1519100}|UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj|solutionrelative:universitymanagementsystem.api\\controllers\\academiccontrollers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{75FAA298-A07B-49B0-94A6-3113E1519100}|UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj|f:\\\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u062E\u0631\u062C\\universitymanagementsystem.api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{75FAA298-A07B-49B0-94A6-3113E1519100}|UniversityManagementSystem.Api\\UniversityManagementSystem.Api.csproj|solutionrelative:universitymanagementsystem.api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|F:\\\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u062E\u0631\u062C\\UniversityManagementSystem.Api\\Controllers\\AcademicControllers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:UniversityManagementSystem.Api\\Controllers\\AcademicControllers.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,7 +18,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 4,
+          "SelectedChildIndex": 5,
           "Children": [
             {
               "$type": "Bookmark",
@@ -38,26 +38,24 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "AcademicControllers.cs",
               "DocumentMoniker": "F:\\\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u062E\u0631\u062C\\UniversityManagementSystem.Api\\Controllers\\AcademicControllers.cs",
               "RelativeDocumentMoniker": "UniversityManagementSystem.Api\\Controllers\\AcademicControllers.cs",
               "ToolTip": "F:\\\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u062E\u0631\u062C\\UniversityManagementSystem.Api\\Controllers\\AcademicControllers.cs",
               "RelativeToolTip": "UniversityManagementSystem.Api\\Controllers\\AcademicControllers.cs",
-              "ViewState": "AgIAAD8BAAAAAAAAAAAwwAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-02-15T23:33:32.258Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-02-15T23:33:32.258Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 0,
               "Title": "Program.cs",
               "DocumentMoniker": "F:\\\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u062E\u0631\u062C\\UniversityManagementSystem.Api\\Program.cs",
               "RelativeDocumentMoniker": "UniversityManagementSystem.Api\\Program.cs",
               "ToolTip": "F:\\\u0645\u0634\u0631\u0648\u0639 \u0627\u0644\u062A\u062E\u0631\u062C\\UniversityManagementSystem.Api\\Program.cs",
               "RelativeToolTip": "UniversityManagementSystem.Api\\Program.cs",
-              "ViewState": "AgIAAAIBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAOQAAAAAAAAAAAAAAOoAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-02-15T23:33:18.965Z",
               "EditorCaption": ""
