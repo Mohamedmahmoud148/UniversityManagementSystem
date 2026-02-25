@@ -226,11 +226,16 @@ var app = builder.Build();
 // 10. Middleware Pipeline
 app.UseMiddleware<ExceptionMiddleware>();
 
-if (app.Environment.IsDevelopment())
+// Enable Swagger in all environments (including Production)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "University Management System API v1");
+    c.RoutePrefix = "swagger"; // Available at /swagger
+});
+
+// Root URL ("/") automatically redirects to /swagger
+app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 
 app.UseSerilogRequestLogging();
 app.UseHttpsRedirection();
