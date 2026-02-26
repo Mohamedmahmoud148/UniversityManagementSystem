@@ -79,21 +79,13 @@ builder.Services.AddMassTransit(x =>
 
     x.UsingRabbitMq((context, cfg) =>
     {
-        var rabbitUrl = Environment.GetEnvironmentVariable("RABBITMQ_URL") 
-                        ?? Environment.GetEnvironmentVariable("AMQP_URL");
+        var rabbitHost = builder.Environment.IsDevelopment() ? "localhost" : "rabbitmq";
 
-        if (!string.IsNullOrEmpty(rabbitUrl))
+        cfg.Host(rabbitHost, "/", h =>
         {
-            cfg.Host(new Uri(rabbitUrl));
-        }
-        else
-        {
-            cfg.Host(builder.Configuration["RabbitMQ:Host"] ?? "localhost", "/", h =>
-            {
-                h.Username(builder.Configuration["RabbitMQ:Username"] ?? "guest");
-                h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
-            });
-        }
+            h.Username(builder.Configuration["RabbitMQ:Username"] ?? "guest");
+            h.Password(builder.Configuration["RabbitMQ:Password"] ?? "guest");
+        });
 
         cfg.ConfigureEndpoints(context);
     });
