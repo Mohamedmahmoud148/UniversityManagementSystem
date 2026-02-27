@@ -91,15 +91,20 @@ builder.Services.AddMassTransit(x =>
 builder.Services.AddRateLimiter(options =>
 {
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.User.Identity?.Name ?? context.Request.Headers.Host.ToString(),
+    {
+        var host = context.Request.Host.Value
+              ?? Environment.GetEnvironmentVariable("APP_URL") ?? "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.Identity?.Name ?? host,
             factory: partition => new FixedWindowRateLimiterOptions
             {
                 AutoReplenishment = true,
                 PermitLimit = 1000,
                 QueueLimit = 100,
                 Window = TimeSpan.FromMinutes(1)
-            }));
+            });
+    });
 
     // Task 2: Strict Login Rate Limiting (5 per min per IP)
     options.AddPolicy("LoginPolicy", httpContext =>
