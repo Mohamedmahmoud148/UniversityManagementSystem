@@ -39,10 +39,13 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
     .Enrich.FromLogContext());
 
 // 2. Database
-var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+var connectionString =
+    Environment.GetEnvironmentVariable("CONNECTION_STRING");
 
-if (string.IsNullOrEmpty(connectionString))
-    throw new InvalidOperationException("Critical Failure: The 'CONNECTION_STRING' environment variable is missing. This is required for production PostgreSQL operations.");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new Exception("CONNECTION_STRING is missing in production.");
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -58,7 +61,10 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 // 4. Hangfire
 builder.Services.AddHangfire(config =>
-    config.UsePostgreSqlStorage(connectionString));
+{
+    config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString));
+});
+
 builder.Services.AddHangfireServer();
 
 // 5. MassTransit
