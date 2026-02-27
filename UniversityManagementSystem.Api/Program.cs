@@ -92,11 +92,12 @@ builder.Services.AddRateLimiter(options =>
 {
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
-        var host = context.Request.Host.Value
-              ?? Environment.GetEnvironmentVariable("APP_URL") ?? "unknown";
+        var host = context?.Request?.Host.Value
+              ?? Environment.GetEnvironmentVariable("APP_URL")
+              ?? "localhost";
 
         return RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.User.Identity?.Name ?? host,
+            partitionKey: context?.User?.Identity?.Name ?? host,
             factory: partition => new FixedWindowRateLimiterOptions
             {
                 AutoReplenishment = true,
