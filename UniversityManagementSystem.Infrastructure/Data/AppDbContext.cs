@@ -141,7 +141,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .WithOne(s => s.Batch)
                 .HasForeignKey(s => s.BatchId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
             // Student Hierarchy (Strict)
             modelBuilder.Entity<Student>()
                  .HasOne(s => s.University)
@@ -160,7 +160,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
                  .WithMany()
                  .HasForeignKey(s => s.DepartmentId)
                  .OnDelete(DeleteBehavior.Restrict);
-            
+
             // Student -> Group (NEW)
             modelBuilder.Entity<Student>()
                 .HasOne(s => s.Group)
@@ -178,8 +178,16 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .IsRequired();
 
             modelBuilder.Entity<SystemUser>()
+                .Property(u => u.Email)
+                .HasColumnType("citext");
+
+            modelBuilder.Entity<SystemUser>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
+
+            modelBuilder.Entity<SystemUser>()
+                .Property(u => u.UniversityEmail)
+                .HasColumnType("citext");
 
             modelBuilder.Entity<SystemUser>()
                 .HasIndex(u => u.UniversityEmail)
@@ -200,7 +208,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<TeachingAssistant>()
                 .HasIndex(ta => ta.UniversityStaffId)
                 .IsUnique();
-            
+
             modelBuilder.Entity<AcademicYear>()
                 .HasIndex(y => y.Name)
                 .IsUnique();
@@ -212,7 +220,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
             // SubjectOffering Configuration
             modelBuilder.Entity<SubjectOffering>()
                 .HasIndex(so => new { so.SubjectId, so.SemesterId })
-                .IsUnique(); 
+                .IsUnique();
 
             modelBuilder.Entity<SubjectOffering>()
                 .HasOne(so => so.Subject)
@@ -233,11 +241,11 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .OnDelete(DeleteBehavior.Restrict); // RESTRICT!
 
             // SubjectOffering New Hierarchy
-             modelBuilder.Entity<SubjectOffering>()
-                .HasOne(so => so.Department)
-                .WithMany()
-                .HasForeignKey(so => so.DepartmentId)
-                .OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<SubjectOffering>()
+               .HasOne(so => so.Department)
+               .WithMany()
+               .HasForeignKey(so => so.DepartmentId)
+               .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<SubjectOffering>()
                 .HasOne(so => so.Batch)
@@ -301,7 +309,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(f => f.UploadedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
-            
+
             modelBuilder.Entity<UploadedFile>()
                 .HasOne(f => f.Subject)
                 .WithMany()

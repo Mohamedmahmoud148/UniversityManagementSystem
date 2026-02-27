@@ -1,5 +1,5 @@
 using Hangfire;
-using Hangfire.SqlServer;
+using Hangfire.PostgreSql;
 using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
@@ -45,7 +45,7 @@ if (string.IsNullOrEmpty(connectionString))
     throw new InvalidOperationException("Critical Failure: The 'CONNECTION_STRING' environment variable is missing. This is required for production SQL Server operations.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseNpgsql(connectionString));
 
 // 3. Redis
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
@@ -61,13 +61,9 @@ builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
+    .UsePostgreSqlStorage(setup => setup.UseNpgsqlConnection(connectionString), new PostgreSqlStorageOptions
     {
-        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
         QueuePollInterval = TimeSpan.Zero,
-        UseRecommendedIsolationLevel = true,
-        DisableGlobalLocks = true,
         SchemaName = "Hangfire"
     }));
 builder.Services.AddHangfireServer();
@@ -186,7 +182,7 @@ builder.Services.AddHttpClient();
 
 // Task 5: Health Checks
 builder.Services.AddHealthChecks()
-    .AddSqlServer(connectionString)
+    .AddNpgSql(connectionString)
     .AddRedis(redisConnectionString ?? "localhost")
     .AddHangfire(options => { options.MinimumAvailableServers = 1; });
 
