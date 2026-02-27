@@ -43,12 +43,32 @@ var connectionString =
     Environment.GetEnvironmentVariable("CONNECTION_STRING")
     ?? Environment.GetEnvironmentVariable("DATABASE_URL");
 
-Console.WriteLine("Hangfire connection string: " + connectionString);
-
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new Exception("Database connection string is missing.");
 }
+
+// Convert Railway's postgresql:// URI format to standard Npgsql format
+if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+    connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+{
+    var uri = new Uri(connectionString);
+    var userInfo = uri.UserInfo.Split(':');
+
+    var builderConn = new Npgsql.NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.Port > 0 ? uri.Port : 5432,
+        Username = userInfo[0],
+        Password = userInfo.Length > 1 ? userInfo[1] : "",
+        Database = uri.LocalPath.TrimStart('/'),
+        SslMode = Npgsql.SslMode.Require
+    };
+
+    connectionString = builderConn.ToString();
+}
+
+Console.WriteLine("Hangfire connection string: " + connectionString);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
