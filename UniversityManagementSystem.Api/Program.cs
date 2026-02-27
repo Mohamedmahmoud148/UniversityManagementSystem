@@ -40,11 +40,14 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 
 // 2. Database
 var connectionString =
-    Environment.GetEnvironmentVariable("CONNECTION_STRING");
+    Environment.GetEnvironmentVariable("CONNECTION_STRING")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+
+Console.WriteLine("Hangfire connection string: " + connectionString);
 
 if (string.IsNullOrWhiteSpace(connectionString))
 {
-    throw new Exception("CONNECTION_STRING is missing in production.");
+    throw new Exception("Database connection string is missing.");
 }
 
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -62,7 +65,9 @@ builder.Services.AddStackExchangeRedisCache(options =>
 // 4. Hangfire
 builder.Services.AddHangfire(config =>
 {
-    config.UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString));
+#pragma warning disable CS0618
+    config.UsePostgreSqlStorage(connectionString);
+#pragma warning restore CS0618
 });
 
 builder.Services.AddHangfireServer();
