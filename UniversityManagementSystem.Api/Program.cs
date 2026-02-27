@@ -42,7 +42,7 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
 
 if (string.IsNullOrEmpty(connectionString))
-    throw new InvalidOperationException("Critical Failure: The 'CONNECTION_STRING' environment variable is missing. This is required for production SQL Server operations.");
+    throw new InvalidOperationException("Critical Failure: The 'CONNECTION_STRING' environment variable is missing. This is required for production PostgreSQL operations.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -57,15 +57,8 @@ builder.Services.AddStackExchangeRedisCache(options =>
 });
 
 // 4. Hangfire
-builder.Services.AddHangfire(configuration => configuration
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UsePostgreSqlStorage(setup => setup.UseNpgsqlConnection(connectionString), new PostgreSqlStorageOptions
-    {
-        QueuePollInterval = TimeSpan.FromSeconds(15),
-        SchemaName = "Hangfire"
-    }));
+builder.Services.AddHangfire(config =>
+    config.UsePostgreSqlStorage(connectionString));
 builder.Services.AddHangfireServer();
 
 // 5. MassTransit
