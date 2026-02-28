@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using UniversityManagementSystem.Core.Application.AI.Logging;
 using UniversityManagementSystem.Core.Entities;
 
 namespace UniversityManagementSystem.Infrastructure.Data
@@ -35,6 +36,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<StudentGrade> StudentGrades { get; set; } = null!;
         public DbSet<Material> Materials { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+        public DbSet<AiActionLog> AiActionLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -486,6 +488,22 @@ namespace UniversityManagementSystem.Infrastructure.Data
 
             modelBuilder.Entity<Material>()
                 .HasIndex(m => m.SubjectOfferingId);
+
+            // AiActionLog Configuration
+            modelBuilder.Entity<AiActionLog>(entity =>
+            {
+                entity.ToTable("AiActionLogs");
+                entity.HasKey(e => e.Id);
+
+                entity.Property(e => e.ToolName).IsRequired().HasMaxLength(150);
+                entity.Property(e => e.Role).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.ParametersJson).HasColumnType("text");
+                entity.Property(e => e.Success).IsRequired();
+                entity.Property(e => e.Timestamp).IsRequired();
+
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.Timestamp);
+            });
         }
     }
 }
