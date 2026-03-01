@@ -8,13 +8,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
     public class AiService(HttpClient httpClient) : IAiService
     {
         private readonly HttpClient _httpClient = httpClient;
-        private const string AiBaseUrl = "http://localhost:8000"; // Placeholder
 
         public async Task<AiResponseDto> AnalyzeTextAsync(string text)
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync($"{AiBaseUrl}/analyze", new { text });
+                var response = await _httpClient.PostAsJsonAsync("/analyze", new { text });
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadFromJsonAsync<AiResponseDto>() ?? new AiResponseDto();
@@ -31,7 +30,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync($"{AiBaseUrl}/extract", new { fileUrl, fileType });
+                var response = await _httpClient.PostAsJsonAsync("/extract", new { fileUrl, fileType });
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadFromJsonAsync<AiExtractResponseDto>() ?? new AiExtractResponseDto { Success = false };
@@ -49,7 +48,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             try
             {
                 var payload = new { message, sessionId, history = historyContext };
-                var response = await _httpClient.PostAsJsonAsync($"{AiBaseUrl}/chat", payload);
+                var response = await _httpClient.PostAsJsonAsync("/chat", payload);
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadFromJsonAsync<AiChatResponseDto>() ?? new AiChatResponseDto();
