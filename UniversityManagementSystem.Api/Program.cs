@@ -246,6 +246,7 @@ builder.Services.AddScoped<IIdentityProvisioningService, IdentityProvisioningSer
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRegulationService, RegulationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();
 builder.Services.AddScoped<IAiService, AiService>();
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IExamService, ExamService>();

@@ -9,14 +9,15 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class ChatController(IChatService chatService) : ControllerBase
+    public class ChatController(IChatService chatService, ISystemUserResolver systemUserResolver) : ControllerBase
     {
         private readonly IChatService _chatService = chatService;
+        private readonly ISystemUserResolver _systemUserResolver = systemUserResolver;
 
         [HttpPost("conversations")]
         public async Task<IActionResult> CreateConversation([FromBody] CreateConversationDto dto)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userId = await _systemUserResolver.ResolveSystemUserIdAsync(User);
             var id = await _chatService.CreateConversationAsync(userId, dto.Title);
             return Ok(new { id });
         }
@@ -24,7 +25,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpGet("conversations")]
         public async Task<IActionResult> GetConversations()
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userId = await _systemUserResolver.ResolveSystemUserIdAsync(User);
             var conversations = await _chatService.GetUserConversationsAsync(userId);
             return Ok(conversations);
         }
@@ -39,7 +40,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpPost("messages")]
         public async Task<IActionResult> SendMessage([FromBody] SendMessageDto dto)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var userId = await _systemUserResolver.ResolveSystemUserIdAsync(User);
             var response = await _chatService.SendMessageAsync(userId, dto);
             return Ok(response);
         }
