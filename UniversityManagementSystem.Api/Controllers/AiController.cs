@@ -23,7 +23,7 @@ public class AiController : ControllerBase
     }
 
     [HttpPost("execute")]
-    [Authorize]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public async Task<IActionResult> Execute([FromBody] AiExecutionRequest request)
     {
         try
