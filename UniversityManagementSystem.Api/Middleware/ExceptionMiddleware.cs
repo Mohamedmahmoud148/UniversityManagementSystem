@@ -14,9 +14,9 @@ namespace UniversityManagementSystem.Api.Middleware
         private readonly ILogger<ExceptionMiddleware> _logger = logger;
         private readonly IHostEnvironment _env = env;
 
-        private static readonly JsonSerializerOptions _jsonOptions = new() 
-        { 
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase 
+        private static readonly JsonSerializerOptions _jsonOptions = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
         public async Task InvokeAsync(HttpContext context)
@@ -47,15 +47,15 @@ namespace UniversityManagementSystem.Api.Middleware
 
             context.Response.StatusCode = statusCode;
 
-            var message = statusCode == (int)HttpStatusCode.InternalServerError 
-                    ? "An internal server error occurred." 
-                    : exception.Message;
-
             var response = new Core.DTOs.ApiResponse<object>
             {
                 Success = false,
-                Message = message,
-                Errors = _env.IsDevelopment() ? new System.Collections.Generic.List<string> { exception.ToString() } : null
+                Message = exception.Message,
+                Errors = new System.Collections.Generic.List<string>
+                {
+                    exception.ToString(),
+                    exception.InnerException?.ToString() ?? "No inner exception"
+                }
             };
 
             var json = JsonSerializer.Serialize(response, _jsonOptions);
