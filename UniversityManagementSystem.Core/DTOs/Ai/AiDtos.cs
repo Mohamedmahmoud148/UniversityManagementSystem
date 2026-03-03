@@ -16,7 +16,20 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
 
     public class AiChatResponseDto
     {
-        public string Reply { get; set; } = string.Empty;
-        public string SuggestedAction { get; set; } = string.Empty;
+        public string response { get; set; } = string.Empty;
+        public string intent_executed { get; set; } = string.Empty;
+        public string tool_used { get; set; } = string.Empty;
+        public string model_used { get; set; } = string.Empty;
+        public object? metadata { get; set; }
+    }
+
+    public class AiChatRequestDto
+    {
+        public int user_id { get; set; }
+        public string role { get; set; } = string.Empty;
+        public string message { get; set; } = string.Empty;
+        public object[] history { get; set; } = [];
+        public object academic_context { get; set; } = new { };
+        public string conversation_id { get; set; } = string.Empty;
     }
 }

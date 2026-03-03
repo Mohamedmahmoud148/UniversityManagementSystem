@@ -70,25 +70,34 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _context.SaveChangesAsync();
 
             // 2. Get AI Response
-            // Simple history context - last 5 messages
             var history = await _context.ChatMessages
                 .Where(m => m.ConversationId == messageDto.ConversationId)
                 .OrderByDescending(m => m.CreatedAt)
                 .Take(5)
-                .Select(m => (m.IsUserMessage ? "User: " : "AI: ") + m.Content)
+                .Select(m => new { role = m.IsUserMessage ? "user" : "assistant", content = m.Content })
                 .ToListAsync();
 
-            var historyText = string.Join("\n", history);
+            history.Reverse(); // Get it in chronological order
 
-            var aiResponse = await _aiService.SendChatMessageAsync(messageDto.Content, conversation.Id.ToString(), historyText);
+            var request = new UniversityManagementSystem.Core.DTOs.Ai.AiChatRequestDto
+            {
+                user_id = userId,
+                role = "user",
+                message = messageDto.Content,
+                history = history.Cast<object>().ToArray(),
+                academic_context = new { },
+                conversation_id = conversation.Id.ToString()
+            };
+
+            var aiResponse = await _aiService.SendChatMessageAsync(request);
 
             // 3. Save AI Message
             var aiMsg = new ChatMessage
             {
                 ConversationId = messageDto.ConversationId,
-                Content = aiResponse.Reply,
+                Content = aiResponse.response,
                 IsUserMessage = false,
-                Intent = aiResponse.SuggestedAction,
+                Intent = aiResponse.intent_executed,
                 CreatedAt = DateTime.UtcNow
             };
             _context.ChatMessages.Add(aiMsg);
@@ -115,8 +124,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 // I should check ChatMessage entity. For now, I'll do a remove and if it's base entity with interceptor, it might be soft.
                 // Or I explicity set DeletedAt if available.
                 // Let's assume standard remove for now, and if I see it inherits BaseEntity I'll update.
-               _context.ChatMessages.Remove(msg);
-               await _context.SaveChangesAsync();
+                _context.ChatMessages.Remove(msg);
+                await _context.SaveChangesAsync();
             }
         }
     }

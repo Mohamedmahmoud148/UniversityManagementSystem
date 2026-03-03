@@ -43,12 +43,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return new AiExtractResponseDto { Success = false, Errors = ["Service unavailable"] };
         }
 
-        public async Task<AiChatResponseDto> SendChatMessageAsync(string message, string sessionId, string historyContext)
+        public async Task<AiChatResponseDto> SendChatMessageAsync(AiChatRequestDto request)
         {
             try
             {
-                var payload = new { message, sessionId, history = historyContext };
-                var response = await _httpClient.PostAsJsonAsync("/chat", payload);
+                var response = await _httpClient.PostAsJsonAsync("/api/chat", request);
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadFromJsonAsync<AiChatResponseDto>() ?? new AiChatResponseDto();
@@ -58,7 +57,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 // Log error
             }
-            return new AiChatResponseDto { Reply = "I'm having trouble connecting to my brain right now.", SuggestedAction = "None" };
+            return new AiChatResponseDto { response = "I'm having trouble connecting to my brain right now.", intent_executed = "None" };
         }
     }
 }

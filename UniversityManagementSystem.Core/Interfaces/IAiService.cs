@@ -7,6 +7,6 @@ namespace UniversityManagementSystem.Core.Interfaces
     {
         Task<AiResponseDto> AnalyzeTextAsync(string text);
         Task<AiExtractResponseDto> ExtractDataFromFileAsync(string fileUrl, string fileType);
-        Task<AiChatResponseDto> SendChatMessageAsync(string message, string sessionId, string historyContext);
+        Task<AiChatResponseDto> SendChatMessageAsync(AiChatRequestDto request);
     }
 }

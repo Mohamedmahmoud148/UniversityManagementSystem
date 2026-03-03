@@ -247,11 +247,15 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRegulationService, RegulationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();
+builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Contracts.IAiTool, UniversityManagementSystem.Core.Application.AI.Tools.CreateGeneratedExamTool>();
+builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Contracts.IAiTool, UniversityManagementSystem.Infrastructure.AI.Tools.ResolveSubjectOfferingTool>();
 builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Execution.AiToolRegistry>();
 builder.Services.AddHttpClient<IAiService, AiService>(client =>
 {
-    var baseUrl = Environment.GetEnvironmentVariable("AI_SERVICE_URL");
-    client.BaseAddress = new Uri(baseUrl!);
+    var baseUrl = Environment.GetEnvironmentVariable("AI_SERVICE_URL")
+                  ?? "https://ai-orchestration-service-production-xxxx.up.railway.app";
+    client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(30);
 });
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IExamService, ExamService>();
