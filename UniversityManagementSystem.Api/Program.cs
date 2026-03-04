@@ -41,7 +41,8 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 // 2. Database
 var connectionString =
     Environment.GetEnvironmentVariable("CONNECTION_STRING")
-    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection");
 
 if (string.IsNullOrWhiteSpace(connectionString))
 {
@@ -103,9 +104,17 @@ if (!string.IsNullOrWhiteSpace(redisConnectionString))
 // 4. Hangfire
 builder.Services.AddHangfire(config =>
 {
+    if (connectionString.Contains("Host=") || connectionString.Contains("postgres"))
+    {
 #pragma warning disable CS0618
-    config.UsePostgreSqlStorage(connectionString);
+        config.UsePostgreSqlStorage(connectionString);
 #pragma warning restore CS0618
+    }
+    else
+    {
+        // Fallback to SQL Server for local development if DefaultConnection is SQL Server
+        config.UseSqlServerStorage(connectionString);
+    }
 });
 
 builder.Services.AddHangfireServer();
