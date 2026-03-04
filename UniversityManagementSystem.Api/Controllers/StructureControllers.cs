@@ -64,7 +64,16 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<ActionResult<IEnumerable<CollegeDto>>> GetAll()
         {
             var list = await _service.GetAllCollegesAsync();
-            return Ok(list.Select(c => new CollegeDto(c.Id, c.Name, c.UniversityId)));
+            return Ok(list.Select(c => new CollegeDto(c.Id, c.PublicId, c.Name, c.UniversityId)));
+        }
+
+        [HttpGet("by-public-id/{publicId}")]
+        public async Task<ActionResult<CollegeDto>> GetByPublicId(string publicId)
+        {
+            var c = await _service.GetCollegeByPublicIdAsync(publicId);
+            if (c == null) return NotFound();
+
+            return Ok(new CollegeDto(c.Id, c.PublicId, c.Name, c.UniversityId));
         }
 
         [HttpPost]
@@ -73,19 +82,19 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var entity = new College { Name = dto.Name, UniversityId = dto.UniversityId };
             var result = await _service.CreateCollegeAsync(entity);
-            return Ok(new CollegeDto(result.Id, result.Name, result.UniversityId));
+            return Ok(new CollegeDto(result.Id, result.PublicId, result.Name, result.UniversityId));
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, CreateCollegeDto dto)
         {
-           var entity = await _service.GetCollegeByIdAsync(id);
-           if (entity == null) return NotFound();
-           entity.Name = dto.Name;
-           entity.UniversityId = dto.UniversityId;
-           await _service.UpdateCollegeAsync(entity);
-           return NoContent();
+            var entity = await _service.GetCollegeByIdAsync(id);
+            if (entity == null) return NotFound();
+            entity.Name = dto.Name;
+            entity.UniversityId = dto.UniversityId;
+            await _service.UpdateCollegeAsync(entity);
+            return NoContent();
         }
 
         [HttpDelete("{id}")]
@@ -108,7 +117,7 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<ActionResult<IEnumerable<DepartmentDto>>> GetByCollege(int collegeId)
         {
             var list = await _service.GetDepartmentsByCollegeIdAsync(collegeId);
-            return Ok(list.Select(d => new DepartmentDto(d.Id, d.Name, d.CollegeId)));
+            return Ok(list.Select(d => new DepartmentDto(d.Id, d.PublicId, d.Name, d.CollegeId)));
         }
 
         [HttpPost]
@@ -117,7 +126,7 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var entity = new Department { Name = dto.Name, CollegeId = dto.CollegeId };
             var result = await _service.CreateDepartmentAsync(entity);
-            return Ok(new DepartmentDto(result.Id, result.Name, result.CollegeId));
+            return Ok(new DepartmentDto(result.Id, result.PublicId, result.Name, result.CollegeId));
         }
 
         [HttpPut("{id}")]
@@ -212,12 +221,12 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(int id, CreateGroupDto dto)
         {
-             var entity = await _service.GetGroupByIdAsync(id);
-             if (entity == null) return NotFound();
-             entity.Name = dto.Name;
-             entity.BatchId = dto.BatchId;
-             await _service.UpdateGroupAsync(entity);
-             return NoContent();
+            var entity = await _service.GetGroupByIdAsync(id);
+            if (entity == null) return NotFound();
+            entity.Name = dto.Name;
+            entity.BatchId = dto.BatchId;
+            await _service.UpdateGroupAsync(entity);
+            return NoContent();
         }
 
         [HttpDelete("{id}")]

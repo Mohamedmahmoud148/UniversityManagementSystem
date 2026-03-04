@@ -24,17 +24,28 @@ namespace UniversityManagementSystem.Infrastructure.Services
         }
     }
 
-    public class CollegeService(IGenericRepository<College> repo, IGenericRepository<Department> deptRepo) : ICollegeService
+    public class CollegeService(IGenericRepository<College> repo, IGenericRepository<Department> deptRepo, ISmartStringGenerator smartString) : ICollegeService
     {
         private readonly IGenericRepository<College> _repo = repo;
         private readonly IGenericRepository<Department> _deptRepo = deptRepo;
+        private readonly ISmartStringGenerator _smartString = smartString;
 
         public async Task<IReadOnlyList<College>> GetAllCollegesAsync() => await _repo.GetAllAsync();
-        public async Task<IReadOnlyList<College>> GetCollegesByUniversityIdAsync(int universityId) 
+        public async Task<IReadOnlyList<College>> GetCollegesByUniversityIdAsync(int universityId)
             => await _repo.GetAsync(c => c.UniversityId == universityId);
-        
+
         public async Task<College?> GetCollegeByIdAsync(int id) => await _repo.GetByIdAsync(id);
-        public async Task<College> CreateCollegeAsync(College college) => await _repo.AddAsync(college);
+
+        public async Task<College?> GetCollegeByPublicIdAsync(string publicId)
+        {
+            var colleges = await _repo.GetAsync(c => c.PublicId == publicId);
+            return colleges.FirstOrDefault();
+        }
+        public async Task<College> CreateCollegeAsync(College college)
+        {
+            college.Name = await _smartString.GenerateUniqueAsync<College>(college.Name, c => c.Name);
+            return await _repo.AddAsync(college);
+        }
         public async Task UpdateCollegeAsync(College college) => await _repo.UpdateAsync(college);
         public async Task DeleteCollegeAsync(int id)
         {
@@ -46,16 +57,27 @@ namespace UniversityManagementSystem.Infrastructure.Services
         }
     }
 
-    public class DepartmentService(IGenericRepository<Department> repo, IGenericRepository<Batch> batchRepo) : IDepartmentService
+    public class DepartmentService(IGenericRepository<Department> repo, IGenericRepository<Batch> batchRepo, ISmartStringGenerator smartString) : IDepartmentService
     {
         private readonly IGenericRepository<Department> _repo = repo;
         private readonly IGenericRepository<Batch> _batchRepo = batchRepo;
+        private readonly ISmartStringGenerator _smartString = smartString;
 
         public async Task<IReadOnlyList<Department>> GetDepartmentsByCollegeIdAsync(int collegeId)
             => await _repo.GetAsync(d => d.CollegeId == collegeId);
 
         public async Task<Department?> GetDepartmentByIdAsync(int id) => await _repo.GetByIdAsync(id);
-        public async Task<Department> CreateDepartmentAsync(Department department) => await _repo.AddAsync(department);
+
+        public async Task<Department?> GetDepartmentByPublicIdAsync(string publicId)
+        {
+            var departments = await _repo.GetAsync(d => d.PublicId == publicId);
+            return departments.FirstOrDefault();
+        }
+        public async Task<Department> CreateDepartmentAsync(Department department)
+        {
+            department.Name = await _smartString.GenerateUniqueAsync<Department>(department.Name, d => d.Name);
+            return await _repo.AddAsync(department);
+        }
         public async Task UpdateDepartmentAsync(Department department) => await _repo.UpdateAsync(department);
         public async Task DeleteDepartmentAsync(int id)
         {

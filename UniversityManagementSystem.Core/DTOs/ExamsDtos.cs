@@ -8,13 +8,17 @@ namespace UniversityManagementSystem.Core.DTOs
     public class ExamDto
     {
         public int Id { get; set; }
+        public string PublicId { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty; // Enum as string
         public int TotalMarks { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
-        public bool IsPublished { get; set; }
-        
+        public string Mode { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string? FilePath { get; set; }
+        public int CreatedByDoctorId { get; set; }
+
         public int SubjectOfferingId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
 
@@ -35,7 +39,7 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required]
         public DateTime EndTime { get; set; }
 
-        public bool IsPublished { get; set; }
+        public ExamStatus Status { get; set; } = ExamStatus.Draft;
 
         public List<CreateExamQuestionDto> Questions { get; set; } = new();
     }
@@ -76,6 +80,6 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required]
         public DateTime EndTime { get; set; }
 
-        public bool IsPublished { get; set; }
+        public ExamStatus Status { get; set; } = ExamStatus.Draft;
     }
 }

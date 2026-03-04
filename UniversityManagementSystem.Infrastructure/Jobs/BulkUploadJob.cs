@@ -15,14 +15,16 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
         AppDbContext context,
         IExcelService excelService,
         IIdentityProvisioningService identityService,
-        IAuthService authService) : IBulkUploadJob
+        IAuthService authService,
+        IAiService aiService) : IBulkUploadJob
     {
         private readonly AppDbContext _context = context;
         private readonly IExcelService _excelService = excelService;
         private readonly IIdentityProvisioningService _identityService = identityService;
         private readonly IAuthService _authService = authService;
+        private readonly IAiService _aiService = aiService;
 
-        public async Task ProcessStudentUpload(int fileId, int uploaderUserId)
+        public async Task ProcessStudentDirectUpload(int fileId, int uploaderUserId)
         {
             var file = await _context.UploadedFiles.FindAsync(fileId);
             if (file is null) return;
@@ -94,6 +96,106 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
                             // user.RelatedEntityId = student.Id; // Removed
                             // await _context.SaveChangesAsync(); // Removed
+
+                            await transaction.CommitAsync();
+                            successCount++;
+                        }
+                        catch
+                        {
+                            await transaction.RollbackAsync();
+                            throw;
+                        }
+                    }
+                    catch
+                    {
+                        failCount++;
+                    }
+                }
+
+                file.ValidationStatus = "Completed";
+                file.ExtractedDataJson = $"{{ \"success\": {successCount}, \"failed\": {failCount} }}";
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                file.ValidationStatus = "Failed";
+                file.ExtractedDataJson = $"{{ \"error\": \"{ex.Message}\" }}";
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task ProcessStudentAiUpload(int fileId, int uploaderUserId)
+        {
+            var file = await _context.UploadedFiles.FindAsync(fileId);
+            if (file is null) return;
+
+            file.ValidationStatus = "Processing";
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                if (!File.Exists(file.StoredPath)) throw new FileNotFoundException("File not found on disk");
+
+                var extractionResult = await _aiService.ExtractDataFromFileAsync(file.StoredPath, file.ContentType);
+                if (!extractionResult.Success || string.IsNullOrEmpty(extractionResult.ExtractectedJson))
+                {
+                    file.ValidationStatus = "Failed";
+                    file.ExtractedDataJson = $"{{ \"error\": \"AI Extraction Failed: {(extractionResult.Errors != null ? string.Join(", ", extractionResult.Errors) : "Unknown")}\" }}";
+                    await _context.SaveChangesAsync();
+                    return;
+                }
+
+                var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var students = System.Text.Json.JsonSerializer.Deserialize<List<StudentImportDto>>(extractionResult.ExtractectedJson, options) ?? new List<StudentImportDto>();
+
+                int successCount = 0;
+                int failCount = 0;
+
+                foreach (var dto in students)
+                {
+                    try
+                    {
+                        var batch = await _context.Batches.FindAsync(dto.BatchId);
+                        if (batch == null)
+                        {
+                            failCount++;
+                            continue;
+                        }
+
+                        var email = await _identityService.GenerateUniversityEmailAsync(
+                            dto.FullName.Split(' ')[0],
+                            dto.FullName.Split(' ').LastOrDefault() ?? "Student",
+                            UserRole.Student);
+
+                        var studentId = await _identityService.GenerateStudentIdAsync(batch.Id, batch.DepartmentId);
+
+                        using var transaction = await _context.Database.BeginTransactionAsync();
+                        try
+                        {
+                            var user = new SystemUser
+                            {
+                                FullName = dto.FullName,
+                                Email = email,
+                                UniversityEmail = email,
+                                NationalId = string.IsNullOrEmpty(dto.NationalId) ? $"NA_{Guid.NewGuid()}" : dto.NationalId,
+                                PasswordHash = BCrypt.Net.BCrypt.HashPassword("DefaultPass123!"),
+                                Role = UserRole.Student,
+                                IsActive = true
+                            };
+                            _context.SystemUsers.Add(user);
+                            await _context.SaveChangesAsync();
+
+                            var student = new Student
+                            {
+                                FullName = dto.FullName,
+                                Email = "",
+                                Phone = dto.Phone ?? "",
+                                UniversityStudentId = studentId,
+                                BatchId = batch.Id,
+                                SystemUserId = user.Id
+                            };
+                            _context.Students.Add(student);
+                            await _context.SaveChangesAsync();
 
                             await transaction.CommitAsync();
                             successCount++;

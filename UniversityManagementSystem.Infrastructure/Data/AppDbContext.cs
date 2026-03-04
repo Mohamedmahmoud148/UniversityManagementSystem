@@ -57,6 +57,15 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 }
             }
 
+            // Sequences for PublicId generation
+            modelBuilder.HasSequence<int>("StudentSequence").StartsAt(1).IncrementsBy(1);
+            modelBuilder.HasSequence<int>("DoctorSequence").StartsAt(1).IncrementsBy(1);
+            modelBuilder.HasSequence<int>("ExamSequence").StartsAt(1).IncrementsBy(1);
+            modelBuilder.HasSequence<int>("CollegeSequence").StartsAt(1).IncrementsBy(1);
+            modelBuilder.HasSequence<int>("DepartmentSequence").StartsAt(1).IncrementsBy(1);
+            modelBuilder.HasSequence<int>("SubjectSequence").StartsAt(1).IncrementsBy(1);
+            modelBuilder.HasSequence<int>("SubjectOfferingSequence").StartsAt(1).IncrementsBy(1);
+
             // Configure RefreshToken
             modelBuilder.Entity<RefreshToken>()
                 .HasOne(rt => rt.User)
@@ -109,6 +118,15 @@ namespace UniversityManagementSystem.Infrastructure.Data
             // Academic Hierarchy Relationships
 
             // University -> College
+            modelBuilder.Entity<College>()
+                .Property(c => c.PublicId)
+                .HasDefaultValueSql("'COL-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"CollegeSequence\"')")
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<College>()
+                .HasIndex(c => c.PublicId)
+                .IsUnique();
+
             modelBuilder.Entity<University>()
                  .HasMany(u => u.Colleges)
                  .WithOne(c => c.University)
@@ -116,6 +134,15 @@ namespace UniversityManagementSystem.Infrastructure.Data
                  .OnDelete(DeleteBehavior.Restrict);
 
             // College -> Department
+            modelBuilder.Entity<Department>()
+                .Property(d => d.PublicId)
+                .HasDefaultValueSql("'DEP-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"DepartmentSequence\"')")
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<Department>()
+                .HasIndex(d => d.PublicId)
+                .IsUnique();
+
             modelBuilder.Entity<College>()
                 .HasMany(c => c.Departments)
                 .WithOne(d => d.College)
@@ -200,7 +227,25 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .IsUnique();
 
             modelBuilder.Entity<Student>()
+                .Property(s => s.PublicId)
+                .HasDefaultValueSql("'STU-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"StudentSequence\"')")
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<Student>()
+                .HasIndex(s => s.PublicId)
+                .IsUnique();
+
+            modelBuilder.Entity<Student>()
                 .HasIndex(s => s.UniversityStudentId)
+                .IsUnique();
+
+            modelBuilder.Entity<Doctor>()
+                .Property(d => d.PublicId)
+                .HasDefaultValueSql("'DOC-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"DoctorSequence\"')")
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<Doctor>()
+                .HasIndex(d => d.PublicId)
                 .IsUnique();
 
             modelBuilder.Entity<Doctor>()
@@ -220,6 +265,15 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .IsUnique();
 
             // SubjectOffering Configuration
+            modelBuilder.Entity<SubjectOffering>()
+                .Property(so => so.PublicId)
+                .HasDefaultValueSql("'SO-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"SubjectOfferingSequence\"')")
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<SubjectOffering>()
+                .HasIndex(so => so.PublicId)
+                .IsUnique();
+
             modelBuilder.Entity<SubjectOffering>()
                 .HasIndex(so => new { so.SubjectId, so.SemesterId })
                 .IsUnique();
@@ -241,6 +295,15 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(so => so.DoctorId)
                 .OnDelete(DeleteBehavior.Restrict); // RESTRICT!
+
+            modelBuilder.Entity<Subject>()
+                .Property(s => s.PublicId)
+                .HasDefaultValueSql("'SUB-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"SubjectSequence\"')")
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<Subject>()
+                .HasIndex(s => s.PublicId)
+                .IsUnique();
 
             // SubjectOffering New Hierarchy
             modelBuilder.Entity<SubjectOffering>()
@@ -424,13 +487,43 @@ namespace UniversityManagementSystem.Infrastructure.Data
 
             // Exam
             modelBuilder.Entity<Exam>()
+                .Property(e => e.Mode)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            modelBuilder.Entity<Exam>()
+                .Property(e => e.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            modelBuilder.Entity<Exam>()
+                .Property(e => e.PublicId)
+                .HasDefaultValueSql("'EX-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"ExamSequence\"')")
+                .ValueGeneratedOnAdd();
+
+            modelBuilder.Entity<Exam>()
+                .HasIndex(e => e.PublicId)
+                .IsUnique();
+
+            modelBuilder.Entity<Exam>()
                 .HasOne(e => e.SubjectOffering)
                 .WithMany()
                 .HasForeignKey(e => e.SubjectOfferingId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<Exam>()
+                .HasOne(e => e.CreatedByDoctor)
+                .WithMany()
+                .HasForeignKey(e => e.CreatedByDoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Exam>()
                 .HasIndex(e => e.SubjectOfferingId);
+
+            modelBuilder.Entity<Exam>()
+                .HasIndex(e => e.CreatedByDoctorId);
 
             // ExamQuestion (Composition)
             modelBuilder.Entity<ExamQuestion>()

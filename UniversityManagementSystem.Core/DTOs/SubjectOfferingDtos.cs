@@ -5,7 +5,8 @@ namespace UniversityManagementSystem.Core.DTOs
     public class SubjectOfferingDto
     {
         public int Id { get; set; }
-        
+        public string PublicId { get; set; } = string.Empty;
+
         public int SubjectId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
 

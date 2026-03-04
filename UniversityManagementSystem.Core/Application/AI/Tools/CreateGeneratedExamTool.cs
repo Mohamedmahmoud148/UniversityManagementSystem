@@ -56,7 +56,7 @@ public class CreateGeneratedExamTool : IAiTool
             Type = ExamType.Final,
             StartTime = DateTime.UtcNow.AddHours(1),
             EndTime = DateTime.UtcNow.AddHours(2),
-            IsPublished = true,
+            Status = ExamStatus.Published,
             Questions = questionsList
         };
 

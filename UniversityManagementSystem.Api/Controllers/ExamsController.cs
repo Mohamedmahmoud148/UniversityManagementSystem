@@ -12,6 +12,21 @@ namespace UniversityManagementSystem.Api.Controllers
     public class ExamsController(IExamService examService) : ControllerBase
     {
 
+        [HttpGet("by-public-id/{publicId}")]
+        [Authorize(Roles = "Admin, Doctor, Student")]
+        public async Task<IActionResult> GetByPublicId(string publicId)
+        {
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId")?.Value;
+            var roleClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+
+            if (profileClaim == null || roleClaim == null) return Unauthorized();
+
+            var exam = await examService.GetExamByPublicIdAsync(publicId, int.Parse(profileClaim), roleClaim);
+            if (exam == null) return NotFound();
+
+            return Ok(exam);
+        }
+
         [HttpPost]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> CreateExam([FromQuery] int subjectOfferingId, [FromBody] CreateExamDto dto)
@@ -24,17 +39,41 @@ namespace UniversityManagementSystem.Api.Controllers
             return CreatedAtAction(nameof(GetExam), new { id = result.Id }, result);
         }
 
+        [HttpPost("generate-ai")]
+        [Authorize(Roles = "Doctor")]
+        public async Task<IActionResult> GenerateAiExam([FromQuery] int subjectOfferingId)
+        {
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var doctorId = int.Parse(profileClaim.Value);
+
+            var result = await examService.GenerateAiExamAsync(subjectOfferingId, doctorId);
+            return CreatedAtAction(nameof(GetExam), new { id = result.Id }, result);
+        }
+
+        [HttpPost("upload-pdf")]
+        [Authorize(Roles = "Doctor")]
+        public async Task<IActionResult> UploadPdfExam([FromQuery] int subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file)
+        {
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var doctorId = int.Parse(profileClaim.Value);
+
+            var result = await examService.UploadFileExamAsync(subjectOfferingId, file, doctorId);
+            return CreatedAtAction(nameof(GetExam), new { id = result.Id }, result);
+        }
+
         [HttpGet("{id}")]
         [Authorize(Roles = "Doctor,Student,Admin,SuperAdmin")]
         public async Task<IActionResult> GetExam(int id)
         {
             var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
-            
+
             // Extract userId based on role: ProfileId for Doctor/Student, nameid for Admin
             string claimType = (userRole == "Doctor" || userRole == "Student") ? "ProfileId" : "nameid";
             var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == claimType);
 
-            if (userIdClaim == null) 
+            if (userIdClaim == null)
                 return Unauthorized($"{claimType} claim not found.");
 
             var userId = int.Parse(userIdClaim.Value);
@@ -54,7 +93,7 @@ namespace UniversityManagementSystem.Api.Controllers
             // Ensure route ID matches DTO ID or just override it
             if (dto.ExamId != 0 && dto.ExamId != id)
                 return BadRequest("Exam ID mismatch.");
-            
+
             dto.ExamId = id;
 
             var submissionId = await examService.SubmitExamAsync(id, studentId, dto);
@@ -117,7 +156,7 @@ namespace UniversityManagementSystem.Api.Controllers
             var studentId = int.Parse(profileClaim.Value);
 
             var submission = await examService.GetStudentSubmissionAsync(id, studentId);
-            
+
             if (submission == null)
                 return NotFound("No submission found for this exam.");
 

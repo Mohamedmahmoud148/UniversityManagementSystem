@@ -9,9 +9,10 @@ using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class IdentityProvisioningService(AppDbContext context) : IIdentityProvisioningService
+    public class IdentityProvisioningService(AppDbContext context, ISmartStringGenerator smartString) : IIdentityProvisioningService
     {
         private readonly AppDbContext _context = context;
+        private readonly ISmartStringGenerator _smartString = smartString;
 
         public async Task<string> GenerateStudentIdAsync(int batchId, int departmentId)
         {
@@ -29,14 +30,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return await policy.ExecuteAsync(async () =>
             {
                 var count = await _context.Students.CountAsync(s => s.CreatedAt.Year == year) + 1;
-                // Add random component to reduce collision chance in concurrent processing
-                var random = new Random().Next(10, 99);
-                var id = $"{year}{departmentId:D2}{count:D4}{random}";
+                // Base ID without random noise, SmartStringGenerator will handle duplicates
+                var baseId = $"{year}{departmentId:D2}{count:D4}";
 
-                if (await _context.Students.AnyAsync(s => s.UniversityStudentId == id))
-                    throw new Exception("Collision detected");
-
-                return id;
+                return await _smartString.GenerateUniqueAsync<Student>(baseId, s => s.UniversityStudentId);
             });
         }
 
@@ -64,13 +61,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return await policy.ExecuteAsync(async () =>
             {
                 var count = await _context.Doctors.CountAsync(d => d.CreatedAt.Year == year) + 1;
-                var random = new Random().Next(10, 99);
-                var id = $"STAFF{year}{departmentId:D2}{count:D3}{random}";
+                var baseId = $"STAFF{year}{departmentId:D2}{count:D3}";
 
-                if (await _context.Doctors.AnyAsync(d => d.UniversityStaffId == id))
-                    throw new Exception("Collision");
-
-                return id;
+                return await _smartString.GenerateUniqueAsync<Doctor>(baseId, d => d.UniversityStaffId);
             });
         }
 

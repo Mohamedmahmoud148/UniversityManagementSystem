@@ -44,6 +44,15 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(dtos);
         }
 
+        [HttpGet("by-public-id/{publicId}")]
+        public async Task<ActionResult<SubjectDto>> GetByPublicId(string publicId)
+        {
+            var s = await _service.GetSubjectByPublicIdAsync(publicId);
+            if (s == null) return NotFound();
+
+            return Ok(new SubjectDto(s.Id, s.Name, s.Code, s.CollegeId, s.DepartmentId, s.BatchId));
+        }
+
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<SubjectDto>> Create(CreateSubjectDto dto)

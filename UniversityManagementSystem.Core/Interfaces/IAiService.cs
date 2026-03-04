@@ -8,5 +8,6 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<AiResponseDto> AnalyzeTextAsync(string text);
         Task<AiExtractResponseDto> ExtractDataFromFileAsync(string fileUrl, string fileType);
         Task<AiChatResponseDto> SendChatMessageAsync(AiChatRequestDto request);
+        Task<System.Collections.Generic.List<UniversityManagementSystem.Core.DTOs.CreateExamQuestionDto>> GenerateExamAsync(int subjectOfferingId);
     }
 }

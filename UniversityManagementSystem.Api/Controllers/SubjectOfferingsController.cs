@@ -13,6 +13,15 @@ namespace UniversityManagementSystem.Api.Controllers
     {
         private readonly ISubjectOfferingService _service = service;
 
+        [HttpGet("by-public-id/{publicId}")]
+        public async Task<IActionResult> GetByPublicId(string publicId)
+        {
+            var result = await _service.GetByPublicIdAsync(publicId);
+            if (result == null) return NotFound();
+
+            return Ok(result);
+        }
+
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CreateSubjectOfferingDto dto)

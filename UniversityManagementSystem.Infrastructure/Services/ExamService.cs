@@ -10,9 +10,11 @@ using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class ExamService(AppDbContext context, IAuditService auditService) : IExamService
+    public class ExamService(AppDbContext context, IAuditService auditService, IAiService aiService, IFileService fileService) : IExamService
     {
         private readonly IAuditService _auditService = auditService;
+        private readonly IAiService _aiService = aiService;
+        private readonly IFileService _fileService = fileService;
         public async Task<int> SubmitExamAsync(int examId, int studentId, ExamSubmissionDto submissionDto)
         {
             // 1. Validate Exam exists & is active
@@ -22,7 +24,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .FirstOrDefaultAsync(e => e.Id == examId)
                 ?? throw new KeyNotFoundException($"Exam with ID {examId} not found.");
 
-            if (!exam.IsPublished)
+            if (exam.Status != ExamStatus.Published)
                 throw new UnauthorizedAccessException("Exam is not published.");
 
             var currentTime = DateTime.UtcNow;
@@ -67,7 +69,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 // Handle concurrent submission attempts
                 if (ex.InnerException != null && ex.InnerException.Message.Contains("IX_ExamSubmissions_ExamId_StudentId")) // Check for specific index violation if possible, or generic
                 {
-                     throw new InvalidOperationException("You have already submitted this exam.");
+                    throw new InvalidOperationException("You have already submitted this exam.");
                 }
                 throw; // Re-throw if it's another error
             }
@@ -95,7 +97,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 TotalMarks = dto.Questions.Sum(q => q.Mark), // Auto-calc total marks from questions
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,
-                IsPublished = dto.IsPublished,
+                Status = dto.Status,
+                Mode = ExamMode.Structured,
+                CreatedByDoctorId = doctorId,
                 SubjectOfferingId = subjectOfferingId,
                 CreatedAt = DateTime.UtcNow,
                 Questions = [.. dto.Questions.Select(q => new ExamQuestion
@@ -113,6 +117,17 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             // 4. Map back to DTO
             return MapToDto(exam);
+        }
+
+        public async Task<ExamDto?> GetExamByPublicIdAsync(string publicId, int userId, string userRole)
+        {
+            var exam = await context.Exams
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e => e.PublicId == publicId);
+
+            if (exam == null) return null;
+
+            return await GetExamByIdAsync(exam.Id, userId, userRole);
         }
 
         public async Task<ExamDto> GetExamByIdAsync(int examId, int userId, string userRole)
@@ -145,9 +160,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
                 if (!isEnrolled)
                     throw new UnauthorizedAccessException("You are not actively enrolled in this course.");
-                
+
                 // Optional: Check if exam is published
-                if (!exam.IsPublished)
+                if (exam.Status != ExamStatus.Published)
                     throw new UnauthorizedAccessException("This exam is not published yet.");
             }
             // Admins can bypass
@@ -160,12 +175,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return new ExamDto
             {
                 Id = exam.Id,
+                PublicId = exam.PublicId,
                 Title = exam.Title,
                 Type = exam.Type.ToString(),
                 TotalMarks = exam.TotalMarks,
                 StartTime = exam.StartTime,
                 EndTime = exam.EndTime,
-                IsPublished = exam.IsPublished,
+                Mode = exam.Mode.ToString(),
+                Status = exam.Status.ToString(),
+                FilePath = exam.FilePath,
+                CreatedByDoctorId = exam.CreatedByDoctorId,
                 SubjectOfferingId = exam.SubjectOfferingId,
                 SubjectName = exam.SubjectOffering?.Subject?.Name ?? string.Empty,
                 // SAFEGUARD: Handle potentially null Questions collection
@@ -256,7 +275,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .AsNoTracking()
                 .Include(e => e.SubjectOffering)
                 .ThenInclude(so => so.Subject)
-                .Where(e => enrolledOfferingIds.Contains(e.SubjectOfferingId) && e.IsPublished)
+                .Where(e => enrolledOfferingIds.Contains(e.SubjectOfferingId) && e.Status == ExamStatus.Published)
                 .OrderBy(e => e.StartTime)
                 .ToListAsync();
 
@@ -326,7 +345,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 // Actually, let's re-grade to allow corrections.
 
                 var answers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson);
-                
+
                 if (answers == null || answers.Count == 0)
                 {
                     submission.Score = 0;
@@ -362,9 +381,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task ArchiveExamAsync(int examId)
         {
-            var exam = await context.Exams.FindAsync(examId) 
+            var exam = await context.Exams.FindAsync(examId)
                        ?? throw new KeyNotFoundException($"Exam {examId} not found.");
-            
+
             exam.DeletedAt = DateTime.UtcNow;
             context.Entry(exam).State = EntityState.Modified;
             await context.SaveChangesAsync();
@@ -374,11 +393,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
         {
             var exam = await context.Exams.IgnoreQueryFilters().FirstOrDefaultAsync(e => e.Id == examId)
                        ?? throw new KeyNotFoundException($"Exam {examId} not found.");
-            
+
             exam.DeletedAt = null;
             context.Entry(exam).State = EntityState.Modified;
             await context.SaveChangesAsync();
-            
+
             await _auditService.LogAsync("Restore", "Exam", examId.ToString(), null, "Restored", null);
         }
 
@@ -390,14 +409,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .FirstOrDefaultAsync(e => e.Id == examId)
                 ?? throw new KeyNotFoundException($"Exam {examId} not found.");
 
-            var oldValues = System.Text.Json.JsonSerializer.Serialize(new { exam.Title, exam.Type, exam.StartTime, exam.EndTime, exam.IsPublished });
+            var oldValues = System.Text.Json.JsonSerializer.Serialize(new { exam.Title, exam.Type, exam.StartTime, exam.EndTime, exam.Status });
 
-            exam.Update(dto.Title, dto.Type, dto.StartTime, dto.EndTime, dto.IsPublished);
-            
+            exam.Update(dto.Title, dto.Type, dto.StartTime, dto.EndTime, dto.Status, exam.Mode, exam.FilePath);
+
             context.Entry(exam).State = EntityState.Modified;
             await context.SaveChangesAsync();
 
-            var newValues = System.Text.Json.JsonSerializer.Serialize(new { exam.Title, exam.Type, exam.StartTime, exam.EndTime, exam.IsPublished });
+            var newValues = System.Text.Json.JsonSerializer.Serialize(new { exam.Title, exam.Type, exam.StartTime, exam.EndTime, exam.Status });
             await _auditService.LogAsync("Update", "Exam", examId.ToString(), oldValues, newValues, null);
 
             return MapToDto(exam);
@@ -421,6 +440,84 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await context.SaveChangesAsync();
 
             await _auditService.LogAsync("SoftDelete", "Exam", examId.ToString(), oldValues, null, null);
+        }
+
+        public async Task<ExamDto> GenerateAiExamAsync(int subjectOfferingId, int doctorId)
+        {
+            var offering = await context.Set<SubjectOffering>()
+                .AsNoTracking()
+                .Include(so => so.Subject)
+                .FirstOrDefaultAsync(so => so.Id == subjectOfferingId)
+                ?? throw new KeyNotFoundException($"SubjectOffering {subjectOfferingId} not found.");
+
+            if (offering.DoctorId != doctorId)
+                throw new UnauthorizedAccessException("You are not the instructor for this offering.");
+
+            var questionsDto = await _aiService.GenerateExamAsync(subjectOfferingId);
+
+            var exam = new Exam
+            {
+                Title = $"{offering.Subject.Name} - AI Generated Draft",
+                Type = ExamType.Final,
+                TotalMarks = questionsDto.Sum(q => q.Mark),
+                StartTime = DateTime.UtcNow.AddDays(1),
+                EndTime = DateTime.UtcNow.AddDays(1).AddHours(2),
+                Status = ExamStatus.Draft,
+                Mode = ExamMode.AI,
+                CreatedByDoctorId = doctorId,
+                SubjectOfferingId = subjectOfferingId,
+                CreatedAt = DateTime.UtcNow,
+                Questions = [.. questionsDto.Select(q => new ExamQuestion
+                {
+                    QuestionText = q.QuestionText,
+                    CorrectAnswer = q.CorrectAnswer,
+                    Mark = q.Mark,
+                    CreatedAt = DateTime.UtcNow
+                })]
+            };
+
+            context.Exams.Add(exam);
+            await context.SaveChangesAsync();
+
+            return MapToDto(exam);
+        }
+
+        public async Task<ExamDto> UploadFileExamAsync(int subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file, int doctorId)
+        {
+            var offering = await context.Set<SubjectOffering>()
+                .AsNoTracking()
+                .Include(so => so.Subject)
+                .FirstOrDefaultAsync(so => so.Id == subjectOfferingId)
+                ?? throw new KeyNotFoundException($"SubjectOffering {subjectOfferingId} not found.");
+
+            if (offering.DoctorId != doctorId)
+                throw new UnauthorizedAccessException("You are not the instructor for this offering.");
+
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("File is empty or not provided.");
+
+            using var stream = file.OpenReadStream();
+            var fileStatus = await _fileService.UploadFileStreamAsync(doctorId, stream, file.FileName, file.ContentType, file.Length);
+
+            var exam = new Exam
+            {
+                Title = $"{offering.Subject.Name} - File Based Exam",
+                Type = ExamType.Final,
+                TotalMarks = 100, // Or whatever default is required.
+                StartTime = DateTime.UtcNow.AddDays(1),
+                EndTime = DateTime.UtcNow.AddDays(1).AddHours(2),
+                Status = ExamStatus.Draft,
+                Mode = ExamMode.File,
+                FilePath = fileStatus.FileName, // Or mapped URL depending on FileService return
+                CreatedByDoctorId = doctorId,
+                SubjectOfferingId = subjectOfferingId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.Exams.Add(exam);
+            await context.SaveChangesAsync();
+
+            return MapToDto(exam);
         }
     }
 }

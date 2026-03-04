@@ -42,7 +42,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             // 2. Prevent Duplicates (Same Subject + Same Semester)
             var exists = await _context.Set<SubjectOffering>()
                 .AnyAsync(so => so.SubjectId == dto.SubjectId && so.SemesterId == dto.SemesterId);
-            
+
             if (exists)
                 throw new InvalidOperationException("This subject is already offered in the specified semester.");
 
@@ -68,6 +68,17 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return offerings.Select(MapToDto);
         }
 
+        public async Task<SubjectOfferingDto?> GetByPublicIdAsync(string publicId)
+        {
+            var entity = await _context.Set<SubjectOffering>()
+                .Include(so => so.Subject)
+                .Include(so => so.Semester)
+                .Include(so => so.Doctor)
+                .FirstOrDefaultAsync(so => so.PublicId == publicId);
+
+            return entity == null ? null : MapToDto(entity);
+        }
+
         public async Task<IEnumerable<SubjectOfferingDto>> GetByDoctorAsync(int systemUserId)
         {
             // 1. Find Doctor Entity by SystemUserId
@@ -90,10 +101,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<IEnumerable<SubjectOfferingDto>> GetByStudentAsync(int studentId)
         {
-             var enrollmentIds = await _context.Enrollments
-                .Where(e => e.StudentId == studentId && e.IsActive)
-                .Select(e => e.SubjectOfferingId)
-                .ToListAsync();
+            var enrollmentIds = await _context.Enrollments
+               .Where(e => e.StudentId == studentId && e.IsActive)
+               .Select(e => e.SubjectOfferingId)
+               .ToListAsync();
 
             if (enrollmentIds.Count == 0) return [];
 
@@ -113,7 +124,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Include(so => so.Subject)
                 .Include(so => so.Semester)
                 .Include(so => so.Doctor)
-                .FirstOrDefaultAsync(so => so.Id == id) 
+                .FirstOrDefaultAsync(so => so.Id == id)
                 ?? throw new KeyNotFoundException($"Offering {id} not found.");
 
             return MapToDto(entity);
@@ -124,6 +135,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return new SubjectOfferingDto
             {
                 Id = entity.Id,
+                PublicId = entity.PublicId,
                 SubjectId = entity.SubjectId,
                 SubjectName = entity.Subject?.Name ?? string.Empty,
                 SemesterId = entity.SemesterId,

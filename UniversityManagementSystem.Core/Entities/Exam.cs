@@ -13,21 +13,26 @@ namespace UniversityManagementSystem.Core.Entities
 
     public class Exam : BaseEntity
     {
+        public string PublicId { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public ExamType Type { get; set; }
         public int TotalMarks { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
-        public bool IsPublished { get; set; }
+        public ExamMode Mode { get; set; } = ExamMode.Structured;
+        public ExamStatus Status { get; set; } = ExamStatus.Draft;
+        public string? FilePath { get; set; }
+        public int CreatedByDoctorId { get; set; }
 
         public int SubjectOfferingId { get; set; }
 
         // Navigation Properties
+        public Doctor CreatedByDoctor { get; set; } = null!;
         public SubjectOffering SubjectOffering { get; set; } = null!;
         public ICollection<ExamQuestion> Questions { get; set; } = new List<ExamQuestion>();
         public ICollection<ExamSubmission> Submissions { get; set; } = new List<ExamSubmission>();
 
-        public void Update(string title, ExamType type, DateTime startTime, DateTime endTime, bool isPublished)
+        public void Update(string title, ExamType type, DateTime startTime, DateTime endTime, ExamStatus status, ExamMode mode, string? filePath)
         {
             if (string.IsNullOrWhiteSpace(title)) throw new ArgumentNullException(nameof(title));
             if (endTime <= startTime) throw new ArgumentException("EndTime must be after StartTime");
@@ -36,7 +41,9 @@ namespace UniversityManagementSystem.Core.Entities
             Type = type;
             StartTime = startTime;
             EndTime = endTime;
-            IsPublished = isPublished;
+            Status = status;
+            Mode = mode;
+            FilePath = filePath;
         }
     }
 }

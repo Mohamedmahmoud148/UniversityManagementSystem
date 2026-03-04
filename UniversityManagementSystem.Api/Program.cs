@@ -263,6 +263,7 @@ builder.Services.AddScoped<IExcelService, ExcelService>();
 builder.Services.AddScoped<IIdentityProvisioningService, IdentityProvisioningService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IRegulationService, RegulationService>();
+builder.Services.AddScoped<ISmartStringGenerator, SmartStringGenerator>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();
 builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Contracts.IAiTool, UniversityManagementSystem.Core.Application.AI.Tools.CreateGeneratedExamTool>();

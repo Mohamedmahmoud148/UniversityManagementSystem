@@ -40,6 +40,27 @@ namespace UniversityManagementSystem.Api.Controllers
             }));
         }
 
+        [HttpGet("by-public-id/{publicId}")]
+        public async Task<ActionResult<StudentDto>> GetByPublicId(string publicId)
+        {
+            var s = await _studentService.GetStudentByPublicIdAsync(publicId);
+            if (s == null) return NotFound();
+
+            return Ok(new StudentDto
+            {
+                Id = s.Id,
+                PublicId = s.PublicId,
+                FullName = s.FullName,
+                Email = s.Email,
+                Phone = s.Phone,
+                NationalId = s.SystemUser?.NationalId ?? "N/A",
+                UniversityStudentId = s.UniversityStudentId,
+                UniversityEmail = s.SystemUser?.UniversityEmail ?? "N/A",
+                BatchId = s.BatchId,
+                IsActive = s.IsActive
+            });
+        }
+
         [HttpGet("{id}")]
         public async Task<ActionResult<StudentDto>> GetStudent(int id)
         {
@@ -143,10 +164,10 @@ namespace UniversityManagementSystem.Api.Controllers
             }
         }
 
-        [HttpPost("bulk-upload")]
+        [HttpPost("bulk-upload-direct")]
         [Authorize(Roles = "Admin")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> BulkUpload(IFormFile file, [FromServices] IFileService fileService, [FromServices] IBackgroundJobClient jobClient)
+        public async Task<IActionResult> BulkUploadDirect(IFormFile file, [FromServices] IFileService fileService, [FromServices] IBackgroundJobClient jobClient)
         {
             try
             {
@@ -159,13 +180,39 @@ namespace UniversityManagementSystem.Api.Controllers
                 using var stream = file.OpenReadStream();
                 var status = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
 
-                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentUpload(status.Id, userId));
-                return Accepted(new { JobId = status.Id, Message = "File accepted for processing" });
+                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentDirectUpload(status.Id, userId));
+                return Accepted(new { JobId = status.Id, Message = "File accepted for direct processing" });
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"BulkUpload Error: {ex.Message}");
-                return StatusCode(500, "An unexpected error occurred during bulk upload.");
+                Console.WriteLine($"BulkUploadDirect Error: {ex.Message}");
+                return StatusCode(500, "An unexpected error occurred during direct bulk upload.");
+            }
+        }
+
+        [HttpPost("bulk-upload-ai")]
+        [Authorize(Roles = "Admin")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> BulkUploadAi(IFormFile file, [FromServices] IFileService fileService, [FromServices] IBackgroundJobClient jobClient)
+        {
+            try
+            {
+                if (file == null || file.Length == 0) return BadRequest("File is empty");
+
+                var userIdClaim = User.FindFirst("nameid");
+                if (userIdClaim == null) return Unauthorized("Invalid token claims");
+
+                var userId = int.Parse(userIdClaim.Value);
+                using var stream = file.OpenReadStream();
+                var status = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
+
+                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentAiUpload(status.Id, userId));
+                return Accepted(new { JobId = status.Id, Message = "File accepted for AI processing" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"BulkUploadAi Error: {ex.Message}");
+                return StatusCode(500, "An unexpected error occurred during AI bulk upload.");
             }
         }
     }

@@ -4,6 +4,7 @@ namespace UniversityManagementSystem.Core.Entities
 {
     public class College : BaseEntity
     {
+        public string PublicId { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public int UniversityId { get; set; }
 

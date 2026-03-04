@@ -18,6 +18,7 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<IReadOnlyList<College>> GetAllCollegesAsync();
         Task<IReadOnlyList<College>> GetCollegesByUniversityIdAsync(int universityId);
         Task<College?> GetCollegeByIdAsync(int id);
+        Task<College?> GetCollegeByPublicIdAsync(string publicId);
         Task<College> CreateCollegeAsync(College college);
         Task UpdateCollegeAsync(College college);
         Task DeleteCollegeAsync(int id);
@@ -27,6 +28,7 @@ namespace UniversityManagementSystem.Core.Interfaces
     {
         Task<IReadOnlyList<Department>> GetDepartmentsByCollegeIdAsync(int collegeId);
         Task<Department?> GetDepartmentByIdAsync(int id);
+        Task<Department?> GetDepartmentByPublicIdAsync(string publicId);
         Task<Department> CreateDepartmentAsync(Department department);
         Task UpdateDepartmentAsync(Department department);
         Task DeleteDepartmentAsync(int id);

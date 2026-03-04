@@ -8,6 +8,7 @@ namespace UniversityManagementSystem.Core.Interfaces
     {
         Task<IReadOnlyList<Student>> GetStudentsByBatchIdAsync(int batchId);
         Task<Student?> GetStudentByIdAsync(int id);
+        Task<Student?> GetStudentByPublicIdAsync(string publicId);
         Task<Student?> GetStudentByUniversityEmailAsync(string email); // Added
         Task<Student> CreateStudentAsync(Student student);
         Task UpdateStudentAsync(Student student);
@@ -21,6 +22,7 @@ namespace UniversityManagementSystem.Core.Interfaces
     {
         Task<IReadOnlyList<Doctor>> GetDoctorsByDepartmentIdAsync(int departmentId);
         Task<Doctor?> GetDoctorByIdAsync(int id);
+        Task<Doctor?> GetDoctorByPublicIdAsync(string publicId);
         Task<Doctor?> GetDoctorByUniversityEmailAsync(string email); // Added
         Task<Doctor> CreateDoctorAsync(Doctor doctor);
         Task UpdateDoctorDetailsAsync(int id, Core.DTOs.UpdateDoctorDto dto); // Added
@@ -33,6 +35,7 @@ namespace UniversityManagementSystem.Core.Interfaces
     public interface ISubjectService
     {
         Task<IReadOnlyList<Subject>> GetSubjectsByBatchIdAsync(int batchId);
+        Task<Subject?> GetSubjectByPublicIdAsync(string publicId);
         Task<Subject> CreateSubjectAsync(Subject subject);
         Task UpdateSubjectDetailsAsync(int id, Core.DTOs.UpdateSubjectDto dto); // Added
         Task DeleteSubjectAsync(int id); // Added

@@ -19,6 +19,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<Student?> GetStudentByIdAsync(int id) => await _repo.GetByIdAsync(id);
 
+        public async Task<Student?> GetStudentByPublicIdAsync(string publicId)
+        {
+            var students = await _repo.GetAsync(s => s.PublicId == publicId);
+            return students.FirstOrDefault();
+        }
+
         // Use SystemUser relationship for UniversityEmail
         public async Task<Student?> GetStudentByUniversityEmailAsync(string email)
         {
@@ -41,7 +47,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 var batchExists = await _context.Batches.AnyAsync(b => b.Id == dto.BatchId);
                 if (!batchExists) throw new Exception("Batch not found");
-                
+
                 // Academic Integrity: Ensure new Batch is within same Department?
                 // Rule 1: "Validate Batch exists" - Done.
                 // Should we check Department? Original request didn't explicitly say so for UPDATE, 
@@ -56,7 +62,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             student.FullName = dto.FullName;
             student.Phone = dto.Phone;
             student.BatchId = dto.BatchId;
-            
+
             await _repo.UpdateAsync(student);
         }
 
@@ -80,6 +86,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<Doctor?> GetDoctorByIdAsync(int id) => await _repo.GetByIdAsync(id);
 
+        public async Task<Doctor?> GetDoctorByPublicIdAsync(string publicId)
+        {
+            var doctors = await _repo.GetAsync(d => d.PublicId == publicId);
+            return doctors.FirstOrDefault();
+        }
+
         public async Task<Doctor?> GetDoctorByUniversityEmailAsync(string email)
         {
             var doctors = await _repo.GetAsync(d => d.SystemUser.UniversityEmail == email);
@@ -95,7 +107,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             doctor.FullName = dto.FullName;
             doctor.Phone = dto.Phone;
-            
+
             await _repo.UpdateAsync(doctor);
         }
 
@@ -130,15 +142,26 @@ namespace UniversityManagementSystem.Infrastructure.Services
         }
     }
 
-    public class SubjectService(IGenericRepository<Subject> repo, AppDbContext context) : ISubjectService
+    public class SubjectService(IGenericRepository<Subject> repo, AppDbContext context, ISmartStringGenerator smartString) : ISubjectService
     {
         private readonly IGenericRepository<Subject> _repo = repo;
         private readonly AppDbContext _context = context;
+        private readonly ISmartStringGenerator _smartString = smartString;
 
         public async Task<IReadOnlyList<Subject>> GetSubjectsByBatchIdAsync(int batchId)
             => await _repo.GetAsync(s => s.BatchId == batchId);
 
-        public async Task<Subject> CreateSubjectAsync(Subject subject) => await _repo.AddAsync(subject);
+        public async Task<Subject> CreateSubjectAsync(Subject subject)
+        {
+            subject.Code = await _smartString.GenerateUniqueAsync<Subject>(subject.Code, s => s.Code);
+            return await _repo.AddAsync(subject);
+        }
+
+        public async Task<Subject?> GetSubjectByPublicIdAsync(string publicId)
+        {
+            var subjects = await _repo.GetAsync(s => s.PublicId == publicId);
+            return subjects.FirstOrDefault();
+        }
 
         public async Task UpdateSubjectDetailsAsync(int id, Core.DTOs.UpdateSubjectDto dto)
         {
@@ -147,7 +170,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             subject.Name = dto.Name;
             subject.Code = dto.Code;
-            
+
             await _repo.UpdateAsync(subject);
         }
 

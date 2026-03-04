@@ -4,6 +4,7 @@ namespace UniversityManagementSystem.Core.Entities
 {
     public class Doctor : BaseEntity
     {
+        public string PublicId { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string UniversityStaffId { get; set; } = string.Empty;
 

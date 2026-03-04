@@ -38,6 +38,25 @@ namespace UniversityManagementSystem.Api.Controllers
             }));
         }
 
+        [HttpGet("by-public-id/{publicId}")]
+        public async Task<ActionResult<DoctorDto>> GetByPublicId(string publicId)
+        {
+            var d = await _service.GetDoctorByPublicIdAsync(publicId);
+            if (d == null) return NotFound();
+
+            return Ok(new DoctorDto
+            {
+                Id = d.Id,
+                PublicId = d.PublicId,
+                FullName = d.FullName,
+                Email = d.Email,
+                Phone = d.Phone,
+                UniversityStaffId = d.UniversityStaffId,
+                UniversityEmail = d.SystemUser?.UniversityEmail ?? "N/A",
+                DepartmentId = d.DepartmentId
+            });
+        }
+
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<DoctorDto>> Create(CreateDoctorDto dto)

@@ -4,12 +4,13 @@ namespace UniversityManagementSystem.Core.Entities
 {
     public class Student : BaseEntity
     {
+        public string PublicId { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string UniversityStudentId { get; set; } = string.Empty;
-        
+
         private string _phone = string.Empty;
-        public string Phone 
-        { 
+        public string Phone
+        {
             get => _phone;
             set
             {
@@ -19,7 +20,7 @@ namespace UniversityManagementSystem.Core.Entities
             }
         }
         public string Email { get; set; } = string.Empty; // Personal Email
-        
+
         public int UniversityId { get; set; } // Required
         public int CollegeId { get; set; }
         public int DepartmentId { get; set; }
