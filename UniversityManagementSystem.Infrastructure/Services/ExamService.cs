@@ -442,18 +442,31 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _auditService.LogAsync("SoftDelete", "Exam", examId.ToString(), oldValues, null, null);
         }
 
-        public async Task<ExamDto> GenerateAiExamAsync(int subjectOfferingId, int doctorId)
+        public async Task<ExamDto> GenerateAiExamAsync(CreateAiExamRequest request, int doctorId)
         {
             var offering = await context.Set<SubjectOffering>()
                 .AsNoTracking()
                 .Include(so => so.Subject)
-                .FirstOrDefaultAsync(so => so.Id == subjectOfferingId)
-                ?? throw new KeyNotFoundException($"SubjectOffering {subjectOfferingId} not found.");
+                .ThenInclude(s => s.Department)
+                .Include(so => so.Subject.Batch)
+                .FirstOrDefaultAsync(so => so.Id == request.SubjectOfferingId)
+                ?? throw new KeyNotFoundException($"SubjectOffering {request.SubjectOfferingId} not found.");
 
             if (offering.DoctorId != doctorId)
                 throw new UnauthorizedAccessException("You are not the instructor for this offering.");
 
-            var questionsDto = await _aiService.GenerateExamAsync(subjectOfferingId);
+            var structuredRequest = new UniversityManagementSystem.Core.DTOs.Ai.AiGenerateExamRequestDto
+            {
+                Subject = offering.Subject.Name,
+                Department = offering.Subject.Department?.Name ?? "General",
+                Batch = offering.Subject.Batch?.Name ?? "General",
+                Difficulty = request.Difficulty,
+                QuestionCount = request.QuestionCount,
+                ExamType = request.ExamType,
+                Topics = request.Topics
+            };
+
+            var questionsDto = await _aiService.GenerateExamAsync(structuredRequest);
 
             var exam = new Exam
             {
@@ -465,7 +478,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 Status = ExamStatus.Draft,
                 Mode = ExamMode.AI,
                 CreatedByDoctorId = doctorId,
-                SubjectOfferingId = subjectOfferingId,
+                SubjectOfferingId = request.SubjectOfferingId,
                 CreatedAt = DateTime.UtcNow,
                 Questions = [.. questionsDto.Select(q => new ExamQuestion
                 {

@@ -41,13 +41,13 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPost("generate-ai")]
         [Authorize(Roles = "Doctor")]
-        public async Task<IActionResult> GenerateAiExam([FromQuery] int subjectOfferingId)
+        public async Task<IActionResult> GenerateAiExam([FromBody] CreateAiExamRequest request)
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
             var doctorId = int.Parse(profileClaim.Value);
 
-            var result = await examService.GenerateAiExamAsync(subjectOfferingId, doctorId);
+            var result = await examService.GenerateAiExamAsync(request, doctorId);
             return CreatedAtAction(nameof(GetExam), new { id = result.Id }, result);
         }
 

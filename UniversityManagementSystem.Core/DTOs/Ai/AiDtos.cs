@@ -32,4 +32,15 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
         public object academic_context { get; set; } = new { };
         public string conversation_id { get; set; } = string.Empty;
     }
+
+    public class AiGenerateExamRequestDto
+    {
+        public string Subject { get; set; } = string.Empty;
+        public string Department { get; set; } = string.Empty;
+        public string Batch { get; set; } = string.Empty;
+        public string Difficulty { get; set; } = "Medium";
+        public int QuestionCount { get; set; } = 10;
+        public string ExamType { get; set; } = "Final";
+        public System.Collections.Generic.List<string> Topics { get; set; } = new();
+    }
 }

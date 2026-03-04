@@ -60,11 +60,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return new AiChatResponseDto { response = "I'm having trouble connecting to my brain right now.", intent_executed = "None" };
         }
 
-        public async Task<System.Collections.Generic.List<UniversityManagementSystem.Core.DTOs.CreateExamQuestionDto>> GenerateExamAsync(int subjectOfferingId)
+        public async Task<System.Collections.Generic.List<UniversityManagementSystem.Core.DTOs.CreateExamQuestionDto>> GenerateExamAsync(AiGenerateExamRequestDto request)
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync($"/generate-exam?subjectOfferingId={subjectOfferingId}", new { });
+                var response = await _httpClient.PostAsJsonAsync($"/generate-exam", request);
                 if (response.IsSuccessStatusCode)
                 {
                     return await response.Content.ReadFromJsonAsync<System.Collections.Generic.List<UniversityManagementSystem.Core.DTOs.CreateExamQuestionDto>>() ?? [];

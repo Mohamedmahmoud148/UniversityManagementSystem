@@ -82,4 +82,15 @@ namespace UniversityManagementSystem.Core.DTOs
 
         public ExamStatus Status { get; set; } = ExamStatus.Draft;
     }
+
+    public class CreateAiExamRequest
+    {
+        [Required]
+        public int SubjectOfferingId { get; set; }
+
+        public string Difficulty { get; set; } = "Medium";
+        public int QuestionCount { get; set; } = 10;
+        public string ExamType { get; set; } = "Final";
+        public List<string> Topics { get; set; } = new();
+    }
 }

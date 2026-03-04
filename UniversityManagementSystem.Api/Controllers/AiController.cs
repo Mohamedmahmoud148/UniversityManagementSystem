@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,16 +12,12 @@ namespace UniversityManagementSystem.Api.Controllers;
 
 [Route("api/ai")]
 [ApiController]
-public class AiController : ControllerBase
+public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IHttpClientFactory httpFactory) : ControllerBase
 {
-    private readonly AiToolRegistry _toolRegistry;
-    private readonly AppDbContext _context;
+    private readonly AiToolRegistry _toolRegistry = toolRegistry;
+    private readonly AppDbContext _context = context;
+    private readonly HttpClient _http = httpFactory.CreateClient();
 
-    public AiController(AiToolRegistry toolRegistry, AppDbContext context)
-    {
-        _toolRegistry = toolRegistry;
-        _context = context;
-    }
 
     [HttpPost("execute")]
     [Authorize(Roles = "Admin,SuperAdmin")]
@@ -37,21 +34,12 @@ public class AiController : ControllerBase
             }
 
             int userId = 0;
-            if (!string.IsNullOrEmpty(userIdStr))
+            if (!string.IsNullOrEmpty(userIdStr) && int.TryParse(userIdStr, out var parsedId))
             {
-                int.TryParse(userIdStr, out userId);
+                userId = parsedId;
             }
 
-            string parametersJson = string.Empty;
-            try
-            {
-                // Safely serialize request.Parameters
-                parametersJson = JsonSerializer.Serialize(request.Parameters);
-            }
-            catch
-            {
-                parametersJson = "{}"; // Fallback if serialization fails
-            }
+            string parametersJson = JsonSerializer.Serialize(request.Parameters ?? new Dictionary<string, object>());
 
             if (!AiCapabilityMatrix.IsAllowed(role, request.ToolName))
             {
@@ -63,35 +51,81 @@ public class AiController : ControllerBase
             }
 
             var tool = _toolRegistry.GetTool(request.ToolName);
-            if (tool == null)
-            {
-                return BadRequest(new AiExecutionResponse
-                {
-                    Success = false,
-                    Message = $"AI tool '{request.ToolName}' not found or is currently unavailable."
-                });
-            }
 
             object? dataResult = null;
             bool executionSuccess = false;
-            string returnMessage = string.Empty;
+            string returnMessage = "";
+
+            // ------------------------------------------------
+            // CASE 1: Tool exists locally in backend
+            // ------------------------------------------------
+
+            if (tool != null)
+            {
+                try
+                {
+                    dataResult = await tool.ExecuteAsync(request.Parameters ?? new Dictionary<string, object>(), User);
+                    executionSuccess = true;
+                    returnMessage = "AI execution completed locally.";
+                }
+                catch (Exception ex)
+                {
+                    executionSuccess = false;
+                    returnMessage = $"Local AI execution error: {ex.Message}";
+                }
+            }
+
+            // ------------------------------------------------
+            // CASE 2: Forward request to AI Orchestration Service
+            // ------------------------------------------------
+
+            else
+            {
+                try
+                {
+                    var token = Request.Headers.Authorization.ToString();
+
+                    var aiRequest = new
+                    {
+                        message = $"{request.ToolName} {parametersJson}",
+                        role = role.ToLower(),
+                        conversation_id = Guid.NewGuid().ToString()
+                    };
+
+                    var json = JsonSerializer.Serialize(aiRequest);
+
+                    var httpRequest = new HttpRequestMessage(
+                        HttpMethod.Post,
+                        "https://ai-orchestration-service-production.up.railway.app/api/chat"
+                    );
+
+                    httpRequest.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                    if (!string.IsNullOrEmpty(token))
+                        httpRequest.Headers.Add("Authorization", token);
+
+                    var response = await _http.SendAsync(httpRequest);
+
+                    var result = await response.Content.ReadAsStringAsync();
+
+                    dataResult = result;
+                    executionSuccess = true;
+                    returnMessage = "AI execution handled by AI Service.";
+                }
+                catch (Exception ex)
+                {
+                    executionSuccess = false;
+                    returnMessage = $"AI Service error: {ex.Message}";
+                }
+            }
+
+            // ------------------------------------------------
+            // LOGGING
+            // ------------------------------------------------
 
             try
             {
-                dataResult = await tool.ExecuteAsync(request.Parameters, User);
-                executionSuccess = true;
-                returnMessage = "AI execution completed successfully.";
-            }
-            catch (Exception ex)
-            {
-                executionSuccess = false;
-                returnMessage = $"An error occurred during AI execution: {ex.Message}";
-            }
-
-            // Safe Action Logging (Should not break the API response if it fails)
-            try
-            {
-                var actionLog = new AiActionLog
+                AiActionLog actionLog = new()
                 {
                     UserId = userId,
                     Role = role,
@@ -106,8 +140,7 @@ public class AiController : ControllerBase
             }
             catch
             {
-                // Silently fail logging to avoid returning a 500 when tool execution succeeded
-                // In a real production app, this might be forwarded to ILogger<T>.LogError
+                // silent logging failure
             }
 
             if (executionSuccess)
@@ -119,21 +152,19 @@ public class AiController : ControllerBase
                     Data = dataResult
                 });
             }
-            else
+
+            return StatusCode(StatusCodes.Status500InternalServerError, new AiExecutionResponse
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new AiExecutionResponse
-                {
-                    Success = false,
-                    Message = returnMessage
-                });
-            }
+                Success = false,
+                Message = returnMessage
+            });
         }
         catch (Exception ex)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, new AiExecutionResponse
             {
                 Success = false,
-                Message = $"An unexpected error occurred: {ex.Message}"
+                Message = $"Unexpected error: {ex.Message}"
             });
         }
     }

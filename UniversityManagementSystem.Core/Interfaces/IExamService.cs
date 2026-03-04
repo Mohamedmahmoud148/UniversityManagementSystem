@@ -10,7 +10,7 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<ExamDto> GetExamByIdAsync(int examId, int userId, string userRole);
         Task<ExamDto?> GetExamByPublicIdAsync(string publicId, int userId, string userRole);
         Task<int> SubmitExamAsync(int examId, int studentId, ExamSubmissionDto submissionDto);
-        Task<ExamDto> GenerateAiExamAsync(int subjectOfferingId, int doctorId);
+        Task<ExamDto> GenerateAiExamAsync(CreateAiExamRequest request, int doctorId);
         Task<ExamDto> UploadFileExamAsync(int subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file, int doctorId);
 
         // Queries
