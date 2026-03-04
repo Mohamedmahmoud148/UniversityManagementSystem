@@ -75,12 +75,30 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // 3. Redis
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
-builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString ?? "localhost"));
-builder.Services.AddStackExchangeRedisCache(options =>
+
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
 {
-    options.Configuration = redisConnectionString ?? "localhost";
-    options.InstanceName = "UMS_";
-});
+    try
+    {
+        var configurationOptions = ConfigurationOptions.Parse(redisConnectionString);
+        configurationOptions.AbortOnConnectFail = false;
+        configurationOptions.ConnectRetry = 5;
+        configurationOptions.ReconnectRetryPolicy = new ExponentialRetry(5000);
+
+        var redis = ConnectionMultiplexer.Connect(configurationOptions);
+        builder.Services.AddSingleton<IConnectionMultiplexer>(redis);
+
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.ConfigurationOptions = configurationOptions;
+            options.InstanceName = "UMS_";
+        });
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Failed to connect to Redis at startup. Application will continue without Redis cache.");
+    }
+}
 
 // 4. Hangfire
 builder.Services.AddHangfire(config =>
