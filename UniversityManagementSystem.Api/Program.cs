@@ -338,17 +338,23 @@ app.MapHealthChecks("/health", new HealthCheckOptions
     }
 });
 
-// Seed Database
+// Apply migrations and seed initial data in a single scope
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
+        var db = services.GetRequiredService<AppDbContext>();
+
+        // 1. Apply any pending EF Core migrations automatically
+        db.Database.Migrate();
+
+        // 2. Seed initial data (SuperAdmin, lookup tables, etc.)
         await DbInitializer.SeedAsync(services);
     }
     catch (Exception ex)
     {
-        Log.Error(ex, "An error occurred while seeding the database.");
+        Log.Error(ex, "An error occurred while migrating or seeding the database.");
     }
 }
 
