@@ -349,25 +349,18 @@ using (var scope = app.Services.CreateScope())
         // 1. Apply any pending EF Core migrations automatically
         db.Database.Migrate();
 
-        // 1b. Safety: ensure SystemUsers.Code column exists (idempotent)
+        // 1b. Ensure legacy databases have the Code column in SystemUsers
         try
         {
             db.Database.ExecuteSqlRaw(@"
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1
-        FROM information_schema.columns
-        WHERE table_name='SystemUsers'
-          AND column_name='Code'
-    ) THEN
-        ALTER TABLE ""SystemUsers"" ADD COLUMN ""Code"" text;
-    END IF;
-END
-$$;
-");
+    ALTER TABLE ""SystemUsers""
+    ADD COLUMN IF NOT EXISTS ""Code"" text;
+    ");
         }
-        catch { /* column may already exist or migration handled it */ }
+        catch (Exception)
+        {
+            // Ignore errors if column already exists
+        }
 
         // 2. Seed initial data (SuperAdmin, lookup tables, etc.)
         await DbInitializer.SeedAsync(services);
