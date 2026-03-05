@@ -5,6 +5,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.Entities;
+using NUlid;
 using UniversityManagementSystem.Core.Interfaces;
 
 namespace UniversityManagementSystem.Infrastructure.Data
@@ -18,7 +19,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
             _context = context;
         }
 
-        public async Task<T?> GetByIdAsync(int id)
+        public async Task<T?> GetByIdAsync(Ulid id)
         {
             return await _context.Set<T>().FindAsync(id);
         }

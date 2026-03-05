@@ -9,6 +9,7 @@ using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -110,7 +111,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return true;
         }
 
-        public async Task<bool> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+        public async Task<bool> ChangePasswordAsync(Ulid userId, string currentPassword, string newPassword)
         {
             var user = await _context.SystemUsers.FindAsync(userId);
             if (user == null) return false;
@@ -122,7 +123,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return true;
         }
 
-        public async Task<AuthResponseDto> RegisterStudentAsync(RegisterStudentDto dto, int createdByUserId)
+        public async Task<AuthResponseDto> RegisterStudentAsync(RegisterStudentDto dto, Ulid createdByUserId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -156,8 +157,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     .Where(c => c.Id == dto.CollegeId)
                     .Select(c => c.UniversityId)
                     .FirstOrDefaultAsync();
-                
-                if (universityId == 0) throw new Exception("Invalid College/University association");
+
+                if (universityId == Ulid.Empty) throw new Exception("Invalid College/University association");
 
                 var user = new SystemUser
                 {
@@ -207,7 +208,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
         }
 
-        public async Task<AuthResponseDto> RegisterDoctorAsync(RegisterDoctorDto dto, int createdByUserId)
+        public async Task<AuthResponseDto> RegisterDoctorAsync(RegisterDoctorDto dto, Ulid createdByUserId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -263,7 +264,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
         }
 
-        public async Task<AuthResponseDto> RegisterAdminAsync(RegisterAdminDto dto, int createdByUserId)
+        public async Task<AuthResponseDto> RegisterAdminAsync(RegisterAdminDto dto, Ulid createdByUserId)
         {
             // Transactional for Admin as well
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -353,23 +354,23 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var jti = Guid.NewGuid().ToString();
 
             // Determine ProfileId and ProfileType
-            int profileId = 0;
+            Ulid? profileId = null;
             string profileType = user.Role.ToString();
 
             if (user.Role == UserRole.Student)
             {
                 var profile = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.SystemUserId == user.Id);
-                profileId = profile?.Id ?? 0;
+                profileId = profile?.Id;
             }
             else if (user.Role == UserRole.Doctor)
             {
                 var profile = await _context.Doctors.AsNoTracking().FirstOrDefaultAsync(d => d.SystemUserId == user.Id);
-                profileId = profile?.Id ?? 0;
+                profileId = profile?.Id;
             }
             else if (user.Role == UserRole.Admin)
             {
                 var profile = await _context.Admins.AsNoTracking().FirstOrDefaultAsync(a => a.SystemUserId == user.Id);
-                profileId = profile?.Id ?? 0;
+                profileId = profile?.Id;
             }
             // SuperAdmin might not have a profile, or we treat SystemUser.Id as ProfileId? 
             // Better to keep 0 or SystemUserId if no profile exists.
@@ -381,7 +382,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 new(JwtRegisteredClaimNames.Jti, jti),
                 new("nameid", user.Id.ToString()), // Requirements: NameIdentifier = user.Id
                 new("role", user.Role.ToString()), // Requirements: Role = user.Role
-                new("ProfileId", profileId.ToString()),
+                new("ProfileId", profileId?.ToString() ?? string.Empty),
                 new("ProfileType", profileType)
             };
 

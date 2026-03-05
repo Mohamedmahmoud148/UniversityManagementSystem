@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NUlid;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
 
@@ -34,25 +35,28 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPost("activate/{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Activate(int id)
+        public async Task<IActionResult> Activate(string id)
         {
-            await _academicYearService.ActivateAsync(id);
+            if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid ID.");
+            await _academicYearService.ActivateAsync(uid);
             return NoContent();
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<AcademicYearDto>> Update(int id, UpdateAcademicYearDto dto)
+        public async Task<ActionResult<AcademicYearDto>> Update(string id, UpdateAcademicYearDto dto)
         {
-            var result = await _academicYearService.UpdateAsync(id, dto);
+            if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid ID.");
+            var result = await _academicYearService.UpdateAsync(uid, dto);
             return Ok(result);
         }
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(string id)
         {
-            await _academicYearService.DeleteAsync(id);
+            if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid ID.");
+            await _academicYearService.DeleteAsync(uid);
             return NoContent();
         }
     }

@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -29,7 +30,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return regulation;
         }
 
-        public async Task UpdateAsync(int id, Regulation regulation)
+        public async Task UpdateAsync(Ulid id, Regulation regulation)
         {
             var existing = await _context.Regulations.FindAsync(id);
             if (existing == null) return;
@@ -42,7 +43,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeleteAsync(int id)
+        public async Task DeleteAsync(Ulid id)
         {
             var existing = await _context.Regulations.FindAsync(id);
             if (existing == null) return;

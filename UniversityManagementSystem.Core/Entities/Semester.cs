@@ -1,11 +1,12 @@
 using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
     public class Semester : BaseEntity
     {
         public string Name { get; private set; } = null!; // e.g., "Fall 2025"
-        public int AcademicYearId { get; private set; }
+        public Ulid AcademicYearId { get; private set; }
         public DateTime StartDate { get; private set; }
         public DateTime EndDate { get; private set; }
 
@@ -13,7 +14,7 @@ namespace UniversityManagementSystem.Core.Entities
 
         private Semester() { }
 
-        public Semester(string name, int academicYearId, DateTime startDate, DateTime endDate)
+        public Semester(string name, Ulid academicYearId, DateTime startDate, DateTime endDate)
         {
             if (string.IsNullOrWhiteSpace(name)) throw new ArgumentNullException(nameof(name));
             if (endDate <= startDate) throw new ArgumentException("EndDate must be after StartDate");

@@ -7,6 +7,7 @@ using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -31,7 +32,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
 
             var entity = new AcademicYear(dto.Name, dto.IsActive);
-            
+
             _context.Set<AcademicYear>().Add(entity);
             await _context.SaveChangesAsync();
 
@@ -47,7 +48,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return years.Select(MapToDto);
         }
 
-        public async Task ActivateAsync(int id)
+        public async Task ActivateAsync(Ulid id)
         {
             var yearToActivate = await _context.Set<AcademicYear>().FindAsync(id);
             if (yearToActivate == null)
@@ -68,7 +69,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task<AcademicYearDto> UpdateAsync(int id, UpdateAcademicYearDto dto)
+        public async Task<AcademicYearDto> UpdateAsync(Ulid id, UpdateAcademicYearDto dto)
         {
             var year = await _context.Set<AcademicYear>().FindAsync(id);
             if (year == null)
@@ -90,17 +91,17 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
 
             year.Update(dto.Name, dto.IsActive);
-            
+
             _context.Entry(year).State = EntityState.Modified;
             await _context.SaveChangesAsync();
 
             var newValues = System.Text.Json.JsonSerializer.Serialize(new { year.Name, year.IsActive });
             await _auditService.LogAsync("Update", "AcademicYear", id.ToString(), oldValues, newValues, null); // UserId can be passed from Controller
-            
+
             return MapToDto(year);
         }
 
-        public async Task DeleteAsync(int id)
+        public async Task DeleteAsync(Ulid id)
         {
             var year = await _context.Set<AcademicYear>().FindAsync(id);
             if (year == null)
@@ -112,7 +113,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 throw new InvalidOperationException("Cannot delete Academic Year because it has associated semesters.");
 
             var oldValues = System.Text.Json.JsonSerializer.Serialize(new { year.Name, year.IsActive, year.DeletedAt });
-            
+
             year.DeletedAt = DateTime.UtcNow;
             _context.Entry(year).State = EntityState.Modified;
             await _context.SaveChangesAsync();

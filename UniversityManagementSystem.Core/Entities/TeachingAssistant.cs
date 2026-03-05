@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
@@ -9,8 +10,8 @@ namespace UniversityManagementSystem.Core.Entities
         public string Phone { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string UniversityEmail { get; set; } = string.Empty;
-        public int DepartmentId { get; set; }
-        public int SystemUserId { get; set; }
+        public Ulid DepartmentId { get; set; }
+        public Ulid SystemUserId { get; set; }
 
         // Navigation Properties
         public SystemUser SystemUser { get; set; } = null!;

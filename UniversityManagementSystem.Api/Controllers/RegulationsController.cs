@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
+using NUlid;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
@@ -90,8 +91,9 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, UpdateRegulationDto dto)
+        public async Task<IActionResult> Update(string id, UpdateRegulationDto dto)
         {
+            if (!Ulid.TryParse(id, out var regId)) return BadRequest("Invalid Regulation ID.");
             var entity = new Regulation
             {
                 Title = dto.Title,
@@ -99,15 +101,16 @@ namespace UniversityManagementSystem.Api.Controllers
                 Type = dto.Type,
                 IsActive = dto.IsActive
             };
-            await _service.UpdateAsync(id, entity);
+            await _service.UpdateAsync(regId, entity);
             return NoContent();
         }
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(string id)
         {
-            await _service.DeleteAsync(id);
+            if (!Ulid.TryParse(id, out var regId)) return BadRequest("Invalid Regulation ID.");
+            await _service.DeleteAsync(regId);
             return NoContent();
         }
     }

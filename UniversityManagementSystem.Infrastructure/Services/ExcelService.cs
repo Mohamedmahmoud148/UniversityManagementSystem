@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -25,7 +26,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     FullName = row.Cell(1).GetValue<string>(),
                     NationalId = row.Cell(2).GetValue<string>(),
                     Phone = row.Cell(3).GetValue<string>(),
-                    BatchId = row.Cell(4).GetValue<int>(),
+                    BatchId = Ulid.TryParse(row.Cell(4).GetValue<string>(), out var bId) ? bId : Ulid.Empty,
                 });
             }
             return list;

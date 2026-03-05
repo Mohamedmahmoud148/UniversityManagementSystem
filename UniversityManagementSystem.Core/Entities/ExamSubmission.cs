@@ -1,4 +1,5 @@
 using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
@@ -6,11 +7,11 @@ namespace UniversityManagementSystem.Core.Entities
     {
         public double? Score { get; set; }
         public bool IsGraded { get; set; }
-        public string AnswersJson { get; set; } = "[]"; // Stores student answers
+        public string AnswersJson { get; set; } = "[]";
         public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
 
-        public int ExamId { get; set; }
-        public int StudentId { get; set; }
+        public Ulid ExamId { get; set; }
+        public Ulid StudentId { get; set; }
 
         // Navigation Properties
         public Exam Exam { get; set; } = null!;

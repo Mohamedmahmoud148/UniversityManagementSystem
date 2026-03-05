@@ -7,6 +7,7 @@ using UniversityManagementSystem.Core.Application.AI.Contracts;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Application.AI.Tools;
 
@@ -27,8 +28,10 @@ public class CreateGeneratedExamTool : IAiTool
         var paramDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(paramJson)
             ?? throw new ArgumentException("Invalid parameters format");
 
-        int subjectOfferingId = paramDict["subjectOfferingId"].GetInt32();
-        string title = paramDict["title"].GetString() ?? "Generated Exam";
+        if (!paramDict.TryGetValue("subjectOfferingId", out var soIdElement) || !Ulid.TryParse(soIdElement.GetString(), out var subjectOfferingId))
+            throw new ArgumentException("Invalid or missing subjectOfferingId");
+
+        string title = paramDict.TryGetValue("title", out var titleElement) ? titleElement.GetString() ?? "Generated Exam" : "Generated Exam";
 
         var questionsList = new List<CreateExamQuestionDto>();
         if (paramDict.TryGetValue("questions", out var questionsElement) && questionsElement.ValueKind == JsonValueKind.Array)
@@ -47,7 +50,7 @@ public class CreateGeneratedExamTool : IAiTool
         var nameIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
                           ?? user.FindFirst("nameid")?.Value;
 
-        if (string.IsNullOrEmpty(nameIdClaim) || !int.TryParse(nameIdClaim, out int doctorId))
+        if (string.IsNullOrEmpty(nameIdClaim) || !Ulid.TryParse(nameIdClaim, out var doctorId))
             throw new UnauthorizedAccessException("Doctor ID not found in token.");
 
         var dto = new CreateExamDto

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using NUlid;
 using UniversityManagementSystem.Core.Application.AI.Logging;
 using UniversityManagementSystem.Core.Entities;
 
@@ -38,44 +40,52 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<AiActionLog> AiActionLogs { get; set; } = null!;
 
+        protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+        {
+            // --------------------------------------------------------
+            // Global ULID → string convention (EF Core 6+ design-time safe).
+            // Registers typed converters so the migration tooling can discover
+            // the mapping without running application code.
+            // --------------------------------------------------------
+            configurationBuilder.Properties<Ulid>()
+                .HaveConversion<UlidToStringConverter>()
+                .HaveMaxLength(26);
+
+            configurationBuilder.Properties<Ulid?>()
+                .HaveConversion<NullableUlidToStringConverter>()
+                .HaveMaxLength(26);
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // Global Filter for Soft Delete
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
+                // Global soft-delete query filter for all BaseEntity types
                 if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
                 {
                     var parameter = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "x");
-                    var property = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.DeletedAt));
+                    var property2 = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.DeletedAt));
                     var nullConstant = System.Linq.Expressions.Expression.Constant(null);
-                    var equality = System.Linq.Expressions.Expression.Equal(property, nullConstant);
+                    var equality = System.Linq.Expressions.Expression.Equal(property2, nullConstant);
                     var lambda = System.Linq.Expressions.Expression.Lambda(equality, parameter);
-
                     modelBuilder.Entity(entityType.ClrType).HasQueryFilter(lambda);
                 }
             }
 
-            // Sequences for PublicId generation
-            modelBuilder.HasSequence<int>("StudentSequence").StartsAt(1).IncrementsBy(1);
-            modelBuilder.HasSequence<int>("DoctorSequence").StartsAt(1).IncrementsBy(1);
-            modelBuilder.HasSequence<int>("ExamSequence").StartsAt(1).IncrementsBy(1);
-            modelBuilder.HasSequence<int>("CollegeSequence").StartsAt(1).IncrementsBy(1);
-            modelBuilder.HasSequence<int>("DepartmentSequence").StartsAt(1).IncrementsBy(1);
-            modelBuilder.HasSequence<int>("SubjectSequence").StartsAt(1).IncrementsBy(1);
-            modelBuilder.HasSequence<int>("SubjectOfferingSequence").StartsAt(1).IncrementsBy(1);
-
+            // --------------------------------------------------------
             // Configure RefreshToken
+            // --------------------------------------------------------
             modelBuilder.Entity<RefreshToken>()
                 .HasOne(rt => rt.User)
                 .WithMany()
                 .HasForeignKey(rt => rt.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Configure Many-to-Many Relationships
-
-            // SubjectDoctor
+            // --------------------------------------------------------
+            // Many-to-Many: SubjectDoctor (composite PK)
+            // --------------------------------------------------------
             modelBuilder.Entity<SubjectDoctor>()
                 .HasKey(sd => new { sd.SubjectId, sd.DoctorId });
 
@@ -94,7 +104,9 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<SubjectDoctor>()
                 .HasQueryFilter(sd => sd.Subject.DeletedAt == null && sd.Doctor.DeletedAt == null);
 
-            // SubjectAssistant
+            // --------------------------------------------------------
+            // Many-to-Many: SubjectAssistant (composite PK)
+            // --------------------------------------------------------
             modelBuilder.Entity<SubjectAssistant>()
                 .HasKey(sa => new { sa.SubjectId, sa.TeachingAssistantId });
 
@@ -113,65 +125,48 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<SubjectAssistant>()
                 .HasQueryFilter(sa => sa.Subject.DeletedAt == null && sa.TeachingAssistant.DeletedAt == null);
 
-            // Enrollment (Old Config Removed)
+            // --------------------------------------------------------
+            // Academic Hierarchy
+            // --------------------------------------------------------
 
-            // Academic Hierarchy Relationships
-
-            // University -> College
-            modelBuilder.Entity<College>()
-                .Property(c => c.PublicId)
-                .HasDefaultValueSql("'COL-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"CollegeSequence\"')")
-                .ValueGeneratedOnAdd();
-
-            modelBuilder.Entity<College>()
-                .HasIndex(c => c.PublicId)
-                .IsUnique();
-
+            // University → College
             modelBuilder.Entity<University>()
                  .HasMany(u => u.Colleges)
                  .WithOne(c => c.University)
                  .HasForeignKey(c => c.UniversityId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-            // College -> Department
-            modelBuilder.Entity<Department>()
-                .Property(d => d.PublicId)
-                .HasDefaultValueSql("'DEP-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"DepartmentSequence\"')")
-                .ValueGeneratedOnAdd();
-
-            modelBuilder.Entity<Department>()
-                .HasIndex(d => d.PublicId)
-                .IsUnique();
-
+            // College → Department
             modelBuilder.Entity<College>()
                 .HasMany(c => c.Departments)
                 .WithOne(d => d.College)
                 .HasForeignKey(d => d.CollegeId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Department -> Batch
+            // Department → Batch
             modelBuilder.Entity<Department>()
                 .HasMany(d => d.Batches)
                 .WithOne(b => b.Department)
                 .HasForeignKey(b => b.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Batch -> Group (NEW)
+            // Batch → Group
             modelBuilder.Entity<Group>()
                 .HasOne(g => g.Batch)
                 .WithMany(b => b.Groups)
                 .HasForeignKey(g => g.BatchId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Batch -> Student (Existing, kept for compatibility if needed, but Student now has direct FK)
-            // But Batch-Student is 1-to-many.
+            // Batch → Student
             modelBuilder.Entity<Batch>()
                 .HasMany(b => b.Students)
                 .WithOne(s => s.Batch)
                 .HasForeignKey(s => s.BatchId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Student Hierarchy (Strict)
+            // --------------------------------------------------------
+            // Student Hierarchy
+            // --------------------------------------------------------
             modelBuilder.Entity<Student>()
                  .HasOne(s => s.University)
                  .WithMany()
@@ -190,16 +185,15 @@ namespace UniversityManagementSystem.Infrastructure.Data
                  .HasForeignKey(s => s.DepartmentId)
                  .OnDelete(DeleteBehavior.Restrict);
 
-            // Student -> Group (NEW)
             modelBuilder.Entity<Student>()
                 .HasOne(s => s.Group)
                 .WithMany(g => g.Students)
                 .HasForeignKey(s => s.GroupId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-
-            // Indexes and Other Configs
-
+            // --------------------------------------------------------
+            // SystemUser Indexes & Config
+            // --------------------------------------------------------
             modelBuilder.Entity<SystemUser>()
                 .Property(u => u.Role)
                 .HasConversion<string>()
@@ -227,25 +221,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .IsUnique();
 
             modelBuilder.Entity<Student>()
-                .Property(s => s.PublicId)
-                .HasDefaultValueSql("'STU-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"StudentSequence\"')")
-                .ValueGeneratedOnAdd();
-
-            modelBuilder.Entity<Student>()
-                .HasIndex(s => s.PublicId)
-                .IsUnique();
-
-            modelBuilder.Entity<Student>()
                 .HasIndex(s => s.UniversityStudentId)
-                .IsUnique();
-
-            modelBuilder.Entity<Doctor>()
-                .Property(d => d.PublicId)
-                .HasDefaultValueSql("'DOC-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"DoctorSequence\"')")
-                .ValueGeneratedOnAdd();
-
-            modelBuilder.Entity<Doctor>()
-                .HasIndex(d => d.PublicId)
                 .IsUnique();
 
             modelBuilder.Entity<Doctor>()
@@ -256,6 +232,16 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasIndex(ta => ta.UniversityStaffId)
                 .IsUnique();
 
+            // --------------------------------------------------------
+            // Code index on entities that expose a human-readable Code
+            // --------------------------------------------------------
+            modelBuilder.Entity<Subject>()
+                .HasIndex(s => s.Code)
+                .IsUnique();
+
+            // --------------------------------------------------------
+            // AcademicYear & Semester
+            // --------------------------------------------------------
             modelBuilder.Entity<AcademicYear>()
                 .HasIndex(y => y.Name)
                 .IsUnique();
@@ -264,16 +250,9 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasIndex(s => new { s.Name, s.AcademicYearId })
                 .IsUnique();
 
-            // SubjectOffering Configuration
-            modelBuilder.Entity<SubjectOffering>()
-                .Property(so => so.PublicId)
-                .HasDefaultValueSql("'SO-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"SubjectOfferingSequence\"')")
-                .ValueGeneratedOnAdd();
-
-            modelBuilder.Entity<SubjectOffering>()
-                .HasIndex(so => so.PublicId)
-                .IsUnique();
-
+            // --------------------------------------------------------
+            // SubjectOffering
+            // --------------------------------------------------------
             modelBuilder.Entity<SubjectOffering>()
                 .HasIndex(so => new { so.SubjectId, so.SemesterId })
                 .IsUnique();
@@ -282,30 +261,20 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasOne(so => so.Subject)
                 .WithMany()
                 .HasForeignKey(so => so.SubjectId)
-                .OnDelete(DeleteBehavior.Restrict); // RESTRICT!
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<SubjectOffering>()
                 .HasOne(so => so.Semester)
                 .WithMany()
                 .HasForeignKey(so => so.SemesterId)
-                .OnDelete(DeleteBehavior.Restrict); // RESTRICT!
+                .OnDelete(DeleteBehavior.Restrict);
 
             modelBuilder.Entity<SubjectOffering>()
                 .HasOne(so => so.Doctor)
                 .WithMany()
                 .HasForeignKey(so => so.DoctorId)
-                .OnDelete(DeleteBehavior.Restrict); // RESTRICT!
+                .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Subject>()
-                .Property(s => s.PublicId)
-                .HasDefaultValueSql("'SUB-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"SubjectSequence\"')")
-                .ValueGeneratedOnAdd();
-
-            modelBuilder.Entity<Subject>()
-                .HasIndex(s => s.PublicId)
-                .IsUnique();
-
-            // SubjectOffering New Hierarchy
             modelBuilder.Entity<SubjectOffering>()
                .HasOne(so => so.Department)
                .WithMany()
@@ -324,7 +293,9 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasForeignKey(so => so.GroupId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-
+            // --------------------------------------------------------
+            // Enrollment
+            // --------------------------------------------------------
             modelBuilder.Entity<Enrollment>()
                 .HasIndex(e => new { e.StudentId, e.SubjectOfferingId })
                 .IsUnique();
@@ -335,21 +306,67 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasForeignKey(e => e.SubjectOfferingId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Department -> Doctor
+            // --------------------------------------------------------
+            // Department → Doctor / TA
+            // --------------------------------------------------------
             modelBuilder.Entity<Doctor>()
                 .HasOne(d => d.Department)
                 .WithMany(dp => dp.Doctors)
                 .HasForeignKey(d => d.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Department -> TA
             modelBuilder.Entity<TeachingAssistant>()
                 .HasOne(ta => ta.Department)
                 .WithMany(dp => dp.TeachingAssistants)
                 .HasForeignKey(ta => ta.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // --------------------------------------------------------
+            // SystemUser → Role entities (One-to-One)
+            // --------------------------------------------------------
+            modelBuilder.Entity<Admin>()
+                .HasOne(a => a.SystemUser)
+                .WithOne()
+                .HasForeignKey<Admin>(a => a.SystemUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Admin>()
+                .HasIndex(a => a.SystemUserId)
+                .IsUnique();
+
+            modelBuilder.Entity<Student>()
+                .HasOne(s => s.SystemUser)
+                .WithOne()
+                .HasForeignKey<Student>(s => s.SystemUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Student>()
+                .HasIndex(s => s.SystemUserId)
+                .IsUnique();
+
+            modelBuilder.Entity<Doctor>()
+                .HasOne(d => d.SystemUser)
+                .WithOne()
+                .HasForeignKey<Doctor>(d => d.SystemUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Doctor>()
+                .HasIndex(d => d.SystemUserId)
+                .IsUnique();
+
+            modelBuilder.Entity<TeachingAssistant>()
+               .HasOne(t => t.SystemUser)
+               .WithOne()
+               .HasForeignKey<TeachingAssistant>(t => t.SystemUserId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TeachingAssistant>()
+                .HasIndex(t => t.SystemUserId)
+                .IsUnique();
+
+            // --------------------------------------------------------
             // Chat System
+            // --------------------------------------------------------
             modelBuilder.Entity<Conversation>()
                 .HasOne(c => c.User)
                 .WithMany()
@@ -368,7 +385,9 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasForeignKey(m => m.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // --------------------------------------------------------
             // File Upload
+            // --------------------------------------------------------
             modelBuilder.Entity<UploadedFile>()
                 .HasOne(f => f.UploadedBy)
                 .WithMany()
@@ -399,7 +418,9 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<UploadedFile>()
                 .HasIndex(f => f.UploadedByDoctorId);
 
+            // --------------------------------------------------------
             // Attendance
+            // --------------------------------------------------------
             modelBuilder.Entity<AttendanceSession>()
                 .HasOne(s => s.Subject)
                 .WithMany()
@@ -434,58 +455,18 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasIndex(sa => new { sa.AttendanceSessionId, sa.StudentId })
                 .IsUnique();
 
+            // --------------------------------------------------------
             // Notifications
+            // --------------------------------------------------------
             modelBuilder.Entity<AppNotification>()
                 .HasOne(n => n.User)
                 .WithMany()
                 .HasForeignKey(n => n.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // 1. SystemUser -> Admin (One-to-One)
-            modelBuilder.Entity<Admin>()
-                .HasOne(a => a.SystemUser)
-                .WithOne()
-                .HasForeignKey<Admin>(a => a.SystemUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<Admin>()
-                .HasIndex(a => a.SystemUserId)
-                .IsUnique();
-
-            // 2. SystemUser -> Student (One-to-One)
-            modelBuilder.Entity<Student>()
-                .HasOne(s => s.SystemUser)
-                .WithOne()
-                .HasForeignKey<Student>(s => s.SystemUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<Student>()
-                .HasIndex(s => s.SystemUserId)
-                .IsUnique();
-
-            // 3. SystemUser -> Doctor (One-to-One)
-            modelBuilder.Entity<Doctor>()
-                .HasOne(d => d.SystemUser)
-                .WithOne()
-                .HasForeignKey<Doctor>(d => d.SystemUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<Doctor>()
-                .HasIndex(d => d.SystemUserId)
-                .IsUnique();
-
-            // 4. SystemUser -> TeachingAssistant (One-to-One)
-            modelBuilder.Entity<TeachingAssistant>()
-               .HasOne(t => t.SystemUser)
-               .WithOne()
-               .HasForeignKey<TeachingAssistant>(t => t.SystemUserId)
-               .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<TeachingAssistant>()
-                .HasIndex(t => t.SystemUserId)
-                .IsUnique();
-
+            // --------------------------------------------------------
             // Exam
+            // --------------------------------------------------------
             modelBuilder.Entity<Exam>()
                 .Property(e => e.Mode)
                 .HasConversion<string>()
@@ -497,15 +478,6 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasConversion<string>()
                 .HasMaxLength(20)
                 .IsRequired();
-
-            modelBuilder.Entity<Exam>()
-                .Property(e => e.PublicId)
-                .HasDefaultValueSql("'EX-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"ExamSequence\"')")
-                .ValueGeneratedOnAdd();
-
-            modelBuilder.Entity<Exam>()
-                .HasIndex(e => e.PublicId)
-                .IsUnique();
 
             modelBuilder.Entity<Exam>()
                 .HasOne(e => e.SubjectOffering)
@@ -525,7 +497,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<Exam>()
                 .HasIndex(e => e.CreatedByDoctorId);
 
-            // ExamQuestion (Composition)
+            // ExamQuestion
             modelBuilder.Entity<ExamQuestion>()
                 .HasOne(q => q.Exam)
                 .WithMany(e => e.Questions)
@@ -549,7 +521,9 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasIndex(s => new { s.ExamId, s.StudentId })
                 .IsUnique();
 
+            // --------------------------------------------------------
             // StudentGrade
+            // --------------------------------------------------------
             modelBuilder.Entity<StudentGrade>()
                 .HasOne(g => g.Student)
                 .WithMany()
@@ -566,7 +540,9 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasIndex(g => new { g.StudentId, g.SubjectOfferingId })
                 .IsUnique();
 
+            // --------------------------------------------------------
             // Materials
+            // --------------------------------------------------------
             modelBuilder.Entity<Material>()
                 .HasOne(m => m.SubjectOffering)
                 .WithMany()
@@ -582,7 +558,9 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<Material>()
                 .HasIndex(m => m.SubjectOfferingId);
 
-            // AiActionLog Configuration
+            // --------------------------------------------------------
+            // AiActionLog
+            // --------------------------------------------------------
             modelBuilder.Entity<AiActionLog>(entity =>
             {
                 entity.ToTable("AiActionLogs");
@@ -596,6 +574,15 @@ namespace UniversityManagementSystem.Infrastructure.Data
 
                 entity.HasIndex(e => e.UserId);
                 entity.HasIndex(e => e.Timestamp);
+            });
+
+            // --------------------------------------------------------
+            // AuditLog (standalone, not BaseEntity)
+            // --------------------------------------------------------
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                // Ulid → string conversion and MaxLength(26) are applied globally via ConfigureConventions.
             });
         }
     }

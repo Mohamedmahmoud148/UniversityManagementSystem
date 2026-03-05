@@ -20,7 +20,6 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.Extensions.DependencyInjection;
 using UniversityManagementSystem.Api.Filters;
 using UniversityManagementSystem.Api.Middleware;
 using UniversityManagementSystem.Infrastructure.Consumers;
@@ -69,7 +68,6 @@ if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCas
     connectionString = builderConn.ToString();
 }
 
-Console.WriteLine("Hangfire connection string: " + connectionString);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -104,17 +102,9 @@ if (!string.IsNullOrWhiteSpace(redisConnectionString))
 // 4. Hangfire
 builder.Services.AddHangfire(config =>
 {
-    if (connectionString.Contains("Host=") || connectionString.Contains("postgres"))
-    {
 #pragma warning disable CS0618
-        config.UsePostgreSqlStorage(connectionString);
+    config.UsePostgreSqlStorage(connectionString);
 #pragma warning restore CS0618
-    }
-    else
-    {
-        // Fallback to SQL Server for local development if DefaultConnection is SQL Server
-        config.UseSqlServerStorage(connectionString);
-    }
 });
 
 builder.Services.AddHangfireServer();
@@ -281,9 +271,9 @@ builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Execut
 builder.Services.AddHttpClient<IAiService, AiService>(client =>
 {
     var baseUrl = Environment.GetEnvironmentVariable("AI_SERVICE_URL")
-                  ?? "https://ai-orchestration-service-production-xxxx.up.railway.app";
+                  ?? "https://ai-orchestration-service-production.up.railway.app";
     client.BaseAddress = new Uri(baseUrl);
-    client.Timeout = TimeSpan.FromSeconds(30);
+    client.Timeout = TimeSpan.FromSeconds(60); // AI inference can be slow on cold start
 });
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IExamService, ExamService>();
@@ -295,6 +285,7 @@ builder.Services.AddScoped<IMaterialService, MaterialService>();
 
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IBulkUploadJob, BulkUploadJob>();
+builder.Services.AddScoped<IExcelImportService, ExcelImportService>();
 
 
 var app = builder.Build();

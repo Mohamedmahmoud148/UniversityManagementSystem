@@ -1,16 +1,18 @@
 using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
+    // Standalone audit log — not a BaseEntity so its own Id stays cleanly typed as Ulid
     public class AuditLog
     {
-        public int Id { get; set; }
-        public string ActionType { get; set; } = string.Empty; // Create, Update, SoftDelete, HardDelete, Override
+        public Ulid Id { get; set; } = Ulid.NewUlid();
+        public string ActionType { get; set; } = string.Empty;
         public string EntityName { get; set; } = string.Empty;
-        public string EntityId { get; set; } = string.Empty;
-        public string? OldValues { get; set; } // JSON
-        public string? NewValues { get; set; } // JSON
-        public int? PerformedByUserId { get; set; }
+        public string EntityId { get; set; } = string.Empty; // Stored as string (ULID.ToString())
+        public string? OldValues { get; set; }
+        public string? NewValues { get; set; }
+        public Ulid? PerformedByUserId { get; set; }
         public DateTime PerformedAt { get; set; } = DateTime.UtcNow;
     }
 }

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-// Re-trigger IDE analysis
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
@@ -13,7 +13,6 @@ namespace UniversityManagementSystem.Core.Entities
 
     public class Exam : BaseEntity
     {
-        public string PublicId { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public ExamType Type { get; set; }
         public int TotalMarks { get; set; }
@@ -22,9 +21,8 @@ namespace UniversityManagementSystem.Core.Entities
         public ExamMode Mode { get; set; } = ExamMode.Structured;
         public ExamStatus Status { get; set; } = ExamStatus.Draft;
         public string? FilePath { get; set; }
-        public int CreatedByDoctorId { get; set; }
-
-        public int SubjectOfferingId { get; set; }
+        public Ulid CreatedByDoctorId { get; set; }
+        public Ulid SubjectOfferingId { get; set; }
 
         // Navigation Properties
         public Doctor CreatedByDoctor { get; set; } = null!;

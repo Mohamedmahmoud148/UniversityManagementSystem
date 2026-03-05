@@ -1,11 +1,12 @@
 using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
     public class Enrollment : BaseEntity
     {
-        public int StudentId { get; set; }
-        public int SubjectOfferingId { get; set; }
+        public Ulid StudentId { get; set; }
+        public Ulid SubjectOfferingId { get; set; }
         public DateTime EnrolledAt { get; set; } = DateTime.UtcNow;
         public bool IsActive { get; set; } = true;
 

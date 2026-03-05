@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
+using NUlid;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
@@ -12,16 +13,16 @@ namespace UniversityManagementSystem.Api.Controllers
     public class ExamsController(IExamService examService) : ControllerBase
     {
 
-        [HttpGet("by-public-id/{publicId}")]
+        [HttpGet("by-code/{code}")]
         [Authorize(Roles = "Admin, Doctor, Student")]
-        public async Task<IActionResult> GetByPublicId(string publicId)
+        public async Task<IActionResult> GetByCode(string code)
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId")?.Value;
             var roleClaim = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
 
             if (profileClaim == null || roleClaim == null) return Unauthorized();
 
-            var exam = await examService.GetExamByPublicIdAsync(publicId, int.Parse(profileClaim), roleClaim);
+            var exam = await examService.GetExamByCodeAsync(code, Ulid.Parse(profileClaim), roleClaim);
             if (exam == null) return NotFound();
 
             return Ok(exam);
@@ -29,13 +30,14 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Doctor")]
-        public async Task<IActionResult> CreateExam([FromQuery] int subjectOfferingId, [FromBody] CreateExamDto dto)
+        public async Task<IActionResult> CreateExam([FromQuery] string subjectOfferingId, [FromBody] CreateExamDto dto)
         {
+            if (!Ulid.TryParse(subjectOfferingId, out var offeringId)) return BadRequest("Invalid Offering ID.");
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = int.Parse(profileClaim.Value);
+            var doctorId = Ulid.Parse(profileClaim.Value);
 
-            var result = await examService.CreateExamAsync(subjectOfferingId, dto, doctorId);
+            var result = await examService.CreateExamAsync(offeringId, dto, doctorId);
             return CreatedAtAction(nameof(GetExam), new { id = result.Id }, result);
         }
 
@@ -45,7 +47,7 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = int.Parse(profileClaim.Value);
+            var doctorId = Ulid.Parse(profileClaim.Value);
 
             var result = await examService.GenerateAiExamAsync(request, doctorId);
             return CreatedAtAction(nameof(GetExam), new { id = result.Id }, result);
@@ -53,20 +55,22 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPost("upload-pdf")]
         [Authorize(Roles = "Doctor")]
-        public async Task<IActionResult> UploadPdfExam([FromQuery] int subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file)
+        public async Task<IActionResult> UploadPdfExam([FromQuery] string subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file)
         {
+            if (!Ulid.TryParse(subjectOfferingId, out var offeringId)) return BadRequest("Invalid Offering ID.");
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = int.Parse(profileClaim.Value);
+            var doctorId = Ulid.Parse(profileClaim.Value);
 
-            var result = await examService.UploadFileExamAsync(subjectOfferingId, file, doctorId);
+            var result = await examService.UploadFileExamAsync(offeringId, file, doctorId);
             return CreatedAtAction(nameof(GetExam), new { id = result.Id }, result);
         }
 
         [HttpGet("{id}")]
         [Authorize(Roles = "Doctor,Student,Admin,SuperAdmin")]
-        public async Task<IActionResult> GetExam(int id)
+        public async Task<IActionResult> GetExam(string id)
         {
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
             var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
 
             // Extract userId based on role: ProfileId for Doctor/Student, nameid for Admin
@@ -76,27 +80,28 @@ namespace UniversityManagementSystem.Api.Controllers
             if (userIdClaim == null)
                 return Unauthorized($"{claimType} claim not found.");
 
-            var userId = int.Parse(userIdClaim.Value);
+            var userId = Ulid.Parse(userIdClaim.Value);
 
-            var result = await examService.GetExamByIdAsync(id, userId, userRole);
+            var result = await examService.GetExamByIdAsync(examId, userId, userRole);
             return Ok(result);
         }
 
         [HttpPost("{id}/submit")]
         [Authorize(Roles = "Student")]
-        public async Task<IActionResult> SubmitExam(int id, [FromBody] ExamSubmissionDto dto)
+        public async Task<IActionResult> SubmitExam(string id, [FromBody] ExamSubmissionDto dto)
         {
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var studentId = int.Parse(profileClaim.Value);
+            var studentId = Ulid.Parse(profileClaim.Value);
 
             // Ensure route ID matches DTO ID or just override it
-            if (dto.ExamId != 0 && dto.ExamId != id)
+            if (dto.ExamId != Ulid.Empty && dto.ExamId != examId)
                 return BadRequest("Exam ID mismatch.");
 
-            dto.ExamId = id;
+            dto.ExamId = examId;
 
-            var submissionId = await examService.SubmitExamAsync(id, studentId, dto);
+            var submissionId = await examService.SubmitExamAsync(examId, studentId, dto);
             return CreatedAtAction(nameof(GetExam), new { id }, new { submissionId, message = "Exam submitted successfully." });
         }
         [HttpGet("my-exams")]
@@ -105,7 +110,7 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = int.Parse(profileClaim.Value);
+            var doctorId = Ulid.Parse(profileClaim.Value);
 
             var exams = await examService.GetExamsByDoctorAsync(doctorId);
             return Ok(exams);
@@ -113,25 +118,27 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpGet("by-offering/{offeringId}")]
         [Authorize(Roles = "Doctor")]
-        public async Task<IActionResult> GetExamsByOffering(int offeringId)
+        public async Task<IActionResult> GetExamsByOffering(string offeringId)
         {
+            if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = int.Parse(profileClaim.Value);
+            var doctorId = Ulid.Parse(profileClaim.Value);
 
-            var exams = await examService.GetExamsByOfferingAsync(offeringId, doctorId);
+            var exams = await examService.GetExamsByOfferingAsync(oId, doctorId);
             return Ok(exams);
         }
 
         [HttpGet("{id}/results")]
         [Authorize(Roles = "Doctor")]
-        public async Task<IActionResult> GetExamResults(int id)
+        public async Task<IActionResult> GetExamResults(string id)
         {
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = int.Parse(profileClaim.Value);
+            var doctorId = Ulid.Parse(profileClaim.Value);
 
-            var submissions = await examService.GetExamSubmissionsAsync(id, doctorId);
+            var submissions = await examService.GetExamSubmissionsAsync(examId, doctorId);
             return Ok(submissions);
         }
 
@@ -141,7 +148,7 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var studentId = int.Parse(profileClaim.Value);
+            var studentId = Ulid.Parse(profileClaim.Value);
 
             var exams = await examService.GetStudentEnrolledExamsAsync(studentId);
             return Ok(exams);
@@ -149,13 +156,14 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpGet("{id}/my-submission")]
         [Authorize(Roles = "Student")]
-        public async Task<IActionResult> GetMySubmission(int id)
+        public async Task<IActionResult> GetMySubmission(string id)
         {
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var studentId = int.Parse(profileClaim.Value);
+            var studentId = Ulid.Parse(profileClaim.Value);
 
-            var submission = await examService.GetStudentSubmissionAsync(id, studentId);
+            var submission = await examService.GetStudentSubmissionAsync(examId, studentId);
 
             if (submission == null)
                 return NotFound("No submission found for this exam.");
@@ -169,7 +177,7 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = int.Parse(profileClaim.Value);
+            var doctorId = Ulid.Parse(profileClaim.Value);
 
             await examService.GradeSubmissionAsync(dto, doctorId);
             return Ok(new { message = "Submission graded successfully." });
@@ -177,37 +185,41 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPost("{id}/restore")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> RestoreExam(int id)
+        public async Task<IActionResult> RestoreExam(string id)
         {
-            await examService.RestoreExamAsync(id);
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
+            await examService.RestoreExamAsync(examId);
             return NoContent();
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<ExamDto>> UpdateExam(int id, UpdateExamDto dto)
+        public async Task<ActionResult<ExamDto>> UpdateExam(string id, UpdateExamDto dto)
         {
-            var result = await examService.UpdateExamAsync(id, dto);
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
+            var result = await examService.UpdateExamAsync(examId, dto);
             return Ok(result);
         }
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteExam(int id)
+        public async Task<IActionResult> DeleteExam(string id)
         {
-            await examService.DeleteExamAsync(id);
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
+            await examService.DeleteExamAsync(examId);
             return NoContent();
         }
 
         [HttpPost("{id}/auto-grade")]
         [Authorize(Roles = "Doctor")]
-        public async Task<IActionResult> AutoGradeExam(int id)
+        public async Task<IActionResult> AutoGradeExam(string id)
         {
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = int.Parse(profileClaim.Value);
+            var doctorId = Ulid.Parse(profileClaim.Value);
 
-            var count = await examService.AutoGradeExamAsync(id, doctorId);
+            var count = await examService.AutoGradeExamAsync(examId, doctorId);
             return Ok(new { message = $"Auto-grading complete. {count} submissions processed." });
         }
     }

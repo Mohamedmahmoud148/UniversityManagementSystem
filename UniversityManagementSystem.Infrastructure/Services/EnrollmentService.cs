@@ -7,6 +7,7 @@ using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -56,12 +57,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 if (existing.IsActive && existing.DeletedAt == null)
                     throw new InvalidOperationException("Student is already enrolled in this offering.");
-                
+
                 // Reactivate if soft deleted or inactive
                 existing.IsActive = true;
                 existing.DeletedAt = null; // Restore from soft delete
                 existing.EnrolledAt = DateTime.UtcNow;
-                
+
                 // _context.Enrollments.Update(existing); // distinct update not needed for tracked entity
                 await _context.SaveChangesAsync();
                 return;
@@ -80,7 +81,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _context.SaveChangesAsync();
         }
 
-        public async Task UnenrollStudentAsync(int enrollmentId)
+        public async Task UnenrollStudentAsync(Ulid enrollmentId)
         {
             var enrollment = await _context.Enrollments.FindAsync(enrollmentId);
             if (enrollment == null) throw new KeyNotFoundException("Enrollment not found");
@@ -91,12 +92,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
             // user request says "Soft delete (set IsActive = false)". 
             // Also user mentioned "Soft Delete" in general. 
             // AppDbContext has a QueryFilter for DeletedAt. Let's set DeletedAt too to be safe/consistent with system.
-            enrollment.DeletedAt = DateTime.UtcNow; 
-            
+            enrollment.DeletedAt = DateTime.UtcNow;
+
             await _context.SaveChangesAsync();
         }
 
-        public async Task<IReadOnlyList<Enrollment>> GetStudentEnrollmentsAsync(int studentId)
+        public async Task<IReadOnlyList<Enrollment>> GetStudentEnrollmentsAsync(Ulid studentId)
         {
             return await _context.Enrollments
                 .Include(e => e.SubjectOffering)
@@ -108,7 +109,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .ToListAsync();
         }
 
-        public async Task<IReadOnlyList<Enrollment>> GetEnrollmentsByOfferingIdAsync(int offeringId)
+        public async Task<IReadOnlyList<Enrollment>> GetEnrollmentsByOfferingIdAsync(Ulid offeringId)
         {
             return await _context.Enrollments
                 .Include(e => e.Student)
@@ -116,7 +117,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .OrderBy(e => e.Student.FullName)
                 .ToListAsync();
         }
-        public async Task ReactivateEnrollmentAsync(int enrollmentId)
+        public async Task ReactivateEnrollmentAsync(Ulid enrollmentId)
         {
             var enrollment = await _context.Enrollments
                 .IgnoreQueryFilters()

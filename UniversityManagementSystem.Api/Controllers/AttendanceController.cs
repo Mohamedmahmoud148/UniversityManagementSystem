@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NUlid;
 using System.Security.Claims;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
@@ -18,10 +19,10 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<IActionResult> CreateSession([FromBody] CreateAttendanceSessionDto dto)
         {
             var profileIdClaim = User.FindFirst("ProfileId");
-            if (profileIdClaim == null || !int.TryParse(profileIdClaim.Value, out int profileId))
+            if (profileIdClaim == null || !Ulid.TryParse(profileIdClaim.Value, out var profileId))
                 return Unauthorized("User profile not found in token.");
 
-            var roleClaim = User.FindFirst("role"); // or ClaimTypes.Role, depending on what AuthService sets. AuthService sets "role".
+            var roleClaim = User.FindFirst("role");
             if (roleClaim == null) return Unauthorized("User role not found.");
 
             try
@@ -39,17 +40,8 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> CheckIn([FromBody] RecordAttendanceDto dto)
         {
-
-            // Ideally we need StudentId here, not just UserId. 
-            // But for now, let's assume UserId maps to Student or we need to lookup.
-            // Simplified: The service expects StudentId. 
-            // We need a way to get StudentId from UserId in the Controller or Service.
-            // For this implementation, I'll pass UserId to the service and let it resolve strict mapping if needed, 
-            // OR assuming the JWT contains the StudentId claim.
-            // Let's assume the JWT has a specific claim "ProfileId" for StudentId/DoctorId.
-
             var studentIdClaim = User.FindFirst("ProfileId");
-            if (studentIdClaim == null || !int.TryParse(studentIdClaim.Value, out int studentId) || studentId == 0)
+            if (studentIdClaim == null || !Ulid.TryParse(studentIdClaim.Value, out var studentId))
                 return Unauthorized("Student profile not found in token.");
 
             var success = await _attendanceService.RecordAttendanceAsync(studentId, dto);
@@ -60,41 +52,51 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpGet("student/{studentId}/report")]
         [Authorize(Roles = "Doctor,TeachingAssistant,SuperAdmin,Admin")]
-        public async Task<IActionResult> GetReport(int studentId, [FromQuery] int subjectId)
+        public async Task<IActionResult> GetReport(string studentId, [FromQuery] string subjectId)
         {
-            var report = await _attendanceService.GetStudentAttendanceAsync(studentId, subjectId);
+            if (!Ulid.TryParse(studentId, out var sId)) return BadRequest("Invalid Student ID.");
+            if (!Ulid.TryParse(subjectId, out var subId)) return BadRequest("Invalid Subject ID.");
+            var report = await _attendanceService.GetStudentAttendanceAsync(sId, subId);
             return Ok(report);
         }
 
         [HttpPost("correct")]
         [Authorize(Roles = "Admin,SuperAdmin")]
-        public async Task<IActionResult> CorrectAttendance([FromQuery] int sessionId, [FromQuery] int studentId, [FromQuery] bool isPresent)
+        public async Task<IActionResult> CorrectAttendance([FromQuery] string sessionId, [FromQuery] string studentId, [FromQuery] bool isPresent)
         {
-            await _attendanceService.UpdateAttendanceAsync(sessionId, studentId, isPresent);
+            if (!Ulid.TryParse(sessionId, out var sessId)) return BadRequest("Invalid Session ID.");
+            if (!Ulid.TryParse(studentId, out var studId)) return BadRequest("Invalid Student ID.");
+            await _attendanceService.UpdateAttendanceAsync(sessId, studId, isPresent);
             return Ok(new { Message = "Attendance corrected successfully." });
         }
 
         [HttpGet("record/{sessionId}/{studentId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<AttendanceResponseDto>> GetRecord(int sessionId, int studentId)
+        public async Task<ActionResult<AttendanceResponseDto>> GetRecord(string sessionId, string studentId)
         {
-            var result = await _attendanceService.GetByIdAsync(sessionId, studentId);
+            if (!Ulid.TryParse(sessionId, out var sessId)) return BadRequest("Invalid Session ID.");
+            if (!Ulid.TryParse(studentId, out var studId)) return BadRequest("Invalid Student ID.");
+            var result = await _attendanceService.GetByIdAsync(sessId, studId);
             return Ok(result);
         }
 
         [HttpPut("record/{sessionId}/{studentId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateRecord(int sessionId, int studentId, [FromBody] UpdateAttendanceDto dto)
+        public async Task<IActionResult> UpdateRecord(string sessionId, string studentId, [FromBody] UpdateAttendanceDto dto)
         {
-            await _attendanceService.UpdateAttendanceAsync(sessionId, studentId, dto.IsPresent);
+            if (!Ulid.TryParse(sessionId, out var sessId)) return BadRequest("Invalid Session ID.");
+            if (!Ulid.TryParse(studentId, out var studId)) return BadRequest("Invalid Student ID.");
+            await _attendanceService.UpdateAttendanceAsync(sessId, studId, dto.IsPresent);
             return NoContent();
         }
 
         [HttpDelete("record/{sessionId}/{studentId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteRecord(int sessionId, int studentId)
+        public async Task<IActionResult> DeleteRecord(string sessionId, string studentId)
         {
-            await _attendanceService.DeleteAttendanceAsync(sessionId, studentId);
+            if (!Ulid.TryParse(sessionId, out var sessId)) return BadRequest("Invalid Session ID.");
+            if (!Ulid.TryParse(studentId, out var studId)) return BadRequest("Invalid Student ID.");
+            await _attendanceService.DeleteAttendanceAsync(sessId, studId);
             return NoContent();
         }
     }

@@ -1,21 +1,56 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using NUlid;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
+    // ─────────────────────────────────────────────────────────
+    // DTOs for GET /api/university/full-structure
+    // ─────────────────────────────────────────────────────────
+
+    public record FullStudentDto(string Id, string Code, string FullName, string UniversityStudentId);
+    public record FullGroupDto(string Id, string Code, string Name, IReadOnlyList<FullStudentDto> Students);
+    public record FullBatchDto(string Id, string Code, string Name, IReadOnlyList<FullGroupDto> Groups);
+    public record FullSubjectDto(string Id, string Code, string Name, int CreditHours);
+    public record FullDoctorDto(string Id, string Code, string FullName, string Email);
+    public record FullDepartmentDto(
+        string Id, string Code, string Name,
+        IReadOnlyList<FullSubjectDto> Subjects,
+        IReadOnlyList<FullBatchDto> Batches,
+        IReadOnlyList<FullDoctorDto> Doctors);
+    public record FullCollegeDto(string Id, string Code, string Name, IReadOnlyList<FullDepartmentDto> Departments);
+    public record FullUniversityDto(string Id, string Code, string Name, IReadOnlyList<FullCollegeDto> Colleges);
+
+    // ─────────────────────────────────────────────────────────
+    // University Controller
+    // ─────────────────────────────────────────────────────────
+
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
     [Route("api/[controller]")]
     public class UniversityController : ControllerBase
     {
         private readonly IUniversityService _service;
-        public UniversityController(IUniversityService service) => _service = service;
+        private readonly AppDbContext _context;
+        private readonly ILogger<UniversityController> _logger;
+
+        public UniversityController(
+            IUniversityService service,
+            AppDbContext context,
+            ILogger<UniversityController> logger)
+        {
+            _service = service;
+            _context = context;
+            _logger = logger;
+        }
 
         [HttpGet("structure")]
         public async Task<ActionResult<IEnumerable<UniversityDto>>> GetStructure()
@@ -35,9 +70,10 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, CreateUniversityDto dto)
+        public async Task<IActionResult> Update(string id, CreateUniversityDto dto)
         {
-            var entity = await _service.GetUniversityByIdAsync(id);
+            if (!Ulid.TryParse(id, out var uId)) return BadRequest("Invalid University ID.");
+            var entity = await _service.GetUniversityByIdAsync(uId);
             if (entity == null) return NotFound();
             entity.Name = dto.Name;
             await _service.UpdateUniversityAsync(entity);
@@ -46,12 +82,61 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(string id)
         {
-            await _service.DeleteUniversityAsync(id);
+            if (!Ulid.TryParse(id, out var uId)) return BadRequest("Invalid University ID.");
+            await _service.DeleteUniversityAsync(uId);
             return NoContent();
         }
+
+        // ── GET /api/university/full-structure ──────────────────────────────
+        [HttpGet("full-structure")]
+        public async Task<IActionResult> GetFullStructure()
+        {
+            var list = await _context.Universities
+                .AsNoTracking()
+                .Select(u => new FullUniversityDto(
+                    u.Id.ToString(), u.Code, u.Name,
+                    u.Colleges
+                        .Select(col => new FullCollegeDto(
+                            col.Id.ToString(), col.Code, col.Name,
+                            col.Departments
+                                .Select(dep => new FullDepartmentDto(
+                                    dep.Id.ToString(), dep.Code, dep.Name,
+                                    dep.Subjects
+                                        .Select(s => new FullSubjectDto(s.Id.ToString(), s.Code, s.Name, s.CreditHours))
+                                        .ToList(),
+                                    dep.Batches
+                                        .Select(b => new FullBatchDto(
+                                            b.Id.ToString(), b.Code, b.Name,
+                                            b.Groups
+                                                .Select(g => new FullGroupDto(
+                                                    g.Id.ToString(), g.Code, g.Name,
+                                                    g.Students
+                                                        .Select(st => new FullStudentDto(st.Id.ToString(), st.Code, st.FullName, st.UniversityStudentId))
+                                                        .ToList()))
+                                                .ToList()))
+                                        .ToList(),
+                                    dep.Doctors
+                                        .Select(d => new FullDoctorDto(d.Id.ToString(), d.Code, d.FullName, d.Email))
+                                        .ToList()))
+                                .ToList()))
+                        .ToList()))
+                .ToListAsync();
+
+            if (list.Count == 0)
+            {
+                _logger.LogWarning("full-structure: no universities found.");
+                return NotFound("No universities found.");
+            }
+
+            return list.Count == 1 ? Ok(list[0]) : Ok(list);
+        }
     }
+
+    // ─────────────────────────────────────────────────────────
+    // Colleges Controller
+    // ─────────────────────────────────────────────────────────
 
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
@@ -64,16 +149,16 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<ActionResult<IEnumerable<CollegeDto>>> GetAll()
         {
             var list = await _service.GetAllCollegesAsync();
-            return Ok(list.Select(c => new CollegeDto(c.Id, c.PublicId, c.Name, c.UniversityId)));
+            return Ok(list.Select(c => new CollegeDto(c.Id, c.Name, c.Code, c.UniversityId)));
         }
 
-        [HttpGet("by-public-id/{publicId}")]
-        public async Task<ActionResult<CollegeDto>> GetByPublicId(string publicId)
+        [HttpGet("by-code/{code}")]
+        public async Task<ActionResult<CollegeDto>> GetByCode(string code)
         {
-            var c = await _service.GetCollegeByPublicIdAsync(publicId);
+            var c = await _service.GetCollegeByCodeAsync(code);
             if (c == null) return NotFound();
 
-            return Ok(new CollegeDto(c.Id, c.PublicId, c.Name, c.UniversityId));
+            return Ok(new CollegeDto(c.Id, c.Name, c.Code, c.UniversityId));
         }
 
         [HttpPost]
@@ -82,14 +167,15 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var entity = new College { Name = dto.Name, UniversityId = dto.UniversityId };
             var result = await _service.CreateCollegeAsync(entity);
-            return Ok(new CollegeDto(result.Id, result.PublicId, result.Name, result.UniversityId));
+            return Ok(new CollegeDto(result.Id, result.Name, result.Code, result.UniversityId));
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, CreateCollegeDto dto)
+        public async Task<IActionResult> Update(string id, CreateCollegeDto dto)
         {
-            var entity = await _service.GetCollegeByIdAsync(id);
+            if (!Ulid.TryParse(id, out var cId)) return BadRequest("Invalid College ID.");
+            var entity = await _service.GetCollegeByIdAsync(cId);
             if (entity == null) return NotFound();
             entity.Name = dto.Name;
             entity.UniversityId = dto.UniversityId;
@@ -99,12 +185,17 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(string id)
         {
-            await _service.DeleteCollegeAsync(id);
+            if (!Ulid.TryParse(id, out var cId)) return BadRequest("Invalid College ID.");
+            await _service.DeleteCollegeAsync(cId);
             return NoContent();
         }
     }
+
+    // ─────────────────────────────────────────────────────────
+    // Departments Controller
+    // ─────────────────────────────────────────────────────────
 
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
@@ -114,10 +205,11 @@ namespace UniversityManagementSystem.Api.Controllers
         private readonly IDepartmentService _service = service;
 
         [HttpGet("by-college/{collegeId}")]
-        public async Task<ActionResult<IEnumerable<DepartmentDto>>> GetByCollege(int collegeId)
+        public async Task<ActionResult<IEnumerable<DepartmentDto>>> GetByCollege(string collegeId)
         {
-            var list = await _service.GetDepartmentsByCollegeIdAsync(collegeId);
-            return Ok(list.Select(d => new DepartmentDto(d.Id, d.PublicId, d.Name, d.CollegeId)));
+            if (!Ulid.TryParse(collegeId, out var cId)) return BadRequest("Invalid College ID.");
+            var list = await _service.GetDepartmentsByCollegeIdAsync(cId);
+            return Ok(list.Select(d => new DepartmentDto(d.Id, d.Name, d.Code, d.CollegeId)));
         }
 
         [HttpPost]
@@ -126,14 +218,15 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var entity = new Department { Name = dto.Name, CollegeId = dto.CollegeId };
             var result = await _service.CreateDepartmentAsync(entity);
-            return Ok(new DepartmentDto(result.Id, result.PublicId, result.Name, result.CollegeId));
+            return Ok(new DepartmentDto(result.Id, result.Name, result.Code, result.CollegeId));
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, CreateDepartmentDto dto)
+        public async Task<IActionResult> Update(string id, CreateDepartmentDto dto)
         {
-            var entity = await _service.GetDepartmentByIdAsync(id);
+            if (!Ulid.TryParse(id, out var dId)) return BadRequest("Invalid Department ID.");
+            var entity = await _service.GetDepartmentByIdAsync(dId);
             if (entity == null) return NotFound();
             entity.Name = dto.Name;
             entity.CollegeId = dto.CollegeId;
@@ -143,12 +236,17 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(string id)
         {
-            await _service.DeleteDepartmentAsync(id);
+            if (!Ulid.TryParse(id, out var dId)) return BadRequest("Invalid Department ID.");
+            await _service.DeleteDepartmentAsync(dId);
             return NoContent();
         }
     }
+
+    // ─────────────────────────────────────────────────────────
+    // Batches Controller
+    // ─────────────────────────────────────────────────────────
 
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
@@ -158,10 +256,11 @@ namespace UniversityManagementSystem.Api.Controllers
         private readonly IBatchService _service = service;
 
         [HttpGet("by-department/{departmentId}")]
-        public async Task<ActionResult<IEnumerable<BatchDto>>> GetByDepartment(int departmentId)
+        public async Task<ActionResult<IEnumerable<BatchDto>>> GetByDepartment(string departmentId)
         {
-            var list = await _service.GetBatchesByDepartmentIdAsync(departmentId);
-            return Ok(list.Select(b => new BatchDto(b.Id, b.Name, b.DepartmentId)));
+            if (!Ulid.TryParse(departmentId, out var dId)) return BadRequest("Invalid Department ID.");
+            var list = await _service.GetBatchesByDepartmentIdAsync(dId);
+            return Ok(list.Select(b => new BatchDto(b.Id, b.Name, b.Code, b.DepartmentId)));
         }
 
         [HttpPost]
@@ -170,14 +269,15 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var entity = new Batch { Name = dto.Name, DepartmentId = dto.DepartmentId };
             var result = await _service.CreateBatchAsync(entity);
-            return Ok(new BatchDto(result.Id, result.Name, result.DepartmentId));
+            return Ok(new BatchDto(result.Id, result.Name, result.Code, result.DepartmentId));
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, CreateBatchDto dto)
+        public async Task<IActionResult> Update(string id, CreateBatchDto dto)
         {
-            var entity = await _service.GetBatchByIdAsync(id);
+            if (!Ulid.TryParse(id, out var bId)) return BadRequest("Invalid Batch ID.");
+            var entity = await _service.GetBatchByIdAsync(bId);
             if (entity == null) return NotFound();
             entity.Name = dto.Name;
             entity.DepartmentId = dto.DepartmentId;
@@ -187,12 +287,17 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(string id)
         {
-            await _service.DeleteBatchAsync(id);
+            if (!Ulid.TryParse(id, out var bId)) return BadRequest("Invalid Batch ID.");
+            await _service.DeleteBatchAsync(bId);
             return NoContent();
         }
     }
+
+    // ─────────────────────────────────────────────────────────
+    // Groups Controller
+    // ─────────────────────────────────────────────────────────
 
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
@@ -202,9 +307,10 @@ namespace UniversityManagementSystem.Api.Controllers
         private readonly IGroupService _service = service;
 
         [HttpGet("by-batch/{batchId}")]
-        public async Task<ActionResult<IEnumerable<GroupDto>>> GetByBatch(int batchId)
+        public async Task<ActionResult<IEnumerable<GroupDto>>> GetByBatch(string batchId)
         {
-            var list = await _service.GetGroupsByBatchIdAsync(batchId);
+            if (!Ulid.TryParse(batchId, out var bId)) return BadRequest("Invalid Batch ID.");
+            var list = await _service.GetGroupsByBatchIdAsync(bId);
             return Ok(list.Select(g => new GroupDto(g.Id, g.Name, g.BatchId)));
         }
 
@@ -219,9 +325,10 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, CreateGroupDto dto)
+        public async Task<IActionResult> Update(string id, CreateGroupDto dto)
         {
-            var entity = await _service.GetGroupByIdAsync(id);
+            if (!Ulid.TryParse(id, out var gId)) return BadRequest("Invalid Group ID.");
+            var entity = await _service.GetGroupByIdAsync(gId);
             if (entity == null) return NotFound();
             entity.Name = dto.Name;
             entity.BatchId = dto.BatchId;
@@ -231,9 +338,10 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(string id)
         {
-            await _service.DeleteGroupAsync(id);
+            if (!Ulid.TryParse(id, out var gId)) return BadRequest("Invalid Group ID.");
+            await _service.DeleteGroupAsync(gId);
             return NoContent();
         }
     }

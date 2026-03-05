@@ -1,13 +1,12 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace UniversityManagementSystem.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialPostgres : Migration
+    public partial class InitialUlidSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -15,16 +14,14 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
             migrationBuilder.AlterDatabase()
                 .Annotation("Npgsql:PostgresExtension:citext", ",,");
 
-            migrationBuilder.Sql("CREATE EXTENSION IF NOT EXISTS citext;");
-
             migrationBuilder.CreateTable(
                 name: "AcademicYear",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -34,17 +31,33 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "AiActionLogs",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Role = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    ToolName = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
+                    ParametersJson = table.Column<string>(type: "text", nullable: false),
+                    Success = table.Column<bool>(type: "boolean", nullable: false),
+                    Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AiActionLogs", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "AuditLogs",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     ActionType = table.Column<string>(type: "text", nullable: false),
                     EntityName = table.Column<string>(type: "text", nullable: false),
                     EntityId = table.Column<string>(type: "text", nullable: false),
                     OldValues = table.Column<string>(type: "text", nullable: true),
                     NewValues = table.Column<string>(type: "text", nullable: true),
-                    PerformedByUserId = table.Column<int>(type: "integer", nullable: true),
+                    PerformedByUserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
                     PerformedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
@@ -56,12 +69,12 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Regulations",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Title = table.Column<string>(type: "text", nullable: false),
                     Content = table.Column<string>(type: "text", nullable: false),
                     Type = table.Column<int>(type: "integer", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -74,18 +87,18 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "SystemUsers",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     FullName = table.Column<string>(type: "text", nullable: false),
                     Email = table.Column<string>(type: "citext", nullable: false),
                     PasswordHash = table.Column<string>(type: "text", nullable: false),
                     Role = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     UniversityEmail = table.Column<string>(type: "citext", nullable: false),
                     NationalId = table.Column<string>(type: "text", nullable: false),
-                    CreatedByUserId = table.Column<int>(type: "integer", nullable: true),
+                    CreatedByUserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     AccessFailedCount = table.Column<int>(type: "integer", nullable: false),
                     LockoutEnd = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -98,9 +111,9 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Universities",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -113,12 +126,12 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Semester",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    AcademicYearId = table.Column<int>(type: "integer", nullable: false),
+                    AcademicYearId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -137,12 +150,12 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Admins",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     FullName = table.Column<string>(type: "text", nullable: false),
                     Email = table.Column<string>(type: "text", nullable: false),
                     Phone = table.Column<string>(type: "text", nullable: false),
-                    SystemUserId = table.Column<int>(type: "integer", nullable: false),
+                    SystemUserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -161,12 +174,12 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "AiMemories",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    UserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Fact = table.Column<string>(type: "text", nullable: false),
                     Context = table.Column<string>(type: "text", nullable: false),
                     ConfidenceScore = table.Column<float>(type: "real", nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -185,13 +198,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "AppNotifications",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    UserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Title = table.Column<string>(type: "text", nullable: false),
                     Message = table.Column<string>(type: "text", nullable: false),
                     IsRead = table.Column<bool>(type: "boolean", nullable: false),
                     ActionUrl = table.Column<string>(type: "text", nullable: true),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -210,11 +223,11 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Conversations",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Title = table.Column<string>(type: "text", nullable: false),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
+                    UserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -233,15 +246,15 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "RefreshTokens",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Token = table.Column<string>(type: "text", nullable: false),
                     JwtId = table.Column<string>(type: "text", nullable: false),
                     CreationDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ExpiryDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Used = table.Column<bool>(type: "boolean", nullable: false),
                     Invalidated = table.Column<bool>(type: "boolean", nullable: false),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
+                    UserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -260,10 +273,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Colleges",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    UniversityId = table.Column<int>(type: "integer", nullable: false),
+                    UniversityId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -282,12 +295,12 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "ChatMessages",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    ConversationId = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    ConversationId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Content = table.Column<string>(type: "text", nullable: false),
                     IsUserMessage = table.Column<bool>(type: "boolean", nullable: false),
                     Intent = table.Column<string>(type: "text", nullable: true),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -306,10 +319,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Departments",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    CollegeId = table.Column<int>(type: "integer", nullable: false),
+                    CollegeId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -328,10 +341,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Batches",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    DepartmentId = table.Column<int>(type: "integer", nullable: false),
+                    DepartmentId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -350,14 +363,14 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Doctors",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     FullName = table.Column<string>(type: "text", nullable: false),
                     UniversityStaffId = table.Column<string>(type: "text", nullable: false),
                     Phone = table.Column<string>(type: "text", nullable: false),
                     Email = table.Column<string>(type: "text", nullable: false),
-                    DepartmentId = table.Column<int>(type: "integer", nullable: false),
-                    SystemUserId = table.Column<int>(type: "integer", nullable: false),
+                    DepartmentId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    SystemUserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -382,15 +395,15 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "TeachingAssistants",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     FullName = table.Column<string>(type: "text", nullable: false),
                     UniversityStaffId = table.Column<string>(type: "text", nullable: false),
                     Phone = table.Column<string>(type: "text", nullable: false),
                     Email = table.Column<string>(type: "text", nullable: false),
                     UniversityEmail = table.Column<string>(type: "text", nullable: false),
-                    DepartmentId = table.Column<int>(type: "integer", nullable: false),
-                    SystemUserId = table.Column<int>(type: "integer", nullable: false),
+                    DepartmentId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    SystemUserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -415,10 +428,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Groups",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    BatchId = table.Column<int>(type: "integer", nullable: false),
+                    BatchId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -437,14 +450,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Subjects",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    Code = table.Column<string>(type: "text", nullable: false),
-                    CollegeId = table.Column<int>(type: "integer", nullable: true),
-                    DepartmentId = table.Column<int>(type: "integer", nullable: false),
-                    BatchId = table.Column<int>(type: "integer", nullable: true),
+                    CollegeId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
+                    DepartmentId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    BatchId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
                     CreditHours = table.Column<int>(type: "integer", nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -473,19 +485,19 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Students",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     FullName = table.Column<string>(type: "text", nullable: false),
                     UniversityStudentId = table.Column<string>(type: "text", nullable: false),
                     Phone = table.Column<string>(type: "text", nullable: false),
                     Email = table.Column<string>(type: "text", nullable: false),
-                    UniversityId = table.Column<int>(type: "integer", nullable: false),
-                    CollegeId = table.Column<int>(type: "integer", nullable: false),
-                    DepartmentId = table.Column<int>(type: "integer", nullable: false),
-                    BatchId = table.Column<int>(type: "integer", nullable: false),
-                    GroupId = table.Column<int>(type: "integer", nullable: false),
+                    UniversityId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    CollegeId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    DepartmentId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    BatchId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    GroupId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    SystemUserId = table.Column<int>(type: "integer", nullable: false),
+                    SystemUserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -534,16 +546,16 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "AttendanceSessions",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    SubjectId = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    SubjectId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     SessionDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     StartTime = table.Column<TimeSpan>(type: "interval", nullable: false),
                     EndTime = table.Column<TimeSpan>(type: "interval", nullable: false),
                     QrCodeContent = table.Column<string>(type: "text", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    DoctorId = table.Column<int>(type: "integer", nullable: true),
-                    TeachingAssistantId = table.Column<int>(type: "integer", nullable: true),
+                    DoctorId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
+                    TeachingAssistantId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -574,8 +586,8 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "SubjectAssistants",
                 columns: table => new
                 {
-                    SubjectId = table.Column<int>(type: "integer", nullable: false),
-                    TeachingAssistantId = table.Column<int>(type: "integer", nullable: false)
+                    SubjectId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    TeachingAssistantId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -598,8 +610,8 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "SubjectDoctors",
                 columns: table => new
                 {
-                    SubjectId = table.Column<int>(type: "integer", nullable: false),
-                    DoctorId = table.Column<int>(type: "integer", nullable: false)
+                    SubjectId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    DoctorId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -622,15 +634,15 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "SubjectOfferings",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    SubjectId = table.Column<int>(type: "integer", nullable: false),
-                    SemesterId = table.Column<int>(type: "integer", nullable: false),
-                    DoctorId = table.Column<int>(type: "integer", nullable: false),
-                    DepartmentId = table.Column<int>(type: "integer", nullable: false),
-                    BatchId = table.Column<int>(type: "integer", nullable: false),
-                    GroupId = table.Column<int>(type: "integer", nullable: true),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    SubjectId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    SemesterId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    DoctorId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    DepartmentId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    BatchId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    GroupId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
                     MaxCapacity = table.Column<int>(type: "integer", nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -679,13 +691,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "StudentAttendances",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    AttendanceSessionId = table.Column<int>(type: "integer", nullable: false),
-                    StudentId = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    AttendanceSessionId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    StudentId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     IsPresent = table.Column<bool>(type: "boolean", nullable: false),
                     CheckInTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     Remarks = table.Column<string>(type: "text", nullable: true),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -710,13 +722,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Enrollments",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    StudentId = table.Column<int>(type: "integer", nullable: false),
-                    SubjectOfferingId = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    StudentId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    SubjectOfferingId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     EnrolledAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
-                    SubjectId = table.Column<int>(type: "integer", nullable: true),
+                    SubjectId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -746,21 +758,30 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Exams",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Title = table.Column<string>(type: "text", nullable: false),
                     Type = table.Column<int>(type: "integer", nullable: false),
                     TotalMarks = table.Column<int>(type: "integer", nullable: false),
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    IsPublished = table.Column<bool>(type: "boolean", nullable: false),
-                    SubjectOfferingId = table.Column<int>(type: "integer", nullable: false),
+                    Mode = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    FilePath = table.Column<string>(type: "text", nullable: true),
+                    CreatedByDoctorId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    SubjectOfferingId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Exams", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Exams_Doctors_CreatedByDoctorId",
+                        column: x => x.CreatedByDoctorId,
+                        principalTable: "Doctors",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Exams_SubjectOfferings_SubjectOfferingId",
                         column: x => x.SubjectOfferingId,
@@ -773,15 +794,15 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "Materials",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     FileName = table.Column<string>(type: "text", nullable: false),
                     StoredFileName = table.Column<string>(type: "text", nullable: false),
                     ContentType = table.Column<string>(type: "text", nullable: false),
                     FileSize = table.Column<long>(type: "bigint", nullable: false),
                     UploadedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    SubjectOfferingId = table.Column<int>(type: "integer", nullable: false),
-                    UploadedByDoctorId = table.Column<int>(type: "integer", nullable: false),
+                    SubjectOfferingId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    UploadedByDoctorId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -806,15 +827,15 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "StudentGrades",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     FinalScore = table.Column<double>(type: "double precision", nullable: false),
                     GradeLetter = table.Column<string>(type: "text", nullable: false),
                     GradePoints = table.Column<double>(type: "double precision", nullable: false),
                     IsFinalized = table.Column<bool>(type: "boolean", nullable: false),
                     CalculatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    StudentId = table.Column<int>(type: "integer", nullable: false),
-                    SubjectOfferingId = table.Column<int>(type: "integer", nullable: false),
+                    StudentId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    SubjectOfferingId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -839,20 +860,20 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "UploadedFiles",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     FileName = table.Column<string>(type: "text", nullable: false),
                     StoredPath = table.Column<string>(type: "text", nullable: false),
                     ContentType = table.Column<string>(type: "text", nullable: false),
                     FileSizeBytes = table.Column<long>(type: "bigint", nullable: false),
-                    UploadedByUserId = table.Column<int>(type: "integer", nullable: false),
-                    SubjectId = table.Column<int>(type: "integer", nullable: true),
-                    SubjectOfferingId = table.Column<int>(type: "integer", nullable: true),
-                    UploadedByDoctorId = table.Column<int>(type: "integer", nullable: true),
+                    UploadedByUserId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    SubjectId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
+                    SubjectOfferingId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
+                    UploadedByDoctorId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: true),
                     UploadDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ValidationStatus = table.Column<string>(type: "text", nullable: false),
                     ExtractedDataJson = table.Column<string>(type: "text", nullable: true),
                     ValidationErrors = table.Column<string>(type: "text", nullable: true),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -889,12 +910,12 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "ExamQuestions",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     QuestionText = table.Column<string>(type: "text", nullable: false),
                     CorrectAnswer = table.Column<string>(type: "text", nullable: false),
                     Mark = table.Column<int>(type: "integer", nullable: false),
-                    ExamId = table.Column<int>(type: "integer", nullable: false),
+                    ExamId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -913,14 +934,14 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "ExamSubmissions",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
                     Score = table.Column<double>(type: "double precision", nullable: true),
                     IsGraded = table.Column<bool>(type: "boolean", nullable: false),
                     AnswersJson = table.Column<string>(type: "text", nullable: false),
                     SubmittedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ExamId = table.Column<int>(type: "integer", nullable: false),
-                    StudentId = table.Column<int>(type: "integer", nullable: false),
+                    ExamId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    StudentId = table.Column<string>(type: "character varying(26)", maxLength: 26, nullable: false),
+                    Code = table.Column<string>(type: "text", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
@@ -952,6 +973,16 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 table: "Admins",
                 column: "SystemUserId",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AiActionLogs_Timestamp",
+                table: "AiActionLogs",
+                column: "Timestamp");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AiActionLogs_UserId",
+                table: "AiActionLogs",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_AiMemories_UserId",
@@ -1040,6 +1071,11 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "IX_ExamQuestions_ExamId",
                 table: "ExamQuestions",
                 column: "ExamId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Exams_CreatedByDoctorId",
+                table: "Exams",
+                column: "CreatedByDoctorId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Exams_SubjectOfferingId",
@@ -1194,6 +1230,12 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 column: "BatchId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Subjects_Code",
+                table: "Subjects",
+                column: "Code",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Subjects_CollegeId",
                 table: "Subjects",
                 column: "CollegeId");
@@ -1264,6 +1306,9 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
         {
             migrationBuilder.DropTable(
                 name: "Admins");
+
+            migrationBuilder.DropTable(
+                name: "AiActionLogs");
 
             migrationBuilder.DropTable(
                 name: "AiMemories");

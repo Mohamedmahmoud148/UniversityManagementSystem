@@ -1,16 +1,16 @@
 using System.Collections.Generic;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
     public class Subject : BaseEntity
     {
-        public string PublicId { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public string Code { get; set; } = string.Empty;
-        public int? CollegeId { get; set; }
-        public int DepartmentId { get; set; }
-        public int? BatchId { get; set; }
-        public int CreditHours { get; set; } // Added
+        /// <summary>Short academic code, e.g. "CS101". Used as the human-readable Code field.</summary>
+        public Ulid? CollegeId { get; set; }
+        public Ulid DepartmentId { get; set; }
+        public Ulid? BatchId { get; set; }
+        public int CreditHours { get; set; }
 
         // Navigation Properties
         public College? College { get; set; }

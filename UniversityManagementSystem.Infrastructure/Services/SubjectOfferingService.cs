@@ -7,6 +7,7 @@ using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -56,7 +57,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return await GetByIdAsync(entity.Id);
         }
 
-        public async Task<IEnumerable<SubjectOfferingDto>> GetBySemesterAsync(int semesterId)
+        public async Task<IEnumerable<SubjectOfferingDto>> GetBySemesterAsync(Ulid semesterId)
         {
             var offerings = await _context.Set<SubjectOffering>()
                 .Include(so => so.Subject)
@@ -68,18 +69,18 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return offerings.Select(MapToDto);
         }
 
-        public async Task<SubjectOfferingDto?> GetByPublicIdAsync(string publicId)
+        public async Task<SubjectOfferingDto?> GetByCodeAsync(string code)
         {
             var entity = await _context.Set<SubjectOffering>()
                 .Include(so => so.Subject)
                 .Include(so => so.Semester)
                 .Include(so => so.Doctor)
-                .FirstOrDefaultAsync(so => so.PublicId == publicId);
+                .FirstOrDefaultAsync(so => so.Code == code);
 
             return entity == null ? null : MapToDto(entity);
         }
 
-        public async Task<IEnumerable<SubjectOfferingDto>> GetByDoctorAsync(int systemUserId)
+        public async Task<IEnumerable<SubjectOfferingDto>> GetByDoctorAsync(Ulid systemUserId)
         {
             // 1. Find Doctor Entity by SystemUserId
             var doctor = await _context.Set<Doctor>()
@@ -99,7 +100,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return offerings.Select(MapToDto);
         }
 
-        public async Task<IEnumerable<SubjectOfferingDto>> GetByStudentAsync(int studentId)
+        public async Task<IEnumerable<SubjectOfferingDto>> GetByStudentAsync(Ulid studentId)
         {
             var enrollmentIds = await _context.Enrollments
                .Where(e => e.StudentId == studentId && e.IsActive)
@@ -118,7 +119,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return offerings.Select(MapToDto);
         }
 
-        private async Task<SubjectOfferingDto> GetByIdAsync(int id)
+        private async Task<SubjectOfferingDto> GetByIdAsync(Ulid id)
         {
             var entity = await _context.Set<SubjectOffering>()
                 .Include(so => so.Subject)
@@ -135,7 +136,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return new SubjectOfferingDto
             {
                 Id = entity.Id,
-                PublicId = entity.PublicId,
                 SubjectId = entity.SubjectId,
                 SubjectName = entity.Subject?.Name ?? string.Empty,
                 SemesterId = entity.SemesterId,

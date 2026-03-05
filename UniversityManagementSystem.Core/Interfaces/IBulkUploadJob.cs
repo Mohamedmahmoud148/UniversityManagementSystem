@@ -1,11 +1,12 @@
 using System.Threading.Tasks;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Interfaces
 {
     public interface IBulkUploadJob
     {
-        Task ProcessStudentDirectUpload(int fileId, int uploaderUserId);
-        Task ProcessStudentAiUpload(int fileId, int uploaderUserId);
-        Task ProcessDoctorUpload(int fileId, int uploaderUserId);
+        Task ProcessStudentDirectUpload(Ulid fileId, Ulid uploaderUserId);
+        Task ProcessStudentAiUpload(Ulid fileId, Ulid uploaderUserId);
+        Task ProcessDoctorUpload(Ulid fileId, Ulid uploaderUserId);
     }
 }

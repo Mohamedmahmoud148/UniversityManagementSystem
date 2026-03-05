@@ -1,17 +1,18 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Interfaces
 {
     public interface IChatService
     {
-        Task<int> CreateConversationAsync(int userId, string title);
-        Task<ChatResponseDto> SendMessageAsync(int userId, SendMessageDto messageDto);
-        Task<IEnumerable<ConversationDto>> GetUserConversationsAsync(int userId);
-        Task<IEnumerable<ChatResponseDto>> GetConversationMessagesAsync(int conversationId);
-        
+        Task<Ulid> CreateConversationAsync(Ulid userId, string title);
+        Task<ChatResponseDto> SendMessageAsync(Ulid userId, SendMessageDto messageDto, string role);
+        Task<IEnumerable<ConversationDto>> GetUserConversationsAsync(Ulid userId);
+        Task<IEnumerable<ChatResponseDto>> GetConversationMessagesAsync(Ulid conversationId);
+
         // Admin Override
-        Task DeleteMessageAsync(int messageId);
+        Task DeleteMessageAsync(Ulid messageId);
     }
 }

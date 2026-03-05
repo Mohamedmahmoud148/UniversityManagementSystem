@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using UniversityManagementSystem.Core.Entities;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
     public class ExamDto
     {
-        public int Id { get; set; }
-        public string PublicId { get; set; } = string.Empty;
+        public Ulid Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty; // Enum as string
         public int TotalMarks { get; set; }
@@ -17,9 +17,9 @@ namespace UniversityManagementSystem.Core.DTOs
         public string Mode { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string? FilePath { get; set; }
-        public int CreatedByDoctorId { get; set; }
+        public Ulid CreatedByDoctorId { get; set; }
 
-        public int SubjectOfferingId { get; set; }
+        public Ulid SubjectOfferingId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
 
         public List<ExamQuestionDto> Questions { get; set; } = new();
@@ -46,7 +46,7 @@ namespace UniversityManagementSystem.Core.DTOs
 
     public class ExamQuestionDto
     {
-        public int Id { get; set; }
+        public Ulid Id { get; set; }
         public string QuestionText { get; set; } = string.Empty;
         public int Mark { get; set; }
         // CorrectAnswer kept hidden in basic DTO for security if needed, 
@@ -86,7 +86,7 @@ namespace UniversityManagementSystem.Core.DTOs
     public class CreateAiExamRequest
     {
         [Required]
-        public int SubjectOfferingId { get; set; }
+        public Ulid SubjectOfferingId { get; set; }
 
         public string Difficulty { get; set; } = "Medium";
         public int QuestionCount { get; set; } = 10;

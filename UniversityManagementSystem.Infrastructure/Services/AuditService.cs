@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -10,7 +11,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
     {
         private readonly AppDbContext _context = context;
 
-        public async Task LogAsync(string actionType, string entityName, string entityId, string? oldValues, string? newValues, int? performedByUserId)
+        public async Task LogAsync(string actionType, string entityName, string entityId, string? oldValues, string? newValues, Ulid? performedByUserId)
         {
             var log = new AuditLog
             {

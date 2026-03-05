@@ -1,11 +1,12 @@
 using System.Collections.Generic;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
     public class Group : BaseEntity
     {
         public string Name { get; set; } = string.Empty; // e.g., "G1", "Group A"
-        public int BatchId { get; set; }
+        public Ulid BatchId { get; set; }
 
         // Navigation Properties
         public Batch Batch { get; set; } = null!;

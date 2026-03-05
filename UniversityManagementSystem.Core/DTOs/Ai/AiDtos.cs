@@ -1,3 +1,5 @@
+using NUlid;
+
 namespace UniversityManagementSystem.Core.DTOs.Ai
 {
     public class AiResponseDto
@@ -25,7 +27,7 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
 
     public class AiChatRequestDto
     {
-        public int user_id { get; set; }
+        public Ulid user_id { get; set; }
         public string role { get; set; } = string.Empty;
         public string message { get; set; } = string.Empty;
         public object[] history { get; set; } = [];

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -14,7 +15,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly AppDbContext _context = context;
         private readonly ISmartStringGenerator _smartString = smartString;
 
-        public async Task<string> GenerateStudentIdAsync(int batchId, int departmentId)
+        public async Task<string> GenerateStudentIdAsync(Ulid batchId, Ulid departmentId)
         {
             // Format: [Year][DeptCode][Batch][Sequence]
             // Example: 2026 CS 01 0001 -> 2026110001 (using numeric IDs for simplicity or map codes)
@@ -31,7 +32,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 var count = await _context.Students.CountAsync(s => s.CreatedAt.Year == year) + 1;
                 // Base ID without random noise, SmartStringGenerator will handle duplicates
-                var baseId = $"{year}{departmentId:D2}{count:D4}";
+                var baseId = $"{year}{departmentId.ToString().Substring(0, 2)}{count:D4}";
 
                 return await _smartString.GenerateUniqueAsync<Student>(baseId, s => s.UniversityStudentId);
             });
@@ -53,7 +54,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return email;
         }
 
-        public async Task<string> GenerateStaffIdAsync(int departmentId)
+        public async Task<string> GenerateStaffIdAsync(Ulid departmentId)
         {
             var year = DateTime.UtcNow.Year;
             var policy = Policy.Handle<Exception>().RetryAsync(3);
@@ -61,7 +62,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return await policy.ExecuteAsync(async () =>
             {
                 var count = await _context.Doctors.CountAsync(d => d.CreatedAt.Year == year) + 1;
-                var baseId = $"STAFF{year}{departmentId:D2}{count:D3}";
+                var baseId = $"STAFF{year}{departmentId.ToString().Substring(0, 2)}{count:D3}";
 
                 return await _smartString.GenerateUniqueAsync<Doctor>(baseId, d => d.UniversityStaffId);
             });

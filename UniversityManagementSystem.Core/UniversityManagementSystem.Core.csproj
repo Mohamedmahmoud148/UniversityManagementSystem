@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="NUlid" Version="1.7.1" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

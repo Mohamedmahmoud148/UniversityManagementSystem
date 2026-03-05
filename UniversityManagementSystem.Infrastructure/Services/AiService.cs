@@ -1,80 +1,155 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.DTOs.Ai;
 using UniversityManagementSystem.Core.Interfaces;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
+    /// <summary>
+    /// Single centralized gateway for all communication with the external
+    /// FastAPI AI Orchestration Service.
+    ///
+    /// Base URL is configured via the AI_SERVICE_URL environment variable
+    /// (registered in Program.cs through AddHttpClient&lt;IAiService, AiService&gt;).
+    ///
+    /// Endpoints consumed:
+    ///   POST /api/chat        — conversational AI, intent detection, tool routing
+    ///   POST /extract         — file/document data extraction
+    ///   POST /generate-exam   — AI-generated exam question sets
+    /// </summary>
     public class AiService(HttpClient httpClient) : IAiService
     {
         private readonly HttpClient _httpClient = httpClient;
 
-        public async Task<AiResponseDto> AnalyzeTextAsync(string text)
+        // Shared serializer options: snake_case output (matches FastAPI defaults),
+        // ignore null values to keep payloads lean.
+        private static readonly JsonSerializerOptions _jsonOptions = new()
         {
-            try
-            {
-                var response = await _httpClient.PostAsJsonAsync("/analyze", new { text });
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadFromJsonAsync<AiResponseDto>() ?? new AiResponseDto();
-                }
-            }
-            catch
-            {
-                // Log error
-            }
-            return new AiResponseDto { Intent = "None", Confidence = 0 };
-        }
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
 
-        public async Task<AiExtractResponseDto> ExtractDataFromFileAsync(string fileUrl, string fileType)
-        {
-            try
-            {
-                var response = await _httpClient.PostAsJsonAsync("/extract", new { fileUrl, fileType });
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadFromJsonAsync<AiExtractResponseDto>() ?? new AiExtractResponseDto { Success = false };
-                }
-            }
-            catch
-            {
-                // Log error
-            }
-            return new AiExtractResponseDto { Success = false, Errors = ["Service unavailable"] };
-        }
+        // ----------------------------------------------------------------
+        // Chat  —  POST /api/chat
+        // ----------------------------------------------------------------
 
         public async Task<AiChatResponseDto> SendChatMessageAsync(AiChatRequestDto request)
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync("/api/chat", request);
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadFromJsonAsync<AiChatResponseDto>() ?? new AiChatResponseDto();
-                }
+                var response = await _httpClient.PostAsJsonAsync("/api/chat", request, _jsonOptions);
+
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadFromJsonAsync<AiChatResponseDto>(_jsonOptions)
+                       ?? new AiChatResponseDto
+                       {
+                           response = "The AI returned an empty response.",
+                           intent_executed = "None"
+                       };
             }
-            catch
+            catch (HttpRequestException ex)
             {
-                // Log error
+                // Network-level failure (DNS, connection refused, timeout).
+                Console.Error.WriteLine($"[AiService] SendChatMessageAsync – HTTP error: {ex.Message}");
             }
-            return new AiChatResponseDto { response = "I'm having trouble connecting to my brain right now.", intent_executed = "None" };
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[AiService] SendChatMessageAsync – Unexpected error: {ex.Message}");
+            }
+
+            return new AiChatResponseDto
+            {
+                response = "I'm having trouble connecting to my brain right now. Please try again shortly.",
+                intent_executed = "None"
+            };
         }
 
-        public async Task<System.Collections.Generic.List<UniversityManagementSystem.Core.DTOs.CreateExamQuestionDto>> GenerateExamAsync(AiGenerateExamRequestDto request)
+        // ----------------------------------------------------------------
+        // File Extraction  —  POST /extract
+        // ----------------------------------------------------------------
+
+        public async Task<AiExtractResponseDto> ExtractDataFromFileAsync(string fileUrl, string fileType)
         {
             try
             {
-                var response = await _httpClient.PostAsJsonAsync($"/generate-exam", request);
-                if (response.IsSuccessStatusCode)
-                {
-                    return await response.Content.ReadFromJsonAsync<System.Collections.Generic.List<UniversityManagementSystem.Core.DTOs.CreateExamQuestionDto>>() ?? [];
-                }
+                var payload = new { file_url = fileUrl, file_type = fileType };
+
+                var response = await _httpClient.PostAsJsonAsync("/extract", payload, _jsonOptions);
+
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadFromJsonAsync<AiExtractResponseDto>(_jsonOptions)
+                       ?? new AiExtractResponseDto { Success = false, Errors = ["Empty response from AI service."] };
             }
-            catch
+            catch (HttpRequestException ex)
             {
-                // Log error
+                Console.Error.WriteLine($"[AiService] ExtractDataFromFileAsync – HTTP error: {ex.Message}");
             }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[AiService] ExtractDataFromFileAsync – Unexpected error: {ex.Message}");
+            }
+
+            return new AiExtractResponseDto { Success = false, Errors = ["AI extraction service is unavailable."] };
+        }
+
+        // ----------------------------------------------------------------
+        // Exam Generation  —  POST /generate-exam
+        // ----------------------------------------------------------------
+
+        public async Task<List<CreateExamQuestionDto>> GenerateExamAsync(AiGenerateExamRequestDto request)
+        {
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync("/generate-exam", request, _jsonOptions);
+
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadFromJsonAsync<List<CreateExamQuestionDto>>(_jsonOptions)
+                       ?? [];
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.Error.WriteLine($"[AiService] GenerateExamAsync – HTTP error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[AiService] GenerateExamAsync – Unexpected error: {ex.Message}");
+            }
+
             return [];
+        }
+
+        // ----------------------------------------------------------------
+        // Text Analysis  —  POST /analyze  (internal / legacy)
+        // ----------------------------------------------------------------
+
+        public async Task<AiResponseDto> AnalyzeTextAsync(string text)
+        {
+            try
+            {
+                var payload = new { text };
+
+                var response = await _httpClient.PostAsJsonAsync("/analyze", payload, _jsonOptions);
+
+                response.EnsureSuccessStatusCode();
+
+                return await response.Content.ReadFromJsonAsync<AiResponseDto>(_jsonOptions)
+                       ?? new AiResponseDto { Intent = "None", Confidence = 0 };
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.Error.WriteLine($"[AiService] AnalyzeTextAsync – HTTP error: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[AiService] AnalyzeTextAsync – Unexpected error: {ex.Message}");
+            }
+
+            return new AiResponseDto { Intent = "None", Confidence = 0 };
         }
     }
 }

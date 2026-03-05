@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using UniversityManagementSystem.Core.Entities;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
@@ -58,7 +59,7 @@ namespace UniversityManagementSystem.Core.DTOs
         public string? UniversityStaffId { get; set; }
 
         [Required]
-        public int DepartmentId { get; set; }
+        public Ulid DepartmentId { get; set; }
 
         [Required]
         public string NationalId { get; set; } = string.Empty;
@@ -74,10 +75,10 @@ namespace UniversityManagementSystem.Core.DTOs
         public string FullName { get; set; } = string.Empty;
 
         [Required]
-        public int CollegeId { get; set; }
+        public Ulid CollegeId { get; set; }
 
         [Required]
-        public int DepartmentId { get; set; }
+        public Ulid DepartmentId { get; set; }
 
         [Required]
         public string NationalId { get; set; } = string.Empty;
@@ -85,10 +86,10 @@ namespace UniversityManagementSystem.Core.DTOs
         public string? UniversityStudentId { get; set; }
 
         [Required]
-        public int BatchId { get; set; }
+        public Ulid BatchId { get; set; }
 
         [Required]
-        public int GroupId { get; set; }
+        public Ulid GroupId { get; set; }
 
         [Required]
         [Phone]
@@ -100,7 +101,7 @@ namespace UniversityManagementSystem.Core.DTOs
         public string Token { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
-        public int UserId { get; set; }
+        public Ulid UserId { get; set; }
         public string FullName { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
         public string? UniversityEmail { get; set; }

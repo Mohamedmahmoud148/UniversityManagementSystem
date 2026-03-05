@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NUlid;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
 
@@ -13,12 +14,11 @@ namespace UniversityManagementSystem.Api.Controllers
     {
         private readonly ISubjectOfferingService _service = service;
 
-        [HttpGet("by-public-id/{publicId}")]
-        public async Task<IActionResult> GetByPublicId(string publicId)
+        [HttpGet("by-code/{code}")]
+        public async Task<IActionResult> GetByCode(string code)
         {
-            var result = await _service.GetByPublicIdAsync(publicId);
+            var result = await _service.GetByCodeAsync(code);
             if (result == null) return NotFound();
-
             return Ok(result);
         }
 
@@ -32,9 +32,10 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpGet("by-semester/{semesterId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetBySemester(int semesterId)
+        public async Task<IActionResult> GetBySemester(string semesterId)
         {
-            var result = await _service.GetBySemesterAsync(semesterId);
+            if (!Ulid.TryParse(semesterId, out var uid)) return BadRequest("Invalid Semester ID.");
+            var result = await _service.GetBySemesterAsync(uid);
             return Ok(result);
         }
 
@@ -42,10 +43,9 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetMyOfferings()
         {
-            var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == "nameid");
-            if (userIdClaim == null) return Unauthorized("User ID claim not found.");
-            var userId = int.Parse(userIdClaim.Value);
-
+            var claim = User.Claims.FirstOrDefault(c => c.Type == "nameid");
+            if (claim == null) return Unauthorized("User ID claim not found.");
+            if (!Ulid.TryParse(claim.Value, out var userId)) return Unauthorized("Invalid user ID.");
             var result = await _service.GetByDoctorAsync(userId);
             return Ok(result);
         }
@@ -56,10 +56,8 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var profileIdClaim = User.FindFirst("ProfileId");
             if (profileIdClaim == null) return Unauthorized("Student profile not found.");
-
-            int currentStudentId = int.Parse(profileIdClaim.Value);
-
-            var result = await _service.GetByStudentAsync(currentStudentId);
+            if (!Ulid.TryParse(profileIdClaim.Value, out var studentId)) return Unauthorized("Invalid student ID.");
+            var result = await _service.GetByStudentAsync(studentId);
             return Ok(result);
         }
     }

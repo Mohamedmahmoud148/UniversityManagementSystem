@@ -1,4 +1,5 @@
 using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
@@ -11,7 +12,7 @@ namespace UniversityManagementSystem.Core.DTOs
 
     public class FileStatusDto
     {
-        public int Id { get; set; }
+        public Ulid Id { get; set; }
         public string FileName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string? ExtractedData { get; set; }

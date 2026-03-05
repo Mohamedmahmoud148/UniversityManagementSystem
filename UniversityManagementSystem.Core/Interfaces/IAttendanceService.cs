@@ -1,18 +1,19 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Interfaces
 {
     public interface IAttendanceService
     {
-        Task<QrCodeResponseDto> CreateSessionAsync(CreateAttendanceSessionDto dto, int profileId, string role);
-        Task<bool> RecordAttendanceAsync(int studentId, RecordAttendanceDto dto);
-        Task<IEnumerable<RecordAttendanceDto>> GetStudentAttendanceAsync(int studentId, int subjectId);
-        
+        Task<QrCodeResponseDto> CreateSessionAsync(CreateAttendanceSessionDto dto, Ulid profileId, string role);
+        Task<bool> RecordAttendanceAsync(Ulid studentId, RecordAttendanceDto dto);
+        Task<IEnumerable<RecordAttendanceDto>> GetStudentAttendanceAsync(Ulid studentId, Ulid subjectId);
+
         // Admin Override
-        Task<AttendanceResponseDto> GetByIdAsync(int sessionId, int studentId);
-        Task UpdateAttendanceAsync(int sessionId, int studentId, bool isPresent);
-        Task DeleteAttendanceAsync(int sessionId, int studentId);
+        Task<AttendanceResponseDto> GetByIdAsync(Ulid sessionId, Ulid studentId);
+        Task UpdateAttendanceAsync(Ulid sessionId, Ulid studentId, bool isPresent);
+        Task DeleteAttendanceAsync(Ulid sessionId, Ulid studentId);
     }
 }

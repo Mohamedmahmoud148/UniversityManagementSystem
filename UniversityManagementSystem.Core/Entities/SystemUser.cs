@@ -1,4 +1,5 @@
 using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
@@ -20,12 +21,10 @@ namespace UniversityManagementSystem.Core.Entities
         public string PasswordHash { get; set; } = string.Empty;
         public UserRole Role { get; set; }
 
-        // No loose RelatedEntityId. Relationships are defined in child entities (Student, Doctor, Admin).
-
         public string UniversityEmail { get; set; } = string.Empty;
         public string NationalId { get; set; } = string.Empty;
 
-        public int? CreatedByUserId { get; set; } // ID of the user who created this account
+        public Ulid? CreatedByUserId { get; set; } // ID of the user who created this account
         public bool IsActive { get; set; } = true;
 
         // Lockout Logic

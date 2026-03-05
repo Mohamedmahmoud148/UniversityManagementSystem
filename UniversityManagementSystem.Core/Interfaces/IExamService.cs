@@ -1,33 +1,34 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Interfaces
 {
     public interface IExamService
     {
-        Task<ExamDto> CreateExamAsync(int subjectOfferingId, CreateExamDto dto, int doctorId);
-        Task<ExamDto> GetExamByIdAsync(int examId, int userId, string userRole);
-        Task<ExamDto?> GetExamByPublicIdAsync(string publicId, int userId, string userRole);
-        Task<int> SubmitExamAsync(int examId, int studentId, ExamSubmissionDto submissionDto);
-        Task<ExamDto> GenerateAiExamAsync(CreateAiExamRequest request, int doctorId);
-        Task<ExamDto> UploadFileExamAsync(int subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file, int doctorId);
+        Task<ExamDto> CreateExamAsync(Ulid subjectOfferingId, CreateExamDto dto, Ulid doctorId);
+        Task<ExamDto> GetExamByIdAsync(Ulid examId, Ulid userId, string userRole);
+        Task<ExamDto?> GetExamByCodeAsync(string code, Ulid userId, string userRole);
+        Task<Ulid> SubmitExamAsync(Ulid examId, Ulid studentId, ExamSubmissionDto submissionDto);
+        Task<ExamDto> GenerateAiExamAsync(CreateAiExamRequest request, Ulid doctorId);
+        Task<ExamDto> UploadFileExamAsync(Ulid subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file, Ulid doctorId);
 
         // Queries
-        Task<IEnumerable<ExamDto>> GetExamsByDoctorAsync(int doctorId);
-        Task<IEnumerable<ExamDto>> GetExamsByOfferingAsync(int offeringId, int doctorId);
-        Task<IEnumerable<ExamSubmissionResponseDto>> GetExamSubmissionsAsync(int examId, int doctorId);
-        Task<IEnumerable<ExamDto>> GetStudentEnrolledExamsAsync(int studentId);
-        Task<ExamSubmissionResponseDto?> GetStudentSubmissionAsync(int examId, int studentId);
+        Task<IEnumerable<ExamDto>> GetExamsByDoctorAsync(Ulid doctorId);
+        Task<IEnumerable<ExamDto>> GetExamsByOfferingAsync(Ulid offeringId, Ulid doctorId);
+        Task<IEnumerable<ExamSubmissionResponseDto>> GetExamSubmissionsAsync(Ulid examId, Ulid doctorId);
+        Task<IEnumerable<ExamDto>> GetStudentEnrolledExamsAsync(Ulid studentId);
+        Task<ExamSubmissionResponseDto?> GetStudentSubmissionAsync(Ulid examId, Ulid studentId);
 
         // Grading
-        Task GradeSubmissionAsync(GradeSubmissionDto dto, int doctorId);
-        Task<int> AutoGradeExamAsync(int examId, int doctorId); // Returns count of graded submissions
+        Task GradeSubmissionAsync(GradeSubmissionDto dto, Ulid doctorId);
+        Task<int> AutoGradeExamAsync(Ulid examId, Ulid doctorId); // Returns count of graded submissions
 
         // Admin Overrides
-        Task<ExamDto> UpdateExamAsync(int examId, UpdateExamDto dto);
-        Task ArchiveExamAsync(int examId);
-        Task RestoreExamAsync(int examId);
-        Task DeleteExamAsync(int examId);
+        Task<ExamDto> UpdateExamAsync(Ulid examId, UpdateExamDto dto);
+        Task ArchiveExamAsync(Ulid examId);
+        Task RestoreExamAsync(Ulid examId);
+        Task DeleteExamAsync(Ulid examId);
     }
 }

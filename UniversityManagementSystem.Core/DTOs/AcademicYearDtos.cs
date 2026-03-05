@@ -1,10 +1,11 @@
 using System.ComponentModel.DataAnnotations;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
     public class AcademicYearDto
     {
-        public int Id { get; set; }
+        public Ulid Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public bool IsActive { get; set; }
     }
@@ -13,7 +14,7 @@ namespace UniversityManagementSystem.Core.DTOs
     {
         [Required]
         public string Name { get; set; } = string.Empty;
-        
+
         public bool IsActive { get; set; }
     }
 
@@ -21,7 +22,7 @@ namespace UniversityManagementSystem.Core.DTOs
     {
         [Required]
         public string Name { get; set; } = string.Empty;
-        
+
         public bool IsActive { get; set; }
     }
 }

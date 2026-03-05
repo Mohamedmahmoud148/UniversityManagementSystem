@@ -12,8 +12,8 @@ using UniversityManagementSystem.Infrastructure.Data;
 namespace UniversityManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260304043816_IntroducePublicIds")]
-    partial class IntroducePublicIds
+    [Migration("20260305133046_InitialUlidSchema")]
+    partial class InitialUlidSchema
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -25,20 +25,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.HasSequence<int>("CollegeSequence");
-
-            modelBuilder.HasSequence<int>("DepartmentSequence");
-
-            modelBuilder.HasSequence<int>("DoctorSequence");
-
-            modelBuilder.HasSequence<int>("ExamSequence");
-
-            modelBuilder.HasSequence<int>("StudentSequence");
-
-            modelBuilder.HasSequence<int>("SubjectOfferingSequence");
-
-            modelBuilder.HasSequence<int>("SubjectSequence");
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Application.AI.Logging.AiActionLog", b =>
                 {
@@ -66,8 +52,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -80,11 +68,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AcademicYear", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -109,11 +99,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Admin", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -133,8 +125,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("SystemUserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SystemUserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -146,11 +140,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AiMemory", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<float>("ConfidenceScore")
                         .HasColumnType("real");
@@ -169,8 +165,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -181,13 +179,15 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AppNotification", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("ActionUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
@@ -207,8 +207,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -219,11 +221,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AttendanceSession", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -231,8 +235,9 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("DoctorId")
-                        .HasColumnType("integer");
+                    b.Property<string>("DoctorId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<TimeSpan>("EndTime")
                         .HasColumnType("interval");
@@ -250,11 +255,14 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<TimeSpan>("StartTime")
                         .HasColumnType("interval");
 
-                    b.Property<int>("SubjectId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int?>("TeachingAssistantId")
-                        .HasColumnType("integer");
+                    b.Property<string>("TeachingAssistantId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -269,11 +277,9 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AuditLog", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("ActionType")
                         .IsRequired()
@@ -296,8 +302,9 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime>("PerformedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("PerformedByUserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("PerformedByUserId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -306,11 +313,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Batch", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -318,8 +327,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("DepartmentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("DepartmentId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -334,18 +345,22 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ChatMessage", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("ConversationId")
-                        .HasColumnType("integer");
+                    b.Property<string>("ConversationId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -368,11 +383,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.College", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -384,19 +401,12 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PublicId")
+                    b.Property<string>("UniversityId")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValueSql("'COL-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"CollegeSequence\"')");
-
-                    b.Property<int>("UniversityId")
-                        .HasColumnType("integer");
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique();
 
                     b.HasIndex("UniversityId");
 
@@ -405,11 +415,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Conversation", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -424,8 +436,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -436,14 +450,18 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Department", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.Property<int>("CollegeId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CollegeId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -455,29 +473,22 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PublicId")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValueSql("'DEP-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"DepartmentSequence\"')");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CollegeId");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique();
 
                     b.ToTable("Departments");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Doctor", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -485,8 +496,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("DepartmentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("DepartmentId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -500,14 +513,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PublicId")
+                    b.Property<string>("SystemUserId")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValueSql("'DOC-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"DoctorSequence\"')");
-
-                    b.Property<int>("SystemUserId")
-                        .HasColumnType("integer");
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("UniversityStaffId")
                         .IsRequired()
@@ -516,9 +525,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DepartmentId");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique();
 
                     b.HasIndex("SystemUserId")
                         .IsUnique();
@@ -531,11 +537,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Enrollment", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -549,14 +557,19 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("StudentId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int?>("SubjectId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("SubjectOfferingId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectOfferingId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -572,17 +585,21 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Exam", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("CreatedByDoctorId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CreatedByDoctorId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
@@ -598,12 +615,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<string>("PublicId")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValueSql("'EX-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"ExamSequence\"')");
-
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
@@ -612,8 +623,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<int>("SubjectOfferingId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectOfferingId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -629,9 +642,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.HasIndex("CreatedByDoctorId");
 
-                    b.HasIndex("PublicId")
-                        .IsUnique();
-
                     b.HasIndex("SubjectOfferingId");
 
                     b.ToTable("Exams");
@@ -639,11 +649,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ExamQuestion", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("CorrectAnswer")
                         .IsRequired()
@@ -655,8 +667,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("ExamId")
-                        .HasColumnType("integer");
+                    b.Property<string>("ExamId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<int>("Mark")
                         .HasColumnType("integer");
@@ -674,13 +688,15 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ExamSubmission", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("AnswersJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -690,8 +706,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("ExamId")
-                        .HasColumnType("integer");
+                    b.Property<string>("ExamId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<bool>("IsGraded")
                         .HasColumnType("boolean");
@@ -699,8 +717,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<double?>("Score")
                         .HasColumnType("double precision");
 
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("StudentId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime>("SubmittedAt")
                         .HasColumnType("timestamp with time zone");
@@ -717,14 +737,18 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Group", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("BatchId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("BatchId")
-                        .HasColumnType("integer");
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -745,11 +769,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Material", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("ContentType")
                         .IsRequired()
@@ -772,14 +798,18 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("SubjectOfferingId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectOfferingId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("UploadedByDoctorId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UploadedByDoctorId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -792,11 +822,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.RefreshToken", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -824,8 +856,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<bool>("Used")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -836,11 +870,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Regulation", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Content")
                         .IsRequired()
@@ -869,14 +905,18 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Semester", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("AcademicYearId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("AcademicYearId")
-                        .HasColumnType("integer");
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -906,17 +946,23 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Student", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("BatchId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("BatchId")
-                        .HasColumnType("integer");
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
-                    b.Property<int>("CollegeId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CollegeId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -924,8 +970,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("DepartmentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("DepartmentId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -935,8 +983,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("GroupId")
-                        .HasColumnType("integer");
+                    b.Property<string>("GroupId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -945,17 +995,15 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PublicId")
+                    b.Property<string>("SystemUserId")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValueSql("'STU-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"StudentSequence\"')");
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("SystemUserId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("UniversityId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UniversityId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("UniversityStudentId")
                         .IsRequired()
@@ -971,9 +1019,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.HasIndex("GroupId");
 
-                    b.HasIndex("PublicId")
-                        .IsUnique();
-
                     b.HasIndex("SystemUserId")
                         .IsUnique();
 
@@ -987,17 +1032,21 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.StudentAttendance", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AttendanceSessionId")
-                        .HasColumnType("integer");
+                    b.Property<string>("AttendanceSessionId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime?>("CheckInTime")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1011,8 +1060,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<string>("Remarks")
                         .HasColumnType("text");
 
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("StudentId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -1026,14 +1077,16 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.StudentGrade", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime>("CalculatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1054,11 +1107,15 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<bool>("IsFinalized")
                         .HasColumnType("boolean");
 
-                    b.Property<int>("StudentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("StudentId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("SubjectOfferingId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectOfferingId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -1072,21 +1129,21 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Subject", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int?>("BatchId")
-                        .HasColumnType("integer");
+                    b.Property<string>("BatchId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("CollegeId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CollegeId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1097,40 +1154,38 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("DepartmentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("DepartmentId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("PublicId")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValueSql("'SUB-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"SubjectSequence\"')");
-
                     b.HasKey("Id");
 
                     b.HasIndex("BatchId");
 
+                    b.HasIndex("Code")
+                        .IsUnique();
+
                     b.HasIndex("CollegeId");
 
                     b.HasIndex("DepartmentId");
-
-                    b.HasIndex("PublicId")
-                        .IsUnique();
 
                     b.ToTable("Subjects");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.SubjectAssistant", b =>
                 {
-                    b.Property<int>("SubjectId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("TeachingAssistantId")
-                        .HasColumnType("integer");
+                    b.Property<string>("TeachingAssistantId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("SubjectId", "TeachingAssistantId");
 
@@ -1141,11 +1196,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.SubjectDoctor", b =>
                 {
-                    b.Property<int>("SubjectId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("DoctorId")
-                        .HasColumnType("integer");
+                    b.Property<string>("DoctorId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("SubjectId", "DoctorId");
 
@@ -1156,14 +1213,18 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.SubjectOffering", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("BatchId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("BatchId")
-                        .HasColumnType("integer");
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1171,29 +1232,32 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("DepartmentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("DepartmentId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("DoctorId")
-                        .HasColumnType("integer");
+                    b.Property<string>("DoctorId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int?>("GroupId")
-                        .HasColumnType("integer");
+                    b.Property<string>("GroupId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<int>("MaxCapacity")
                         .HasColumnType("integer");
 
-                    b.Property<string>("PublicId")
+                    b.Property<string>("SemesterId")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValueSql("'SO-' || cast(extract(year from current_date) as varchar) || '-' || nextval('\"SubjectOfferingSequence\"')");
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("SemesterId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SubjectId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
@@ -1205,9 +1269,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.HasIndex("GroupId");
 
-                    b.HasIndex("PublicId")
-                        .IsUnique();
-
                     b.HasIndex("SemesterId");
 
                     b.HasIndex("SubjectId", "SemesterId")
@@ -1218,20 +1279,23 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.SystemUser", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("CreatedByUserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("CreatedByUserId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1283,11 +1347,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.TeachingAssistant", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1295,8 +1361,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("DepartmentId")
-                        .HasColumnType("integer");
+                    b.Property<string>("DepartmentId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -1310,8 +1378,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("SystemUserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SystemUserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("UniversityEmail")
                         .IsRequired()
@@ -1336,11 +1406,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.University", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1359,11 +1431,13 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.UploadedFile", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                    b.Property<string>("Id")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("ContentType")
                         .IsRequired()
@@ -1389,20 +1463,25 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int?>("SubjectId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int?>("SubjectOfferingId")
-                        .HasColumnType("integer");
+                    b.Property<string>("SubjectOfferingId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<DateTime>("UploadDate")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("UploadedByDoctorId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UploadedByDoctorId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
-                    b.Property<int>("UploadedByUserId")
-                        .HasColumnType("integer");
+                    b.Property<string>("UploadedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("ValidationErrors")
                         .HasColumnType("text");

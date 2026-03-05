@@ -1,10 +1,11 @@
 using System.Security.Claims;
 using System.Threading.Tasks;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Interfaces
 {
     public interface ISystemUserResolver
     {
-        Task<int> ResolveSystemUserIdAsync(ClaimsPrincipal user);
+        Task<Ulid> ResolveSystemUserIdAsync(ClaimsPrincipal user);
     }
 }

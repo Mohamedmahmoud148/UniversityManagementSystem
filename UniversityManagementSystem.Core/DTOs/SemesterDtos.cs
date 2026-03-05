@@ -1,13 +1,14 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
     public class SemesterDto
     {
-        public int Id { get; set; }
+        public Ulid Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public int AcademicYearId { get; set; }
+        public Ulid AcademicYearId { get; set; }
         public string AcademicYearName { get; set; } = string.Empty;
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
@@ -19,7 +20,7 @@ namespace UniversityManagementSystem.Core.DTOs
         public string Name { get; set; } = string.Empty;
 
         [Required]
-        public int AcademicYearId { get; set; }
+        public Ulid AcademicYearId { get; set; }
 
         [Required]
         public DateTime StartDate { get; set; }

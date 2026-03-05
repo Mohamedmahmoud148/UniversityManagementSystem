@@ -1,11 +1,12 @@
-using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
+    // Join table — no BaseEntity inheritance (composite PK handled by EF config)
     public class SubjectDoctor
     {
-        public int SubjectId { get; set; }
-        public int DoctorId { get; set; }
+        public Ulid SubjectId { get; set; }
+        public Ulid DoctorId { get; set; }
 
         // Navigation Properties
         public Subject Subject { get; set; } = null!;

@@ -1,12 +1,13 @@
 using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
     public class ExamSubmissionResponseDto
     {
-        public int Id { get; set; }
-        public int ExamId { get; set; }
-        public int StudentId { get; set; }
+        public Ulid Id { get; set; }
+        public Ulid ExamId { get; set; }
+        public Ulid StudentId { get; set; }
         public string StudentName { get; set; } = string.Empty;
         public DateTime SubmittedAt { get; set; }
         public double? Score { get; set; }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
@@ -10,13 +11,13 @@ namespace UniversityManagementSystem.Core.DTOs
 
     public class SendMessageDto
     {
-        public int ConversationId { get; set; }
+        public Ulid ConversationId { get; set; }
         public string Content { get; set; } = string.Empty;
     }
 
     public class ChatResponseDto
     {
-        public int Id { get; set; }
+        public Ulid Id { get; set; }
         public string Content { get; set; } = string.Empty;
         public bool IsUserMessage { get; set; }
         public DateTime SentAt { get; set; }
@@ -24,7 +25,7 @@ namespace UniversityManagementSystem.Core.DTOs
 
     public class ConversationDto
     {
-        public int Id { get; set; }
+        public Ulid Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public DateTime LastMessageAt { get; set; }
     }

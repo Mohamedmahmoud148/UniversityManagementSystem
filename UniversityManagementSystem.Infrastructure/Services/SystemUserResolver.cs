@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -12,13 +13,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
     {
         private readonly AppDbContext _context = context;
 
-        public async Task<int> ResolveSystemUserIdAsync(ClaimsPrincipal user)
+        public async Task<Ulid> ResolveSystemUserIdAsync(ClaimsPrincipal user)
         {
             var profileIdClaim = user.FindFirst("ProfileId")?.Value;
             var profileTypeClaim = user.FindFirst("ProfileType")?.Value;
             var nameIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("nameid")?.Value;
 
-            if (!int.TryParse(profileIdClaim, out int profileId))
+            if (string.IsNullOrEmpty(profileIdClaim) || !Ulid.TryParse(profileIdClaim, out var profileId))
                 throw new UnauthorizedAccessException("Invalid ProfileId in token.");
 
             if (!Enum.TryParse<UserRole>(profileTypeClaim, true, out var role))
@@ -28,7 +29,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             Doctor? doctor = null;
             TeachingAssistant? teachingAssistant = null;
             Admin? admin = null;
-            int? existingSystemUserId = null;
+            Ulid? existingSystemUserId = null;
 
             switch (role)
             {
@@ -50,7 +51,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     break;
             }
 
-            if (existingSystemUserId.HasValue && existingSystemUserId.Value > 0)
+            if (existingSystemUserId.HasValue && existingSystemUserId.Value != Ulid.Empty)
             {
                 var exists = await _context.SystemUsers.AnyAsync(u => u.Id == existingSystemUserId.Value);
                 if (exists) return existingSystemUserId.Value;

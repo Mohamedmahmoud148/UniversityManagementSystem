@@ -6,6 +6,7 @@ using UniversityManagementSystem.Infrastructure.Data;
 
 using MassTransit;
 using UniversityManagementSystem.Core.Events;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -15,7 +16,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly IPublishEndpoint _publishEndpoint = publishEndpoint;
         private readonly IAuditService _auditService = auditService;
 
-        public async Task<QrCodeResponseDto> CreateSessionAsync(CreateAttendanceSessionDto dto, int profileId, string role)
+        public async Task<QrCodeResponseDto> CreateSessionAsync(CreateAttendanceSessionDto dto, Ulid profileId, string role)
         {
             // Validate Authorization
             if (role == UserRole.Doctor.ToString())
@@ -54,7 +55,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task<IEnumerable<RecordAttendanceDto>> GetStudentAttendanceAsync(int studentId, int subjectId)
+        public async Task<IEnumerable<RecordAttendanceDto>> GetStudentAttendanceAsync(Ulid studentId, Ulid subjectId)
         {
             return await _context.StudentAttendances
                 .Include(sa => sa.AttendanceSession)
@@ -67,7 +68,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .ToListAsync();
         }
 
-        public async Task<bool> RecordAttendanceAsync(int studentId, RecordAttendanceDto dto)
+        public async Task<bool> RecordAttendanceAsync(Ulid studentId, RecordAttendanceDto dto)
         {
             // Note: We still do a read to validate the session exists and is active
             // to provide immediate feedback to the student if the QR is invalid.
@@ -79,10 +80,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
             // Validate Enrollment
             var isEnrolled = await _context.Enrollments
                 .Include(e => e.SubjectOffering)
-                .AnyAsync(e => e.StudentId == studentId && 
-                               e.SubjectOffering.SubjectId == session.SubjectId && 
+                .AnyAsync(e => e.StudentId == studentId &&
+                               e.SubjectOffering.SubjectId == session.SubjectId &&
                                e.IsActive);
-            
+
             if (!isEnrolled) throw new Exception("Student not enrolled in any active offering of this subject.");
 
             // Offload the actual write to MassTransit
@@ -97,7 +98,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return true;
         }
 
-        public async Task<AttendanceResponseDto> GetByIdAsync(int sessionId, int studentId)
+        public async Task<AttendanceResponseDto> GetByIdAsync(Ulid sessionId, Ulid studentId)
         {
             var record = await _context.StudentAttendances
                 .Include(sa => sa.Student)
@@ -116,13 +117,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task UpdateAttendanceAsync(int sessionId, int studentId, bool isPresent)
+        public async Task UpdateAttendanceAsync(Ulid sessionId, Ulid studentId, bool isPresent)
         {
             var record = await _context.StudentAttendances
                 .FirstOrDefaultAsync(sa => sa.AttendanceSessionId == sessionId && sa.StudentId == studentId);
 
-            var oldValues = record != null 
-                ? System.Text.Json.JsonSerializer.Serialize(new { record.IsPresent, record.CheckInTime }) 
+            var oldValues = record != null
+                ? System.Text.Json.JsonSerializer.Serialize(new { record.IsPresent, record.CheckInTime })
                 : "Absent";
 
             if (isPresent)
@@ -162,7 +163,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _auditService.LogAsync("Update", "StudentAttendance", $"{sessionId}-{studentId}", oldValues, newValues, null);
         }
 
-        public async Task DeleteAttendanceAsync(int sessionId, int studentId)
+        public async Task DeleteAttendanceAsync(Ulid sessionId, Ulid studentId)
         {
             var record = await _context.StudentAttendances
                 .FirstOrDefaultAsync(sa => sa.AttendanceSessionId == sessionId && sa.StudentId == studentId);

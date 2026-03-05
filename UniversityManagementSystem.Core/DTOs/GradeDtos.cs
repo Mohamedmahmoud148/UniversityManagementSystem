@@ -1,13 +1,14 @@
 using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
     public class GradeDto
     {
-        public int Id { get; set; }
-        public int StudentId { get; set; }
+        public Ulid Id { get; set; }
+        public Ulid StudentId { get; set; }
         public string StudentName { get; set; } = string.Empty;
-        public int SubjectOfferingId { get; set; }
+        public Ulid SubjectOfferingId { get; set; }
         public string SubjectName { get; set; } = string.Empty;
         public double FinalScore { get; set; }
         public string GradeLetter { get; set; } = string.Empty;

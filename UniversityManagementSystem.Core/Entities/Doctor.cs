@@ -1,10 +1,10 @@
 using System.Collections.Generic;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
     public class Doctor : BaseEntity
     {
-        public string PublicId { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string UniversityStaffId { get; set; } = string.Empty;
 
@@ -20,10 +20,10 @@ namespace UniversityManagementSystem.Core.Entities
             }
         }
         public string Email { get; set; } = string.Empty;
-        public int DepartmentId { get; set; }
+        public Ulid DepartmentId { get; set; }
 
         // Foreign Key to SystemUser
-        public int SystemUserId { get; set; }
+        public Ulid SystemUserId { get; set; }
 
         // Navigation Properties
         public SystemUser SystemUser { get; set; } = null!;

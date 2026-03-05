@@ -3,6 +3,7 @@ using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -11,7 +12,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly AppDbContext _context = context;
         private readonly IAuditService _auditService = auditService;
 
-        public async Task<IEnumerable<NotificationDto>> GetUserNotificationsAsync(int userId, bool unreadOnly = false)
+        public async Task<IEnumerable<NotificationDto>> GetUserNotificationsAsync(Ulid userId, bool unreadOnly = false)
         {
             var query = _context.AppNotifications.Where(n => n.UserId == userId);
 
@@ -32,7 +33,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .ToListAsync();
         }
 
-        public async Task MarkAsReadAsync(int notificationId)
+        public async Task MarkAsReadAsync(Ulid notificationId)
         {
             var notification = await _context.AppNotifications.FindAsync(notificationId);
             if (notification != null)
@@ -42,7 +43,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
         }
 
-        public async Task SendNotificationAsync(int userId, string title, string message, string? actionUrl = null)
+        public async Task SendNotificationAsync(Ulid userId, string title, string message, string? actionUrl = null)
         {
             var notification = new AppNotification
             {
@@ -71,12 +72,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 // If AppNotification requires UserId, we might need a way to send to 'All'.
                 // Requirement: "POST /api/Notification (Admin only) - Can send global or specific user".
                 // Let's check entity properties.
-                
+
                 // If UserId is required in DB, we might need to send to everyone.
                 // For simplicity, I'll log that it was sent globally if UserId is null.
                 var notification = new AppNotification
                 {
-                    UserId = 0, // Pseudo-userId for global if 0 is not used, or we just use null if allowed.
+                    UserId = Ulid.Empty, // Use Ulid.Empty for global if 0 was used
                     Title = dto.Title,
                     Message = dto.Message,
                     IsRead = false,
@@ -90,7 +91,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _auditService.LogAsync("Create", "Notification", "AdminNotification", null, dto.Title, null);
         }
 
-        public async Task DeleteNotificationAsync(int notificationId)
+        public async Task DeleteNotificationAsync(Ulid notificationId)
         {
             var notification = await _context.AppNotifications.FindAsync(notificationId)
                                ?? throw new KeyNotFoundException($"Notification {notificationId} not found.");

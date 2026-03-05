@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NUlid;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
 
@@ -17,7 +18,7 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var studentId = int.Parse(profileClaim.Value);
+            if (!Ulid.TryParse(profileClaim.Value, out var studentId)) return Unauthorized("Invalid ProfileId claim.");
 
             var gpaDto = await gradeService.CalculateStudentGpaAsync(studentId);
             return Ok(gpaDto);
@@ -25,19 +26,19 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpGet("student/{studentId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<StudentGpaDto>> GetStudentGpa(int studentId)
+        public async Task<ActionResult<StudentGpaDto>> GetStudentGpa(string studentId)
         {
-            var gpaDto = await gradeService.CalculateStudentGpaAsync(studentId);
+            if (!Ulid.TryParse(studentId, out var uid)) return BadRequest("Invalid Student ID.");
+            var gpaDto = await gradeService.CalculateStudentGpaAsync(uid);
             return Ok(gpaDto);
         }
 
         [HttpPost("student/{studentId}/recalculate")]
         [Authorize(Roles = "Admin,SuperAdmin")]
-        public async Task<ActionResult<StudentGpaDto>> RecalculateGpa(int studentId)
+        public async Task<ActionResult<StudentGpaDto>> RecalculateGpa(string studentId)
         {
-            // Since GPA is calculated on-the-fly, this is effectively a fresh fetch.
-            // In a cached system, this would invalidate cache.
-            var gpaDto = await gradeService.CalculateStudentGpaAsync(studentId);
+            if (!Ulid.TryParse(studentId, out var uid)) return BadRequest("Invalid Student ID.");
+            var gpaDto = await gradeService.CalculateStudentGpaAsync(uid);
             return Ok(gpaDto);
         }
     }

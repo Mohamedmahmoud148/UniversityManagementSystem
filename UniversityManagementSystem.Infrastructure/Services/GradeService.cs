@@ -5,13 +5,14 @@ using Microsoft.EntityFrameworkCore;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
     public class GradeService(AppDbContext context, IAuditService auditService) : IGradeService
     {
         private readonly IAuditService _auditService = auditService;
-        public async Task<int> CalculateGradesForOfferingAsync(int offeringId, int doctorId)
+        public async Task<int> CalculateGradesForOfferingAsync(Ulid offeringId, Ulid doctorId)
         {
             // 1. Validate Doctor & Offering
             var offering = await context.Set<SubjectOffering>()
@@ -43,7 +44,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return processedCount;
         }
 
-        private async Task CalculateStudentGradeInternalAsync(int studentId, int offeringId)
+        private async Task CalculateStudentGradeInternalAsync(Ulid studentId, Ulid offeringId)
         {
             // 3. Get Student's Submissions for this offering
             var totalScore = await context.ExamSubmissions
@@ -56,10 +57,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
             // 5. Update or Create StudentGrade
             var gradeRecord = await context.Set<StudentGrade>()
                 .IgnoreQueryFilters() // Include soft-deleted ones to restore them if needed? Or just create new?
-                // Let's stick to active ones for now, OR if invalidating means soft-delete, then re-calc should restore?
-                // If I soft-delete, query filter hides it. So I create new.
-                // If I want to "Recalculate" a deleted one, I should probably restore it.
-                // Let's use IgnoreQueryFilters to check.
+                                      // Let's stick to active ones for now, OR if invalidating means soft-delete, then re-calc should restore?
+                                      // If I soft-delete, query filter hides it. So I create new.
+                                      // If I want to "Recalculate" a deleted one, I should probably restore it.
+                                      // Let's use IgnoreQueryFilters to check.
                 .FirstOrDefaultAsync(g => g.StudentId == studentId && g.SubjectOfferingId == offeringId);
 
             if (gradeRecord == null)
@@ -89,12 +90,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 gradeRecord.GradePoints = points;
                 gradeRecord.IsFinalized = true;
                 gradeRecord.CalculatedAt = DateTime.UtcNow;
-                
+
                 context.Entry(gradeRecord).State = EntityState.Modified;
             }
         }
 
-        public async Task RecalculateStudentGradeAsync(int gradeId)
+        public async Task RecalculateStudentGradeAsync(Ulid gradeId)
         {
             var grade = await context.Set<StudentGrade>()
                 .IgnoreQueryFilters()
@@ -105,11 +106,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await context.SaveChangesAsync();
         }
 
-        public async Task InvalidateGradeAsync(int gradeId)
+        public async Task InvalidateGradeAsync(Ulid gradeId)
         {
             var grade = await context.Set<StudentGrade>().FindAsync(gradeId)
                 ?? throw new KeyNotFoundException($"StudentGrade {gradeId} not found.");
-            
+
             var oldValues = System.Text.Json.JsonSerializer.Serialize(new { grade.FinalScore, grade.DeletedAt });
 
             grade.DeletedAt = DateTime.UtcNow;
@@ -119,7 +120,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _auditService.LogAsync("SoftDelete", "StudentGrade", gradeId.ToString(), oldValues, null, null);
         }
 
-        public async Task<UniversityManagementSystem.Core.DTOs.GradeDto> UpdateGradeAsync(int gradeId, UniversityManagementSystem.Core.DTOs.UpdateGradeDto dto)
+        public async Task<UniversityManagementSystem.Core.DTOs.GradeDto> UpdateGradeAsync(Ulid gradeId, UniversityManagementSystem.Core.DTOs.UpdateGradeDto dto)
         {
             var grade = await context.Set<StudentGrade>()
                 .Include(g => g.Student)
@@ -166,7 +167,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return ("F", 0.0);
         }
 
-        public async Task<UniversityManagementSystem.Core.DTOs.StudentGpaDto> CalculateStudentGpaAsync(int studentId)
+        public async Task<UniversityManagementSystem.Core.DTOs.StudentGpaDto> CalculateStudentGpaAsync(Ulid studentId)
         {
             // 1. Get Student + Grades + Subject Info (CreditHours)
             var student = await context.Students
@@ -202,7 +203,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 // Ensure we have credit hours. If Subject is missing, skip? Should not happen due to FK constraints.
                 // Assuming SubjectOffering -> Subject is mandatory.
                 int credits = grade.SubjectOffering?.Subject?.CreditHours ?? 0;
-                
+
                 if (credits > 0)
                 {
                     totalWeightedPoints += (grade.GradePoints * credits);
@@ -212,7 +213,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             // 3. Compute GPA
             double gpa = totalCreditHours > 0 ? totalWeightedPoints / totalCreditHours : 0.0;
-            
+
             // Round to 2 decimal places
             gpa = Math.Round(gpa, 2);
 

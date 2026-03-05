@@ -11,6 +11,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
 using System;
 using Microsoft.AspNetCore.Http;
+using NUlid;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
@@ -29,6 +30,7 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(list.Select(d => new DoctorDto
             {
                 Id = d.Id,
+                Code = d.Code,
                 FullName = d.FullName,
                 Email = d.Email,
                 Phone = d.Phone,
@@ -38,16 +40,16 @@ namespace UniversityManagementSystem.Api.Controllers
             }));
         }
 
-        [HttpGet("by-public-id/{publicId}")]
-        public async Task<ActionResult<DoctorDto>> GetByPublicId(string publicId)
+        [HttpGet("by-code/{code}")]
+        public async Task<ActionResult<DoctorDto>> GetByCode(string code)
         {
-            var d = await _service.GetDoctorByPublicIdAsync(publicId);
+            var d = await _service.GetDoctorByCodeAsync(code);
             if (d == null) return NotFound();
 
             return Ok(new DoctorDto
             {
                 Id = d.Id,
-                PublicId = d.PublicId,
+                Code = d.Code,
                 FullName = d.FullName,
                 Email = d.Email,
                 Phone = d.Phone,
@@ -69,7 +71,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 DepartmentId = dto.DepartmentId
             };
 
-            var creatorId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var creatorId = Ulid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var authResponse = await _authService.RegisterDoctorAsync(registerDto, creatorId);
 
             var doctor = await _service.GetDoctorByUniversityEmailAsync(authResponse.UniversityEmail!);
@@ -78,6 +80,7 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new DoctorDto
             {
                 Id = doctor.Id,
+                Code = doctor.Code,
                 FullName = doctor.FullName,
                 Email = doctor.Email,
                 Phone = doctor.Phone,
@@ -89,7 +92,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, UpdateDoctorDto dto)
+        public async Task<IActionResult> Update(Ulid id, UpdateDoctorDto dto)
         {
             try
             {
@@ -104,7 +107,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(Ulid id)
         {
             try
             {
@@ -118,7 +121,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("{id}/subjects")]
-        public async Task<ActionResult<IEnumerable<SubjectDto>>> GetSubjects(int id)
+        public async Task<ActionResult<IEnumerable<SubjectDto>>> GetSubjects(Ulid id)
         {
             var list = await _service.GetDoctorSubjectsAsync(id);
             return Ok(list.Select(s => new SubjectDto(s.Id, s.Name, s.Code, s.CollegeId, s.DepartmentId, s.BatchId)));
@@ -136,7 +139,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 var userIdClaim = User.FindFirst("nameid");
                 if (userIdClaim == null) return Unauthorized("Invalid token claims");
 
-                var userId = int.Parse(userIdClaim.Value);
+                var userId = Ulid.Parse(userIdClaim.Value);
                 using var stream = file.OpenReadStream();
                 var status = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
 

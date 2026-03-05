@@ -1,4 +1,5 @@
 using System;
+using NUlid;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -15,7 +16,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly IAuditService _auditService = auditService;
         private readonly IAiService _aiService = aiService;
         private readonly IFileService _fileService = fileService;
-        public async Task<int> SubmitExamAsync(int examId, int studentId, ExamSubmissionDto submissionDto)
+        public async Task<Ulid> SubmitExamAsync(Ulid examId, Ulid studentId, ExamSubmissionDto submissionDto)
         {
             // 1. Validate Exam exists & is active
             var exam = await context.Exams
@@ -77,7 +78,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return submission.Id;
         }
 
-        public async Task<ExamDto> CreateExamAsync(int subjectOfferingId, CreateExamDto dto, int doctorId)
+        public async Task<ExamDto> CreateExamAsync(Ulid subjectOfferingId, CreateExamDto dto, Ulid doctorId)
         {
             // 1. Validate SubjectOffering exists and Doctor is assigned
             var offering = await context.Set<SubjectOffering>()
@@ -119,18 +120,18 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return MapToDto(exam);
         }
 
-        public async Task<ExamDto?> GetExamByPublicIdAsync(string publicId, int userId, string userRole)
+        public async Task<ExamDto?> GetExamByCodeAsync(string code, Ulid userId, string userRole)
         {
             var exam = await context.Exams
                 .AsNoTracking()
-                .FirstOrDefaultAsync(e => e.PublicId == publicId);
+                .FirstOrDefaultAsync(e => e.Code == code);
 
             if (exam == null) return null;
 
             return await GetExamByIdAsync(exam.Id, userId, userRole);
         }
 
-        public async Task<ExamDto> GetExamByIdAsync(int examId, int userId, string userRole)
+        public async Task<ExamDto> GetExamByIdAsync(Ulid examId, Ulid userId, string userRole)
         {
             var exam = await context.Exams
                 .AsNoTracking()
@@ -175,7 +176,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return new ExamDto
             {
                 Id = exam.Id,
-                PublicId = exam.PublicId,
                 Title = exam.Title,
                 Type = exam.Type.ToString(),
                 TotalMarks = exam.TotalMarks,
@@ -196,7 +196,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 }).ToList() ?? []
             };
         }
-        public async Task<IEnumerable<ExamDto>> GetExamsByDoctorAsync(int doctorId)
+        public async Task<IEnumerable<ExamDto>> GetExamsByDoctorAsync(Ulid doctorId)
         {
             var exams = await context.Exams
                 .AsNoTracking()
@@ -209,7 +209,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return exams.Select(MapToDto);
         }
 
-        public async Task<IEnumerable<ExamDto>> GetExamsByOfferingAsync(int offeringId, int doctorId)
+        public async Task<IEnumerable<ExamDto>> GetExamsByOfferingAsync(Ulid offeringId, Ulid doctorId)
         {
             // Validate Doctor owns the offering
             var offering = await context.Set<SubjectOffering>()
@@ -231,7 +231,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return exams.Select(MapToDto);
         }
 
-        public async Task<IEnumerable<ExamSubmissionResponseDto>> GetExamSubmissionsAsync(int examId, int doctorId)
+        public async Task<IEnumerable<ExamSubmissionResponseDto>> GetExamSubmissionsAsync(Ulid examId, Ulid doctorId)
         {
             var exam = await context.Exams
                 .AsNoTracking()
@@ -261,7 +261,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             });
         }
 
-        public async Task<IEnumerable<ExamDto>> GetStudentEnrolledExamsAsync(int studentId)
+        public async Task<IEnumerable<ExamDto>> GetStudentEnrolledExamsAsync(Ulid studentId)
         {
             // 1. Get Offerings student is enrolled in
             var enrolledOfferingIds = await context.Enrollments
@@ -282,7 +282,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return exams.Select(MapToDto);
         }
 
-        public async Task<ExamSubmissionResponseDto?> GetStudentSubmissionAsync(int examId, int studentId)
+        public async Task<ExamSubmissionResponseDto?> GetStudentSubmissionAsync(Ulid examId, Ulid studentId)
         {
             var submission = await context.ExamSubmissions
                 .AsNoTracking()
@@ -304,7 +304,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task GradeSubmissionAsync(GradeSubmissionDto dto, int doctorId)
+        public async Task GradeSubmissionAsync(GradeSubmissionDto dto, Ulid doctorId)
         {
             var submission = await context.ExamSubmissions
                 .Include(s => s.Exam)
@@ -323,7 +323,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await context.SaveChangesAsync();
         }
 
-        public async Task<int> AutoGradeExamAsync(int examId, int doctorId)
+        public async Task<int> AutoGradeExamAsync(Ulid examId, Ulid doctorId)
         {
             // 1. Get Exam with Questions and Submissions
             var exam = await context.Exams
@@ -379,7 +379,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         }
 
 
-        public async Task ArchiveExamAsync(int examId)
+        public async Task ArchiveExamAsync(Ulid examId)
         {
             var exam = await context.Exams.FindAsync(examId)
                        ?? throw new KeyNotFoundException($"Exam {examId} not found.");
@@ -389,7 +389,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await context.SaveChangesAsync();
         }
 
-        public async Task RestoreExamAsync(int examId)
+        public async Task RestoreExamAsync(Ulid examId)
         {
             var exam = await context.Exams.IgnoreQueryFilters().FirstOrDefaultAsync(e => e.Id == examId)
                        ?? throw new KeyNotFoundException($"Exam {examId} not found.");
@@ -401,7 +401,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _auditService.LogAsync("Restore", "Exam", examId.ToString(), null, "Restored", null);
         }
 
-        public async Task<ExamDto> UpdateExamAsync(int examId, UpdateExamDto dto)
+        public async Task<ExamDto> UpdateExamAsync(Ulid examId, UpdateExamDto dto)
         {
             var exam = await context.Exams
                 .Include(e => e.SubjectOffering)
@@ -422,7 +422,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return MapToDto(exam);
         }
 
-        public async Task DeleteExamAsync(int examId)
+        public async Task DeleteExamAsync(Ulid examId)
         {
             var exam = await context.Exams
                 .Include(e => e.Submissions)
@@ -442,7 +442,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _auditService.LogAsync("SoftDelete", "Exam", examId.ToString(), oldValues, null, null);
         }
 
-        public async Task<ExamDto> GenerateAiExamAsync(CreateAiExamRequest request, int doctorId)
+        public async Task<ExamDto> GenerateAiExamAsync(CreateAiExamRequest request, Ulid doctorId)
         {
             var offering = await context.Set<SubjectOffering>()
                 .AsNoTracking()
@@ -495,7 +495,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return MapToDto(exam);
         }
 
-        public async Task<ExamDto> UploadFileExamAsync(int subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file, int doctorId)
+        public async Task<ExamDto> UploadFileExamAsync(Ulid subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file, Ulid doctorId)
         {
             var offering = await context.Set<SubjectOffering>()
                 .AsNoTracking()

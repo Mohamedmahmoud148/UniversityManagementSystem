@@ -8,6 +8,7 @@ using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Jobs
 {
@@ -24,7 +25,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
         private readonly IAuthService _authService = authService;
         private readonly IAiService _aiService = aiService;
 
-        public async Task ProcessStudentDirectUpload(int fileId, int uploaderUserId)
+        public async Task ProcessStudentDirectUpload(Ulid fileId, Ulid uploaderUserId)
         {
             var file = await _context.UploadedFiles.FindAsync(fileId);
             if (file is null) return;
@@ -124,7 +125,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
             }
         }
 
-        public async Task ProcessStudentAiUpload(int fileId, int uploaderUserId)
+        public async Task ProcessStudentAiUpload(Ulid fileId, Ulid uploaderUserId)
         {
             var file = await _context.UploadedFiles.FindAsync(fileId);
             if (file is null) return;
@@ -174,6 +175,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
                         {
                             var user = new SystemUser
                             {
+                                Id = Ulid.NewUlid(),
                                 FullName = dto.FullName,
                                 Email = email,
                                 UniversityEmail = email,
@@ -187,6 +189,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
                             var student = new Student
                             {
+                                Id = Ulid.NewUlid(),
                                 FullName = dto.FullName,
                                 Email = "",
                                 Phone = dto.Phone ?? "",
@@ -224,7 +227,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
             }
         }
 
-        public async Task ProcessDoctorUpload(int fileId, int uploaderUserId)
+        public async Task ProcessDoctorUpload(Ulid fileId, Ulid uploaderUserId)
         {
             var file = await _context.UploadedFiles.FindAsync(fileId);
             if (file is null) return;
@@ -261,6 +264,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
                         {
                             var user = new SystemUser
                             {
+                                Id = Ulid.NewUlid(),
                                 FullName = dto.FullName,
                                 Email = email,
                                 UniversityEmail = email, // Set UniversityEmail
@@ -286,6 +290,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
                             var doctor = new Doctor
                             {
+                                Id = Ulid.NewUlid(),
                                 FullName = dto.FullName,
                                 Email = "",
                                 Phone = dto.Phone,

@@ -1,10 +1,11 @@
 using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
     public class NotificationDto
     {
-        public int Id { get; set; }
+        public Ulid Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public bool IsRead { get; set; }
@@ -14,7 +15,7 @@ namespace UniversityManagementSystem.Core.DTOs
 
     public class CreateAdminNotificationDto
     {
-        public int? UserId { get; set; } // Null for Global
+        public Ulid? UserId { get; set; } // Null for Global
         public string Title { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public string? ActionUrl { get; set; }

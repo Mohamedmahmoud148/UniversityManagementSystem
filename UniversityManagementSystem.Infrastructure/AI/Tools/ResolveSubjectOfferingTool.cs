@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.Application.AI.Contracts;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.AI.Tools;
 
@@ -35,7 +36,7 @@ public class ResolveSubjectOfferingTool : IAiTool
         var nameIdClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value
                           ?? user.FindFirst("nameid")?.Value;
 
-        if (string.IsNullOrEmpty(nameIdClaim) || !int.TryParse(nameIdClaim, out int doctorSystemUserId))
+        if (string.IsNullOrEmpty(nameIdClaim) || !Ulid.TryParse(nameIdClaim, out var doctorSystemUserId))
             throw new UnauthorizedAccessException("Doctor ID not found in token.");
 
         var offering = await _context.SubjectOfferings

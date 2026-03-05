@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Interfaces
 {
@@ -10,7 +11,7 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<IEnumerable<Regulation>> GetAllAsync();
         Task<IEnumerable<Regulation>> GetActiveAsync();
         Task<Regulation> CreateAsync(Regulation regulation);
-        Task UpdateAsync(int id, Regulation regulation);
-        Task DeleteAsync(int id);
+        Task UpdateAsync(Ulid id, Regulation regulation);
+        Task DeleteAsync(Ulid id);
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NUlid;
 using System.Security.Claims;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
@@ -16,7 +17,8 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpPost("upload")]
         public async Task<IActionResult> UploadFile([FromBody] UploadFileDto dto)
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Ulid.TryParse(claim, out var userId)) return Unauthorized("Invalid user ID in token.");
             var result = await _fileService.UploadFileAsync(userId, dto);
             return Ok(result);
         }
@@ -24,24 +26,27 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetMyFiles()
         {
-            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Ulid.TryParse(claim, out var userId)) return Unauthorized("Invalid user ID in token.");
             var files = await _fileService.GetUserFilesAsync(userId);
             return Ok(files);
         }
 
         [HttpPut("{id}/rename")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> RenameFile(int id, [FromBody] RenameFileDto dto)
+        public async Task<IActionResult> RenameFile(string id, [FromBody] RenameFileDto dto)
         {
-            await _fileService.RenameFileAsync(id, dto);
+            if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid file ID.");
+            await _fileService.RenameFileAsync(uid, dto);
             return NoContent();
         }
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteFile(int id)
+        public async Task<IActionResult> DeleteFile(string id)
         {
-            await _fileService.DeleteFileAsync(id);
+            if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid file ID.");
+            await _fileService.DeleteFileAsync(uid);
             return NoContent();
         }
     }

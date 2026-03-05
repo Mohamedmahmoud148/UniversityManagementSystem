@@ -3,6 +3,7 @@ using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -11,7 +12,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly AppDbContext _context = context;
         private readonly IAiService _aiService = aiService;
 
-        public async Task<int> CreateConversationAsync(int userId, string title)
+        public async Task<Ulid> CreateConversationAsync(Ulid userId, string title)
         {
             var conversation = new Conversation
             {
@@ -24,7 +25,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return conversation.Id;
         }
 
-        public async Task<IEnumerable<ChatResponseDto>> GetConversationMessagesAsync(int conversationId)
+        public async Task<IEnumerable<ChatResponseDto>> GetConversationMessagesAsync(Ulid conversationId)
         {
             return await _context.ChatMessages
                 .Where(m => m.ConversationId == conversationId)
@@ -39,7 +40,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<ConversationDto>> GetUserConversationsAsync(int userId)
+        public async Task<IEnumerable<ConversationDto>> GetUserConversationsAsync(Ulid userId)
         {
             return await _context.Conversations
                .Where(c => c.UserId == userId && c.IsActive)
@@ -52,7 +53,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                .ToListAsync();
         }
 
-        public async Task<ChatResponseDto> SendMessageAsync(int userId, SendMessageDto messageDto)
+        public async Task<ChatResponseDto> SendMessageAsync(Ulid userId, SendMessageDto messageDto, string role)
         {
             var conversation = await _context.Conversations.FindAsync(messageDto.ConversationId);
             if (conversation == null || conversation.UserId != userId)
@@ -82,7 +83,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var request = new UniversityManagementSystem.Core.DTOs.Ai.AiChatRequestDto
             {
                 user_id = userId,
-                role = "user",
+                role = role.ToLower(),
                 message = messageDto.Content,
                 history = history.Cast<object>().ToArray(),
                 academic_context = new { },
@@ -111,7 +112,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task DeleteMessageAsync(int messageId)
+        public async Task DeleteMessageAsync(Ulid messageId)
         {
             var msg = await _context.ChatMessages.FindAsync(messageId);
             if (msg != null)

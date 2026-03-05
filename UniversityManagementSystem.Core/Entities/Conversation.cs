@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
     public class Conversation : BaseEntity
     {
         public string Title { get; set; } = string.Empty;
-        public int UserId { get; set; }
+        public Ulid UserId { get; set; }
         public bool IsActive { get; set; } = true;
 
         // Navigation Properties

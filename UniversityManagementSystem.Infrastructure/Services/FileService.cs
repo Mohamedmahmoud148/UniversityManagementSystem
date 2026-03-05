@@ -3,6 +3,7 @@ using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -13,7 +14,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly IAuditService _auditService = auditService;
 
 
-        public async Task<FileStatusDto?> GetFileStatusAsync(int fileId)
+        public async Task<FileStatusDto?> GetFileStatusAsync(Ulid fileId)
         {
             var file = await _context.UploadedFiles.FindAsync(fileId);
             if (file == null) return null;
@@ -28,7 +29,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task<IEnumerable<FileStatusDto>> GetUserFilesAsync(int userId)
+        public async Task<IEnumerable<FileStatusDto>> GetUserFilesAsync(Ulid userId)
         {
             return await _context.UploadedFiles
                 .Where(f => f.UploadedByUserId == userId)
@@ -43,7 +44,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .ToListAsync();
         }
 
-        public async Task<FileStatusDto> UploadFileStreamAsync(int userId, Stream stream, string fileName, string contentType, long fileLength)
+        public async Task<FileStatusDto> UploadFileStreamAsync(Ulid userId, Stream stream, string fileName, string contentType, long fileLength)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (string.IsNullOrEmpty(fileName)) throw new ArgumentException("Filename missing", nameof(fileName));
@@ -81,7 +82,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task<FileStatusDto> UploadFileAsync(int userId, UploadFileDto fileDto)
+        public async Task<FileStatusDto> UploadFileAsync(Ulid userId, UploadFileDto fileDto)
         {
             // 1. Save File to Disk
             var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
@@ -126,7 +127,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task RenameFileAsync(int fileId, RenameFileDto dto)
+        public async Task RenameFileAsync(Ulid fileId, RenameFileDto dto)
         {
             var file = await _context.UploadedFiles.FindAsync(fileId)
                        ?? throw new KeyNotFoundException($"File {fileId} not found.");
@@ -141,7 +142,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _auditService.LogAsync("Rename", "UploadedFile", fileId.ToString(), oldValues, newValues, null);
         }
 
-        public async Task DeleteFileAsync(int fileId)
+        public async Task DeleteFileAsync(Ulid fileId)
         {
             var file = await _context.UploadedFiles.FindAsync(fileId)
                        ?? throw new KeyNotFoundException($"File {fileId} not found.");

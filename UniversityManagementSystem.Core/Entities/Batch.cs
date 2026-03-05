@@ -1,11 +1,12 @@
 using System.Collections.Generic;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
     public class Batch : BaseEntity
     {
         public string Name { get; set; } = string.Empty;
-        public int DepartmentId { get; set; }
+        public Ulid DepartmentId { get; set; }
 
         // Navigation Properties
         public Department Department { get; set; } = null!;

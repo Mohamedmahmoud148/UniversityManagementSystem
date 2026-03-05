@@ -1,16 +1,17 @@
 using System.Collections.Generic;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
     public class ExamSubmissionDto
     {
-        public int ExamId { get; set; }
+        public Ulid ExamId { get; set; }
         public List<ExamAnswerDto> Answers { get; set; } = new();
     }
 
     public class ExamAnswerDto
     {
-        public int QuestionId { get; set; }
+        public Ulid QuestionId { get; set; }
         public string AnswerText { get; set; } = string.Empty;
     }
 }

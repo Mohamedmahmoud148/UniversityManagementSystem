@@ -1,22 +1,24 @@
 using System.Security.Claims;
-using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NUlid;
 using UniversityManagementSystem.Core.Application.AI.Execution;
 using UniversityManagementSystem.Core.Application.AI.Logging;
 using UniversityManagementSystem.Core.Application.AI.Security;
+using UniversityManagementSystem.Core.DTOs.Ai;
+using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Api.Controllers;
 
 [Route("api/ai")]
 [ApiController]
-public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IHttpClientFactory httpFactory) : ControllerBase
+public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IAiService aiService) : ControllerBase
 {
     private readonly AiToolRegistry _toolRegistry = toolRegistry;
     private readonly AppDbContext _context = context;
-    private readonly HttpClient _http = httpFactory.CreateClient();
+    private readonly IAiService _aiService = aiService;
 
 
     [HttpPost("execute")]
@@ -33,11 +35,9 @@ public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IHt
                 return Forbid();
             }
 
-            int userId = 0;
-            if (!string.IsNullOrEmpty(userIdStr) && int.TryParse(userIdStr, out var parsedId))
-            {
-                userId = parsedId;
-            }
+            Ulid userId = Ulid.Empty;
+            if (!string.IsNullOrEmpty(userIdStr))
+                Ulid.TryParse(userIdStr, out userId);
 
             string parametersJson = JsonSerializer.Serialize(request.Parameters ?? new Dictionary<string, object>());
 
@@ -76,39 +76,26 @@ public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IHt
             }
 
             // ------------------------------------------------
-            // CASE 2: Forward request to AI Orchestration Service
+            // CASE 2: Forward request to AI Orchestration Service via IAiService
             // ------------------------------------------------
 
             else
             {
                 try
                 {
-                    var token = Request.Headers.Authorization.ToString();
-
-                    var aiRequest = new
+                    var aiRequest = new AiChatRequestDto
                     {
                         message = $"{request.ToolName} {parametersJson}",
+                        user_id = userId,
                         role = role.ToLower(),
-                        conversation_id = Guid.NewGuid().ToString()
+                        conversation_id = Guid.NewGuid().ToString(),
+                        history = [],
+                        academic_context = new { }
                     };
 
-                    var json = JsonSerializer.Serialize(aiRequest);
+                    var aiResponse = await _aiService.SendChatMessageAsync(aiRequest);
 
-                    var httpRequest = new HttpRequestMessage(
-                        HttpMethod.Post,
-                        "https://ai-orchestration-service-production.up.railway.app/api/chat"
-                    );
-
-                    httpRequest.Content = new StringContent(json, Encoding.UTF8, "application/json");
-
-                    if (!string.IsNullOrEmpty(token))
-                        httpRequest.Headers.Add("Authorization", token);
-
-                    var response = await _http.SendAsync(httpRequest);
-
-                    var result = await response.Content.ReadAsStringAsync();
-
-                    dataResult = result;
+                    dataResult = aiResponse;
                     executionSuccess = true;
                     returnMessage = "AI execution handled by AI Service.";
                 }

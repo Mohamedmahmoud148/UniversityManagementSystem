@@ -9,6 +9,7 @@ using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -16,7 +17,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
     {
         private const string MaterialsFolder = "wwwroot/materials";
 
-        public async Task<MaterialDto> UploadMaterialAsync(int offeringId, int doctorId, IFormFile file)
+        public async Task<MaterialDto> UploadMaterialAsync(Ulid offeringId, Ulid doctorId, IFormFile file)
         {
             if (file == null || file.Length == 0)
                 throw new ArgumentException("File is empty.");
@@ -69,7 +70,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task DeleteMaterialAsync(int materialId, int doctorId)
+        public async Task DeleteMaterialAsync(Ulid materialId, Ulid doctorId)
         {
             var material = await context.Materials
                 .Include(m => m.SubjectOffering)
@@ -91,7 +92,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await context.SaveChangesAsync();
         }
 
-        public async Task<PaginatedMaterialResponseDto> GetMaterialsByOfferingAsync(int offeringId, int studentId, int page, int pageSize, string? search)
+        public async Task<PaginatedMaterialResponseDto> GetMaterialsByOfferingAsync(Ulid offeringId, Ulid studentId, int page, int pageSize, string? search)
         {
             // 1. Validate Enrollment
             var isEnrolled = await context.Enrollments
@@ -136,7 +137,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task<(string FilePath, string ContentType, string FileName, DateTime LastModified)> GetMaterialFileInfoAsync(int materialId, int studentId)
+        public async Task<(string FilePath, string ContentType, string FileName, DateTime LastModified)> GetMaterialFileInfoAsync(Ulid materialId, Ulid studentId)
         {
             var material = await context.Materials
                 .AsNoTracking()
@@ -153,7 +154,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             // 2. Get File Info
             var filePath = Path.Combine(Directory.GetCurrentDirectory(), MaterialsFolder, material.StoredFileName);
-            
+
             if (!File.Exists(filePath))
                 throw new FileNotFoundException("File not found on server.");
 

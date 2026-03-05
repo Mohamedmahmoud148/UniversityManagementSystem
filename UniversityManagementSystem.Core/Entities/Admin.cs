@@ -1,4 +1,4 @@
-using System;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
@@ -8,9 +8,8 @@ namespace UniversityManagementSystem.Core.Entities
         public string Email { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
 
-
         // Foreign Key to SystemUser
-        public int SystemUserId { get; set; }
+        public Ulid SystemUserId { get; set; }
 
         // Navigation Property
         public SystemUser SystemUser { get; set; } = null!;

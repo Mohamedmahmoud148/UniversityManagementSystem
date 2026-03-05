@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
+using NUlid;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
@@ -18,14 +19,15 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPost("{offeringId}")]
         [Authorize(Roles = "Student")]
-        public async Task<IActionResult> Enroll(int offeringId)
+        public async Task<IActionResult> Enroll(string offeringId)
         {
+            if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
             var profileIdClaim = User.FindFirst("ProfileId");
             if (profileIdClaim == null) return Unauthorized("Student profile not found.");
 
-            int currentStudentId = int.Parse(profileIdClaim.Value);
-            
-            var dto = new CreateEnrollmentDto(currentStudentId, offeringId);
+            Ulid currentStudentId = Ulid.Parse(profileIdClaim.Value);
+
+            var dto = new CreateEnrollmentDto(currentStudentId, oId);
 
             await _service.EnrollStudentAsync(dto);
             return Ok(new { Message = "Enrolled successfully." });
@@ -37,10 +39,10 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var profileIdClaim = User.FindFirst("ProfileId");
             if (profileIdClaim == null) return Unauthorized("Student profile not found.");
-            int studentId = int.Parse(profileIdClaim.Value);
+            Ulid studentId = Ulid.Parse(profileIdClaim.Value);
 
             var enrollments = await _service.GetStudentEnrollmentsAsync(studentId);
-            
+
             var dtos = enrollments.Select(e => new EnrollmentDto
             {
                 Id = e.Id,
@@ -54,14 +56,15 @@ namespace UniversityManagementSystem.Api.Controllers
                 IsActive = e.IsActive
             });
 
-            return Ok(dtos); 
+            return Ok(dtos);
         }
 
         [HttpGet("by-offering/{offeringId}")]
         [Authorize(Roles = "Doctor,Admin")]
-        public async Task<IActionResult> GetByOffering(int offeringId)
+        public async Task<IActionResult> GetByOffering(string offeringId)
         {
-            var enrollments = await _service.GetEnrollmentsByOfferingIdAsync(offeringId);
+            if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
+            var enrollments = await _service.GetEnrollmentsByOfferingIdAsync(oId);
 
             var dtos = enrollments.Select(e => new EnrollmentDto
             {
@@ -81,18 +84,19 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(string id)
         {
-            await _service.UnenrollStudentAsync(id);
-            await _service.UnenrollStudentAsync(id);
+            if (!Ulid.TryParse(id, out var enrollmentId)) return BadRequest("Invalid Enrollment ID.");
+            await _service.UnenrollStudentAsync(enrollmentId);
             return NoContent();
         }
 
         [HttpPut("{id}/reactivate")]
         [Authorize(Roles = "Admin,SuperAdmin")]
-        public async Task<IActionResult> Reactivate(int id)
+        public async Task<IActionResult> Reactivate(string id)
         {
-            await _service.ReactivateEnrollmentAsync(id);
+            if (!Ulid.TryParse(id, out var enrollmentId)) return BadRequest("Invalid Enrollment ID.");
+            await _service.ReactivateEnrollmentAsync(enrollmentId);
             return Ok(new { Message = "Enrollment reactivated successfully." });
         }
     }

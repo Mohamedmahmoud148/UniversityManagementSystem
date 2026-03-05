@@ -7,6 +7,7 @@ using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
@@ -37,14 +38,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             // 4. Create Entity
             var entity = new Semester(dto.Name, dto.AcademicYearId, dto.StartDate, dto.EndDate);
-            
+
             _context.Set<Semester>().Add(entity);
             await _context.SaveChangesAsync();
 
             return MapToDto(entity, year.Name);
         }
 
-        public async Task<IEnumerable<SemesterDto>> GetByAcademicYearAsync(int academicYearId)
+        public async Task<IEnumerable<SemesterDto>> GetByAcademicYearAsync(Ulid academicYearId)
         {
             var semesters = await _context.Set<Semester>()
                 .Include(s => s.AcademicYear)
@@ -55,7 +56,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return semesters.Select(s => MapToDto(s, s.AcademicYear.Name));
         }
 
-        public async Task<SemesterDto> UpdateAsync(int id, UpdateSemesterDto dto)
+        public async Task<SemesterDto> UpdateAsync(Ulid id, UpdateSemesterDto dto)
         {
             var semester = await _context.Set<Semester>()
                 .Include(s => s.AcademicYear)
@@ -73,9 +74,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 throw new InvalidOperationException("Semester dates overlap with another semester in the same year.");
 
             var oldValues = System.Text.Json.JsonSerializer.Serialize(new { semester.Name, semester.StartDate, semester.EndDate });
-            
+
             semester.Update(dto.Name, dto.StartDate, dto.EndDate);
-            
+
             _context.Entry(semester).State = EntityState.Modified;
             await _context.SaveChangesAsync();
 
@@ -85,7 +86,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return MapToDto(semester, semester.AcademicYear.Name);
         }
 
-        public async Task DeleteAsync(int id)
+        public async Task DeleteAsync(Ulid id)
         {
             var semester = await _context.Set<Semester>().FindAsync(id);
             if (semester == null)

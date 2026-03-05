@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NUlid;
 using System.Security.Claims;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
@@ -44,7 +45,8 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize]
         public async Task<IActionResult> ChangePassword(ChangePasswordDto dto)
         {
-            var userId = int.Parse(User.FindFirst("UserId")!.Value);
+            var claim = User.FindFirst("UserId")?.Value;
+            if (!Ulid.TryParse(claim, out var userId)) return Unauthorized("Invalid UserId in token.");
             var result = await _authService.ChangePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
             if (!result) return BadRequest("Password change failed.");
             return Ok("Password changed successfully.");
@@ -54,7 +56,6 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize]
         public async Task<IActionResult> Logout(RevokeTokenRequestDto dto)
         {
-            // Ideally logout just revokes refresh token
             await _authService.RevokeTokenAsync(dto.RefreshToken);
             return Ok("Logged out.");
         }
@@ -70,7 +71,8 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<AuthResponseDto>> RegisterStudent(RegisterStudentDto dto)
         {
-            var creatorId = int.Parse(User.FindFirst("UserId")?.Value ?? "0");
+            var claim = User.FindFirst("UserId")?.Value;
+            if (!Ulid.TryParse(claim, out var creatorId)) return Unauthorized("Invalid creator ID.");
             var result = await _authService.RegisterStudentAsync(dto, creatorId);
             return Ok(result);
         }
@@ -79,7 +81,8 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<AuthResponseDto>> RegisterDoctor(RegisterDoctorDto dto)
         {
-            var creatorId = int.Parse(User.FindFirst("UserId")?.Value ?? "0");
+            var claim = User.FindFirst("UserId")?.Value;
+            if (!Ulid.TryParse(claim, out var creatorId)) return Unauthorized("Invalid creator ID.");
             var result = await _authService.RegisterDoctorAsync(dto, creatorId);
             return Ok(result);
         }
@@ -89,10 +92,7 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<ActionResult<AuthResponseDto>> RegisterAdmin(RegisterAdminDto dto)
         {
             var claim = User.FindFirst("nameid")?.Value;
-
-            if (!int.TryParse(claim, out var creatorId))
-                return Unauthorized();
-
+            if (!Ulid.TryParse(claim, out var creatorId)) return Unauthorized("Invalid creator ID.");
             var result = await _authService.RegisterAdminAsync(dto, creatorId);
             return Ok(result);
         }

@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NUlid;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
 
@@ -26,25 +28,28 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("by-academic-year/{academicYearId}")]
-        public async Task<ActionResult<IEnumerable<SemesterDto>>> GetByYear(int academicYearId)
+        public async Task<ActionResult<IEnumerable<SemesterDto>>> GetByYear(string academicYearId)
         {
-            var list = await _semesterService.GetByAcademicYearAsync(academicYearId);
+            if (!Ulid.TryParse(academicYearId, out var uid)) return BadRequest("Invalid Academic Year ID.");
+            var list = await _semesterService.GetByAcademicYearAsync(uid);
             return Ok(list);
         }
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<SemesterDto>> Update(int id, UpdateSemesterDto dto)
+        public async Task<ActionResult<SemesterDto>> Update(string id, UpdateSemesterDto dto)
         {
-            var result = await _semesterService.UpdateAsync(id, dto);
+            if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid ID.");
+            var result = await _semesterService.UpdateAsync(uid, dto);
             return Ok(result);
         }
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(string id)
         {
-            await _semesterService.DeleteAsync(id);
+            if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid ID.");
+            await _semesterService.DeleteAsync(uid);
             return NoContent();
         }
     }

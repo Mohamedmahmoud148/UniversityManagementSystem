@@ -1,10 +1,11 @@
 using UniversityManagementSystem.Core.Entities;
+using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
     public class RegulationDto
     {
-        public int Id { get; set; }
+        public Ulid Id { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;

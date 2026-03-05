@@ -10,17 +10,19 @@ using Hangfire;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
 using System;
-using Microsoft.AspNetCore.Http; // Explicitly adding for IFormFile just in case
+using Microsoft.AspNetCore.Http;
+using NUlid;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class StudentsController(IStudentService service, IAuthService authService) : ControllerBase
+    public class StudentsController(IStudentService service, IAuthService authService, IExcelImportService excelImportService) : ControllerBase
     {
         private readonly IStudentService _studentService = service;
-        private readonly IAuthService _authService = authService; // Injected
+        private readonly IAuthService _authService = authService;
+        private readonly IExcelImportService _excelImportService = excelImportService;
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<StudentDto>>> GetAll([FromQuery] int page = 1, [FromQuery] int size = 10)
@@ -29,6 +31,7 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(list.Select(s => new StudentDto
             {
                 Id = s.Id,
+                Code = s.Code,
                 FullName = s.FullName,
                 Email = s.Email, // Personal Email
                 Phone = s.Phone,
@@ -40,16 +43,16 @@ namespace UniversityManagementSystem.Api.Controllers
             }));
         }
 
-        [HttpGet("by-public-id/{publicId}")]
-        public async Task<ActionResult<StudentDto>> GetByPublicId(string publicId)
+        [HttpGet("by-code/{code}")]
+        public async Task<ActionResult<StudentDto>> GetByCode(string code)
         {
-            var s = await _studentService.GetStudentByPublicIdAsync(publicId);
+            var s = await _studentService.GetStudentByCodeAsync(code);
             if (s == null) return NotFound();
 
             return Ok(new StudentDto
             {
                 Id = s.Id,
-                PublicId = s.PublicId,
+                Code = s.Code,
                 FullName = s.FullName,
                 Email = s.Email,
                 Phone = s.Phone,
@@ -62,7 +65,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<StudentDto>> GetStudent(int id)
+        public async Task<ActionResult<StudentDto>> GetStudent(Ulid id)
         {
             var s = await _studentService.GetStudentByIdAsync(id);
             if (s == null) return NotFound();
@@ -70,6 +73,7 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new StudentDto
             {
                 Id = s.Id,
+                Code = s.Code,
                 FullName = s.FullName,
                 Email = s.Email,
                 Phone = s.Phone,
@@ -83,12 +87,13 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpGet("by-batch/{batchId}")]
         [Authorize(Roles = "Admin,Doctor,TeachingAssistant")]
-        public async Task<ActionResult<IEnumerable<StudentDto>>> GetByBatch(int batchId)
+        public async Task<ActionResult<IEnumerable<StudentDto>>> GetByBatch(Ulid batchId)
         {
             var list = await _studentService.GetStudentsByBatchIdAsync(batchId);
             return Ok(list.Select(s => new StudentDto
             {
                 Id = s.Id,
+                Code = s.Code,
                 FullName = s.FullName,
                 Email = s.Email,
                 Phone = s.Phone,
@@ -113,7 +118,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 BatchId = dto.BatchId
             };
 
-            var creatorId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var creatorId = Ulid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
             var authResponse = await _authService.RegisterStudentAsync(registerDto, creatorId);
 
             // Fetch the created student to return full DTO
@@ -123,6 +128,7 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new StudentDto
             {
                 Id = student.Id,
+                Code = student.Code,
                 FullName = student.FullName,
                 Email = student.Email,
                 Phone = student.Phone,
@@ -136,7 +142,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, UpdateStudentDto dto)
+        public async Task<IActionResult> Update(Ulid id, UpdateStudentDto dto)
         {
             try
             {
@@ -151,7 +157,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(Ulid id)
         {
             try
             {
@@ -176,7 +182,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 var userIdClaim = User.FindFirst("nameid");
                 if (userIdClaim == null) return Unauthorized("Invalid token claims");
 
-                var userId = int.Parse(userIdClaim.Value);
+                if (!Ulid.TryParse(userIdClaim.Value, out var userId)) return Unauthorized("Invalid user ID.");
                 using var stream = file.OpenReadStream();
                 var status = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
 
@@ -202,7 +208,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 var userIdClaim = User.FindFirst("nameid");
                 if (userIdClaim == null) return Unauthorized("Invalid token claims");
 
-                var userId = int.Parse(userIdClaim.Value);
+                if (!Ulid.TryParse(userIdClaim.Value, out var userId)) return Unauthorized("Invalid user ID.");
                 using var stream = file.OpenReadStream();
                 var status = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
 
@@ -214,6 +220,30 @@ namespace UniversityManagementSystem.Api.Controllers
                 Console.WriteLine($"BulkUploadAi Error: {ex.Message}");
                 return StatusCode(500, "An unexpected error occurred during AI bulk upload.");
             }
+        }
+
+        // ── POST /api/students/import-excel ──────────────────────────────────
+        /// <summary>
+        /// Bulk-imports students from an Excel file.
+        /// Excel columns: FullName | Email | UniversityStudentId | BatchCode | GroupCode
+        /// Invalid/duplicate rows are skipped and reported in the Errors list.
+        /// </summary>
+        [HttpPost("import-excel")]
+        [Authorize(Roles = "Admin")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ImportFromExcel(IFormFile file)
+        {
+            // Guard: file must be provided
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded. Please attach an .xlsx file.");
+
+            // Guard: extension check (service also validates, but fail fast here)
+            var ext = System.IO.Path.GetExtension(file.FileName);
+            if (!ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+                return BadRequest($"Invalid file type '{ext}'. Only .xlsx files are accepted.");
+
+            var result = await _excelImportService.ImportStudentsFromExcelAsync(file);
+            return Ok(result);
         }
     }
 }
