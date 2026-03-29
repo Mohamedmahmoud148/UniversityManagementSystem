@@ -13,7 +13,10 @@ namespace UniversityManagementSystem.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class MaterialsController(IMaterialService materialService, AppDbContext context) : ControllerBase
+    public class MaterialsController(
+        IMaterialService materialService,
+        AppDbContext context,
+        IStorageService storageService) : ControllerBase
     {
         [HttpPost("upload")]
         [Authorize(Roles = "Doctor")]
@@ -54,8 +57,8 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         /// <summary>
-        /// Redirects the client directly to the R2 public URL for the material.
-        /// No file is streamed through the backend.
+        /// Returns a short-lived pre-signed URL (1 hour) for the material.
+        /// The client downloads directly from R2 — nothing streams through the backend.
         /// </summary>
         [HttpGet("download/{id}")]
         [Authorize(Roles = "Student")]
@@ -66,8 +69,12 @@ namespace UniversityManagementSystem.Api.Controllers
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
             var studentId = Ulid.Parse(profileClaim.Value);
 
-            var fileUrl = await materialService.GetMaterialUrlAsync(materialId, studentId);
-            return Redirect(fileUrl); // 302 redirect → client downloads directly from R2
+            var storedUrl = await materialService.GetMaterialUrlAsync(materialId, studentId);
+
+            // Generate a 60-minute signed URL instead of exposing the raw public URL
+            var signedUrl = await storageService.GenerateSignedUrlAsync(storedUrl, expiryMinutes: 60);
+
+            return Ok(new { SignedUrl = signedUrl, ExpiresInMinutes = 60 });
         }
 
         // ── GET /api/materials/{id}/metadata ─────────────────────────────────

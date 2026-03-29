@@ -12,17 +12,51 @@ using System.Text.Json;
 using System;
 using Microsoft.AspNetCore.Http;
 using NUlid;
+using Microsoft.EntityFrameworkCore;
+using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class DoctorsController(IDoctorService service, IAuthService authService, IDepartmentService departmentService) : ControllerBase
+    public class DoctorsController(IDoctorService service, IAuthService authService, IDepartmentService departmentService, AppDbContext context) : ControllerBase
     {
         private readonly IDoctorService _service = service;
         private readonly IAuthService _authService = authService;
         private readonly IDepartmentService _departmentService = departmentService;
+        private readonly AppDbContext _context = context;
+
+        // ── GET /api/Doctors/search?q= ─────────────────────────────────────
+        [HttpGet("search")]
+        public async Task<IActionResult> Search([FromQuery] string? q)
+        {
+            if (string.IsNullOrWhiteSpace(q))
+                return BadRequest("Search query 'q' is required.");
+
+            var pattern = $"%{q}%";
+            var results = await _context.Doctors
+                .AsNoTracking()
+                .Where(d =>
+                    EF.Functions.ILike(d.FullName, pattern) ||
+                    EF.Functions.ILike(d.Code, pattern) ||
+                    EF.Functions.ILike(d.Email, pattern))
+                .OrderBy(d => d.FullName)
+                .Take(20)
+                .Select(d => new
+                {
+                    d.Id,
+                    d.Code,
+                    d.FullName,
+                    d.Email,
+                    d.Phone,
+                    d.UniversityStaffId,
+                    d.DepartmentId
+                })
+                .ToListAsync();
+
+            return Ok(results);
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<DoctorDto>>> GetAll([FromQuery] int page = 1, [FromQuery] int size = 10)

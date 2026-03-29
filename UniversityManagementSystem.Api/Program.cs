@@ -30,6 +30,7 @@ using UniversityManagementSystem.Infrastructure.Services;
 using UniversityManagementSystem.Infrastructure.Jobs;
 using UniversityManagementSystem.Infrastructure.Storage;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 // 1. Serilog
@@ -254,6 +255,12 @@ builder.Services.AddHealthChecks()
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+
+// Background Jobs (Hangfire)
+builder.Services.AddScoped<IEmailJob, EmailJob>();
+builder.Services.AddScoped<INotificationJob, NotificationJob>();
+builder.Services.AddScoped<IAiBackgroundJob, AiBackgroundJob>();
 builder.Services.AddScoped<IStudentService, StudentService>();
 builder.Services.AddScoped<IDoctorService, DoctorService>();
 builder.Services.AddScoped<ISubjectService, SubjectService>();

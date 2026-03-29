@@ -89,6 +89,26 @@ namespace UniversityManagementSystem.Infrastructure.Storage
                 .Replace("&", "");
         }
 
+        /// <inheritdoc/>
+        public Task<string> GenerateSignedUrlAsync(string objectKey, int expiryMinutes = 60)
+        {
+            // If the caller passes a full public URL, extract just the key portion
+            if (objectKey.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                objectKey = ExtractKeyFromUrl(_settings.PublicBaseUrl, objectKey);
+
+            var request = new GetPreSignedUrlRequest
+            {
+                BucketName = _settings.BucketName,
+                Key = objectKey,
+                Verb = HttpVerb.GET,
+                Expires = DateTime.UtcNow.AddMinutes(expiryMinutes),
+                Protocol = Protocol.HTTPS
+            };
+
+            var url = _s3.GetPreSignedURL(request);
+            return Task.FromResult(url);
+        }
+
         public void Dispose() => _s3?.Dispose();
     }
 }

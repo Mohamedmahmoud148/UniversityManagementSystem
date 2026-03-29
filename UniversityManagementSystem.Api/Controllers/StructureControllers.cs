@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using NUlid;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
@@ -38,18 +42,27 @@ namespace UniversityManagementSystem.Api.Controllers
     [Route("api/[controller]")]
     public class UniversityController : ControllerBase
     {
+        private const string StructureCacheKey = "university:full-structure";
+        private static readonly DistributedCacheEntryOptions _structureCacheOpts = new()
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(60)
+        };
+
         private readonly IUniversityService _service;
         private readonly AppDbContext _context;
         private readonly ILogger<UniversityController> _logger;
+        private readonly IDistributedCache _cache;
 
         public UniversityController(
             IUniversityService service,
             AppDbContext context,
-            ILogger<UniversityController> logger)
+            ILogger<UniversityController> logger,
+            IDistributedCache cache)
         {
             _service = service;
             _context = context;
             _logger = logger;
+            _cache = cache;
         }
 
         [HttpGet("structure")]
@@ -93,6 +106,14 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpGet("full-structure")]
         public async Task<IActionResult> GetFullStructure()
         {
+            // Hit Redis first — this query is expensive (6-table join)
+            var cached = await _cache.GetStringAsync(StructureCacheKey);
+            if (!string.IsNullOrEmpty(cached))
+            {
+                _logger.LogDebug("full-structure: served from cache");
+                return Content(cached, "application/json");
+            }
+
             var list = await _context.Universities
                 .AsNoTracking()
                 .Select(u => new FullUniversityDto(
@@ -130,7 +151,14 @@ namespace UniversityManagementSystem.Api.Controllers
                 return NotFound("No universities found.");
             }
 
-            return list.Count == 1 ? Ok(list[0]) : Ok(list);
+            var result = list.Count == 1 ? (object)list[0] : list;
+            var json = JsonSerializer.Serialize(result);
+
+            // Store in Redis for 60 minutes
+            await _cache.SetStringAsync(StructureCacheKey, json, _structureCacheOpts);
+            _logger.LogDebug("full-structure: cached for 60 min");
+
+            return Content(json, "application/json");
         }
     }
 
@@ -141,15 +169,27 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
     [Route("api/[controller]")]
-    public class CollegesController(ICollegeService service) : ControllerBase
+    public class CollegesController(ICollegeService service, AppDbContext context) : ControllerBase
     {
         private readonly ICollegeService _service = service;
+        private readonly AppDbContext _context = context;
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<CollegeDto>>> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
-            var list = await _service.GetAllCollegesAsync();
-            return Ok(list.Select(c => new CollegeDto(c.Id, c.Name, c.Code, c.UniversityId)));
+            if (page < 1) page = 1;
+            if (pageSize is < 1 or > 100) pageSize = 10;
+
+            var total = await _context.Colleges.CountAsync();
+            var list = await _context.Colleges
+                .AsNoTracking()
+                .OrderBy(c => c.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(c => new CollegeDto(c.Id, c.Name, c.Code, c.UniversityId))
+                .ToListAsync();
+
+            return Ok(new { Page = page, PageSize = pageSize, Total = total, Data = list });
         }
 
         [HttpGet("by-code/{code}")]
@@ -218,10 +258,29 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
     [Route("api/[controller]")]
-    public class DepartmentsController(IDepartmentService service, ICollegeService collegeService) : ControllerBase
+    public class DepartmentsController(IDepartmentService service, ICollegeService collegeService, AppDbContext context) : ControllerBase
     {
         private readonly IDepartmentService _service = service;
         private readonly ICollegeService _collegeService = collegeService;
+        private readonly AppDbContext _context = context;
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            if (page < 1) page = 1;
+            if (pageSize is < 1 or > 100) pageSize = 10;
+
+            var total = await _context.Departments.CountAsync();
+            var list = await _context.Departments
+                .AsNoTracking()
+                .OrderBy(d => d.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(d => new DepartmentDto(d.Id, d.Name, d.Code, d.CollegeId))
+                .ToListAsync();
+
+            return Ok(new { Page = page, PageSize = pageSize, Total = total, Data = list });
+        }
 
         [HttpGet("by-college/{collegeId}")]
         public async Task<ActionResult<IEnumerable<DepartmentDto>>> GetByCollege(string collegeId)
@@ -284,10 +343,29 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
     [Route("api/[controller]")]
-    public class BatchesController(IBatchService service, IDepartmentService departmentService) : ControllerBase
+    public class BatchesController(IBatchService service, IDepartmentService departmentService, AppDbContext context) : ControllerBase
     {
         private readonly IBatchService _service = service;
         private readonly IDepartmentService _departmentService = departmentService;
+        private readonly AppDbContext _context = context;
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            if (page < 1) page = 1;
+            if (pageSize is < 1 or > 100) pageSize = 10;
+
+            var total = await _context.Batches.CountAsync();
+            var list = await _context.Batches
+                .AsNoTracking()
+                .OrderBy(b => b.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(b => new BatchDto(b.Id, b.Name, b.Code, b.DepartmentId))
+                .ToListAsync();
+
+            return Ok(new { Page = page, PageSize = pageSize, Total = total, Data = list });
+        }
 
         [HttpGet("by-department/{departmentId}")]
         public async Task<ActionResult<IEnumerable<BatchDto>>> GetByDepartment(string departmentId)
@@ -350,10 +428,29 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
     [Route("api/[controller]")]
-    public class GroupsController(IGroupService service, IBatchService batchService) : ControllerBase
+    public class GroupsController(IGroupService service, IBatchService batchService, AppDbContext context) : ControllerBase
     {
         private readonly IGroupService _service = service;
         private readonly IBatchService _batchService = batchService;
+        private readonly AppDbContext _context = context;
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            if (page < 1) page = 1;
+            if (pageSize is < 1 or > 100) pageSize = 10;
+
+            var total = await _context.Groups.CountAsync();
+            var list = await _context.Groups
+                .AsNoTracking()
+                .OrderBy(g => g.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(g => new GroupDto(g.Id, g.Name, g.BatchId))
+                .ToListAsync();
+
+            return Ok(new { Page = page, PageSize = pageSize, Total = total, Data = list });
+        }
 
         [HttpGet("by-batch/{batchId}")]
         public async Task<ActionResult<IEnumerable<GroupDto>>> GetByBatch(string batchId)

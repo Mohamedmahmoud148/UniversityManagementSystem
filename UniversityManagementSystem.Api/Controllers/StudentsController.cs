@@ -12,6 +12,8 @@ using System.Text.Json;
 using System;
 using Microsoft.AspNetCore.Http;
 using NUlid;
+using Microsoft.EntityFrameworkCore;
+using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
@@ -23,31 +25,83 @@ namespace UniversityManagementSystem.Api.Controllers
         IAuthService authService,
         IExcelImportService excelImportService,
         IBatchService batchService,
-        IGroupService groupService) : ControllerBase
+        IGroupService groupService,
+        AppDbContext context,
+        IDistributedCache cache) : ControllerBase
     {
+        private const string StudentListCachePrefix = "students:page:";
+        private static readonly DistributedCacheEntryOptions _studentListCacheOpts = new()
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+        };
+
         private readonly IStudentService _studentService = service;
         private readonly IAuthService _authService = authService;
         private readonly IExcelImportService _excelImportService = excelImportService;
         private readonly IBatchService _batchService = batchService;
         private readonly IGroupService _groupService = groupService;
+        private readonly AppDbContext _context = context;
+        private readonly IDistributedCache _cache = cache;
+
+        // ── GET /api/Students/search?q= ──────────────────────────────────────
+        [HttpGet("search")]
+        public async Task<IActionResult> Search([FromQuery] string? q)
+        {
+            if (string.IsNullOrWhiteSpace(q))
+                return BadRequest("Search query 'q' is required.");
+
+            var pattern = $"%{q}%";
+            var results = await _context.Students
+                .AsNoTracking()
+                .Where(s =>
+                    EF.Functions.ILike(s.FullName, pattern) ||
+                    EF.Functions.ILike(s.Code, pattern) ||
+                    EF.Functions.ILike(s.Email, pattern) ||
+                    EF.Functions.ILike(s.UniversityStudentId, pattern))
+                .OrderBy(s => s.FullName)
+                .Take(20)
+                .Select(s => new
+                {
+                    s.Id,
+                    s.Code,
+                    s.FullName,
+                    s.Email,
+                    s.UniversityStudentId,
+                    s.BatchId,
+                    s.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(results);
+        }
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<StudentDto>>> GetAll([FromQuery] int page = 1, [FromQuery] int size = 10)
         {
+            var cacheKey = $"{StudentListCachePrefix}{page}:size:{size}";
+            var cached = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cached))
+                return Content(cached, "application/json");
+
             var list = await _studentService.GetPagedStudentsAsync(page, size);
-            return Ok(list.Select(s => new StudentDto
+            var dtos = list.Select(s => new StudentDto
             {
                 Id = s.Id,
                 Code = s.Code,
                 FullName = s.FullName,
-                Email = s.Email, // Personal Email
+                Email = s.Email,
                 Phone = s.Phone,
-                NationalId = s.SystemUser?.NationalId ?? "N/A", // From SystemUser
+                NationalId = s.SystemUser?.NationalId ?? "N/A",
                 UniversityStudentId = s.UniversityStudentId,
-                UniversityEmail = s.SystemUser?.UniversityEmail ?? "N/A", // From SystemUser
+                UniversityEmail = s.SystemUser?.UniversityEmail ?? "N/A",
                 BatchId = s.BatchId,
                 IsActive = s.IsActive
-            }));
+            }).ToList();
+
+            var json = JsonSerializer.Serialize(dtos);
+            await _cache.SetStringAsync(cacheKey, json, _studentListCacheOpts);
+
+            return Content(json, "application/json");
         }
 
         [HttpGet("{code}")]

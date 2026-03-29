@@ -17,5 +17,11 @@ namespace UniversityManagementSystem.Core.Interfaces
         /// Deletes an object by its storage key (the path after the bucket root, e.g. "materials/abc.pdf").
         /// </summary>
         Task DeleteAsync(string objectKey);
+
+        /// <summary>
+        /// Generates a pre-signed URL for the given object key that expires after
+        /// <paramref name="expiryMinutes"/> minutes. Use for secure, time-limited downloads.
+        /// </summary>
+        Task<string> GenerateSignedUrlAsync(string objectKey, int expiryMinutes = 60);
     }
 }

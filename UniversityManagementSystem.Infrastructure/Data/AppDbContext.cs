@@ -74,6 +74,28 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 }
             }
 
+            // ─────────────────────────────────────────────────────────────────
+            // Code Column Unique Indexes
+            // Ensures fast O(log n) lookup for all code-based API routes and
+            // enforces uniqueness at the DB level.
+            // ─────────────────────────────────────────────────────────────────
+            modelBuilder.Entity<College>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Colleges_Code");
+            modelBuilder.Entity<Department>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Departments_Code");
+            modelBuilder.Entity<Batch>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Batches_Code");
+            modelBuilder.Entity<Group>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Groups_Code");
+            modelBuilder.Entity<Subject>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Subjects_Code");
+            modelBuilder.Entity<Student>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Students_Code");
+            modelBuilder.Entity<Doctor>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Doctors_Code");
+            modelBuilder.Entity<SystemUser>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_SystemUsers_Code");
+
             // --------------------------------------------------------
             // Configure RefreshToken
             // --------------------------------------------------------
@@ -584,6 +606,22 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 // Ulid → string conversion and MaxLength(26) are applied globally via ConfigureConventions.
             });
+        }
+
+        // ── Soft Delete Intercept ────────────────────────────────────────────
+        // Converts any EntityState.Deleted for a BaseEntity into a soft delete
+        // by setting DeletedAt = UtcNow and flipping the state to Modified.
+        // This means no service code ever needs to know about soft deletes.
+        public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            foreach (var entry in ChangeTracker.Entries<BaseEntity>()
+                         .Where(e => e.State == EntityState.Deleted))
+            {
+                entry.State = EntityState.Modified;
+                entry.Entity.DeletedAt = DateTime.UtcNow;
+            }
+
+            return base.SaveChangesAsync(cancellationToken);
         }
     }
 }
