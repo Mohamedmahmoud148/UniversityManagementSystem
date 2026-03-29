@@ -71,21 +71,11 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(dtos);
         }
 
-        [HttpGet("by-id/{id}")]
-        public async Task<ActionResult<SubjectDto>> GetById(string id)
-        {
-            if (!Ulid.TryParse(id, out var sId)) return BadRequest("Invalid Subject ID.");
-            var s = await _service.GetSubjectByIdAsync(sId);
-            if (s == null) return NotFound();
-
-            return Ok(new SubjectDto(s.Id, s.Name, s.Code, s.CollegeId, s.DepartmentId, s.BatchId));
-        }
-
-        [HttpGet("by-code/{code}")]
+        [HttpGet("{code}")]
         public async Task<ActionResult<SubjectDto>> GetByCode(string code)
         {
             var s = await _service.GetSubjectByCodeAsync(code);
-            if (s == null) return NotFound();
+            if (s == null) return NotFound($"Subject with code '{code}' not found.");
 
             return Ok(new SubjectDto(s.Id, s.Name, s.Code, s.CollegeId, s.DepartmentId, s.BatchId));
         }
@@ -113,23 +103,25 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new SubjectDto(result.Id, result.Name, result.Code, result.CollegeId, result.DepartmentId, result.BatchId));
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(string id, UpdateSubjectDto dto)
+        public async Task<IActionResult> Update(string code, UpdateSubjectDto dto)
         {
-            if (!Ulid.TryParse(id, out var sId)) return BadRequest("Invalid Subject ID.");
-            await _service.UpdateSubjectDetailsAsync(sId, dto);
+            var entity = await _service.GetSubjectByCodeAsync(code);
+            if (entity == null) return NotFound($"Subject with code '{code}' not found.");
+            await _service.UpdateSubjectDetailsAsync(entity.Id, dto);
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(string code)
         {
-            if (!Ulid.TryParse(id, out var sId)) return BadRequest("Invalid Subject ID.");
+            var entity = await _service.GetSubjectByCodeAsync(code);
+            if (entity == null) return NotFound($"Subject with code '{code}' not found.");
             try
             {
-                await _service.DeleteSubjectAsync(sId);
+                await _service.DeleteSubjectAsync(entity.Id);
                 return NoContent();
             }
             catch (Exception ex)

@@ -17,7 +17,6 @@ namespace UniversityManagementSystem.Api.Controllers
     {
         [HttpPost("upload")]
         [Authorize(Roles = "Doctor")]
-        // Consuming multipart/form-data with FromForm
         public async Task<IActionResult> UploadMaterial([FromForm] Core.DTOs.UploadMaterialDto dto)
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
@@ -54,6 +53,10 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Redirects the client directly to the R2 public URL for the material.
+        /// No file is streamed through the backend.
+        /// </summary>
         [HttpGet("download/{id}")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> DownloadMaterial(string id)
@@ -63,16 +66,13 @@ namespace UniversityManagementSystem.Api.Controllers
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
             var studentId = Ulid.Parse(profileClaim.Value);
 
-            var (filePath, contentType, fileName, lastModified) = await materialService.GetMaterialFileInfoAsync(materialId, studentId);
-
-            // PhysicalFileResult supports Range Processing out of the box with enableRangeProcessing: true
-            return PhysicalFile(filePath, contentType, fileName, enableRangeProcessing: true);
+            var fileUrl = await materialService.GetMaterialUrlAsync(materialId, studentId);
+            return Redirect(fileUrl); // 302 redirect → client downloads directly from R2
         }
 
         // ── GET /api/materials/{id}/metadata ─────────────────────────────────
         /// <summary>
-        /// Returns lightweight file metadata for the AI orchestration service to
-        /// inspect before retrieving the document.  Requires any valid JWT token.
+        /// Returns lightweight file metadata. FileUrl is now the full R2 public URL.
         /// </summary>
         [HttpGet("{id}/metadata")]
         [Authorize]
@@ -88,13 +88,11 @@ namespace UniversityManagementSystem.Api.Controllers
             if (material is null)
                 return NotFound($"Material '{id}' not found.");
 
-            // Construct a relative URL that matches the MaterialService storage path
-            var fileUrl = $"/materials/{material.StoredFileName}";
-
+            // StoredFileName is now a full R2 URL
             var dto = new MaterialMetadataDto(
                 MaterialId: material.Id.ToString(),
                 FileName: material.FileName,
-                FileUrl: fileUrl,
+                FileUrl: material.StoredFileName,   // Full R2 public URL
                 SubjectOfferingId: material.SubjectOfferingId.ToString()
             );
 
@@ -102,4 +100,3 @@ namespace UniversityManagementSystem.Api.Controllers
         }
     }
 }
-

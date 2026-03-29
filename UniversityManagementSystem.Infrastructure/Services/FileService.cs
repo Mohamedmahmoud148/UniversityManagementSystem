@@ -1,3 +1,6 @@
+using System;
+using System.IO;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
@@ -7,11 +10,13 @@ using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class FileService(AppDbContext context, IAiService aiService, IAuditService auditService) : IFileService
+    public class FileService(AppDbContext context, IAiService aiService, IAuditService auditService, IStorageService storage) : IFileService
     {
         private readonly AppDbContext _context = context;
         private readonly IAiService _aiService = aiService;
         private readonly IAuditService _auditService = auditService;
+        private readonly IStorageService _storage = storage;
+        private const string StorageFolder = "files";
 
 
         public async Task<FileStatusDto?> GetFileStatusAsync(Ulid fileId)
@@ -49,21 +54,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (string.IsNullOrEmpty(fileName)) throw new ArgumentException("Filename missing", nameof(fileName));
 
-            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
-            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-            var uniqueFileName = $"{Guid.NewGuid()}_{fileName}";
-            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-            using (var fileStream = new FileStream(filePath, FileMode.Create))
-            {
-                await stream.CopyToAsync(fileStream);
-            }
+            // Upload to R2
+            var fileUrl = await _storage.UploadAsync(stream, fileName, contentType, StorageFolder);
 
             var uploadedFile = new UploadedFile
             {
                 FileName = fileName,
-                StoredPath = filePath,
+                StoredPath = fileUrl,       // R2 public URL
                 ContentType = contentType,
                 FileSizeBytes = fileLength,
                 UploadedByUserId = userId,
@@ -84,21 +81,19 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<FileStatusDto> UploadFileAsync(Ulid userId, UploadFileDto fileDto)
         {
-            // 1. Save File to Disk
-            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
-            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-            var uniqueFileName = $"{Guid.NewGuid()}_{fileDto.FileName}";
-            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
+            // 1. Upload to R2 via MemoryStream
             var fileBytes = Convert.FromBase64String(fileDto.Base64Content);
-            await File.WriteAllBytesAsync(filePath, fileBytes);
+            string fileUrl;
+            using (var ms = new MemoryStream(fileBytes))
+            {
+                fileUrl = await _storage.UploadAsync(ms, fileDto.FileName, fileDto.ContentType, StorageFolder);
+            }
 
-            // 2. Create Entity
+            // 2. Create Entity — StoredPath holds the R2 URL
             var uploadedFile = new UploadedFile
             {
                 FileName = fileDto.FileName,
-                StoredPath = filePath,
+                StoredPath = fileUrl,
                 ContentType = fileDto.ContentType,
                 FileSizeBytes = fileBytes.Length,
                 UploadedByUserId = userId,
@@ -107,9 +102,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             _context.UploadedFiles.Add(uploadedFile);
             await _context.SaveChangesAsync();
 
-            // 3. Trigger AI Extraction (Fire and Forget or Await? Await for simplicity here)
-            // In production, this should be a background job.
-            var extraction = await _aiService.ExtractDataFromFileAsync(filePath, fileDto.ContentType);
+            // 3. Trigger AI Extraction — pass URL as file reference
+            var extraction = await _aiService.ExtractDataFromFileAsync(fileUrl, fileDto.ContentType);
 
             uploadedFile.ValidationStatus = extraction.Success ? "Validated" : "Rejected";
             uploadedFile.ExtractedDataJson = extraction.ExtractectedJson;

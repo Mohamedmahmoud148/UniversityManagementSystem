@@ -43,32 +43,11 @@ namespace UniversityManagementSystem.Api.Controllers
             }));
         }
 
-        [HttpGet("by-code/{code}")]
-        public async Task<ActionResult<StudentDto>> GetByCode(string code)
+        [HttpGet("{code}")]
+        public async Task<ActionResult<StudentDto>> GetStudent(string code)
         {
             var s = await _studentService.GetStudentByCodeAsync(code);
-            if (s == null) return NotFound();
-
-            return Ok(new StudentDto
-            {
-                Id = s.Id,
-                Code = s.Code,
-                FullName = s.FullName,
-                Email = s.Email,
-                Phone = s.Phone,
-                NationalId = s.SystemUser?.NationalId ?? "N/A",
-                UniversityStudentId = s.UniversityStudentId,
-                UniversityEmail = s.SystemUser?.UniversityEmail ?? "N/A",
-                BatchId = s.BatchId,
-                IsActive = s.IsActive
-            });
-        }
-
-        [HttpGet("{id}")]
-        public async Task<ActionResult<StudentDto>> GetStudent(Ulid id)
-        {
-            var s = await _studentService.GetStudentByIdAsync(id);
-            if (s == null) return NotFound();
+            if (s == null) return NotFound($"Student with code '{code}' not found.");
 
             return Ok(new StudentDto
             {
@@ -140,13 +119,15 @@ namespace UniversityManagementSystem.Api.Controllers
             });
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(Ulid id, UpdateStudentDto dto)
+        public async Task<IActionResult> Update(string code, UpdateStudentDto dto)
         {
+            var entity = await _studentService.GetStudentByCodeAsync(code);
+            if (entity == null) return NotFound($"Student with code '{code}' not found.");
             try
             {
-                await _studentService.UpdateStudentDetailsAsync(id, dto);
+                await _studentService.UpdateStudentDetailsAsync(entity.Id, dto);
                 return NoContent();
             }
             catch (Exception ex)
@@ -155,13 +136,15 @@ namespace UniversityManagementSystem.Api.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(Ulid id)
+        public async Task<IActionResult> Delete(string code)
         {
+            var entity = await _studentService.GetStudentByCodeAsync(code);
+            if (entity == null) return NotFound($"Student with code '{code}' not found.");
             try
             {
-                await _studentService.DeleteStudentAsync(id);
+                await _studentService.DeleteStudentAsync(entity.Id);
                 return NoContent();
             }
             catch (Exception ex)

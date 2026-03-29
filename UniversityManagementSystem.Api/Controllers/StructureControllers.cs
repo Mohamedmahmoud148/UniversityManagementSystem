@@ -170,25 +170,25 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new CollegeDto(result.Id, result.Name, result.Code, result.UniversityId));
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(string id, CreateCollegeDto dto)
+        public async Task<IActionResult> Update(string code, CreateCollegeDto dto)
         {
-            if (!Ulid.TryParse(id, out var cId)) return BadRequest("Invalid College ID.");
-            var entity = await _service.GetCollegeByIdAsync(cId);
-            if (entity == null) return NotFound();
+            var entity = await _service.GetCollegeByCodeAsync(code);
+            if (entity == null) return NotFound($"College with code '{code}' not found.");
             entity.Name = dto.Name;
             entity.UniversityId = dto.UniversityId;
             await _service.UpdateCollegeAsync(entity);
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(string code)
         {
-            if (!Ulid.TryParse(id, out var cId)) return BadRequest("Invalid College ID.");
-            await _service.DeleteCollegeAsync(cId);
+            var entity = await _service.GetCollegeByCodeAsync(code);
+            if (entity == null) return NotFound($"College with code '{code}' not found.");
+            await _service.DeleteCollegeAsync(entity.Id);
             return NoContent();
         }
     }
@@ -221,25 +221,25 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new DepartmentDto(result.Id, result.Name, result.Code, result.CollegeId));
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(string id, CreateDepartmentDto dto)
+        public async Task<IActionResult> Update(string code, CreateDepartmentDto dto)
         {
-            if (!Ulid.TryParse(id, out var dId)) return BadRequest("Invalid Department ID.");
-            var entity = await _service.GetDepartmentByIdAsync(dId);
-            if (entity == null) return NotFound();
+            var entity = await _service.GetDepartmentByCodeAsync(code);
+            if (entity == null) return NotFound($"Department with code '{code}' not found.");
             entity.Name = dto.Name;
             entity.CollegeId = dto.CollegeId;
             await _service.UpdateDepartmentAsync(entity);
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(string code)
         {
-            if (!Ulid.TryParse(id, out var dId)) return BadRequest("Invalid Department ID.");
-            await _service.DeleteDepartmentAsync(dId);
+            var entity = await _service.GetDepartmentByCodeAsync(code);
+            if (entity == null) return NotFound($"Department with code '{code}' not found.");
+            await _service.DeleteDepartmentAsync(entity.Id);
             return NoContent();
         }
     }
@@ -272,25 +272,25 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new BatchDto(result.Id, result.Name, result.Code, result.DepartmentId));
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(string id, CreateBatchDto dto)
+        public async Task<IActionResult> Update(string code, CreateBatchDto dto)
         {
-            if (!Ulid.TryParse(id, out var bId)) return BadRequest("Invalid Batch ID.");
-            var entity = await _service.GetBatchByIdAsync(bId);
-            if (entity == null) return NotFound();
+            var entity = await _service.GetBatchByCodeAsync(code);
+            if (entity == null) return NotFound($"Batch with code '{code}' not found.");
             entity.Name = dto.Name;
             entity.DepartmentId = dto.DepartmentId;
             await _service.UpdateBatchAsync(entity);
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(string code)
         {
-            if (!Ulid.TryParse(id, out var bId)) return BadRequest("Invalid Batch ID.");
-            await _service.DeleteBatchAsync(bId);
+            var entity = await _service.GetBatchByCodeAsync(code);
+            if (entity == null) return NotFound($"Batch with code '{code}' not found.");
+            await _service.DeleteBatchAsync(entity.Id);
             return NoContent();
         }
     }
@@ -323,25 +323,25 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new GroupDto(result.Id, result.Name, result.BatchId));
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(string id, CreateGroupDto dto)
+        public async Task<IActionResult> Update(string code, CreateGroupDto dto)
         {
-            if (!Ulid.TryParse(id, out var gId)) return BadRequest("Invalid Group ID.");
-            var entity = await _service.GetGroupByIdAsync(gId);
-            if (entity == null) return NotFound();
+            var entity = await _service.GetGroupByCodeAsync(code);
+            if (entity == null) return NotFound($"Group with code '{code}' not found.");
             entity.Name = dto.Name;
             entity.BatchId = dto.BatchId;
             await _service.UpdateGroupAsync(entity);
             return NoContent();
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string id)
+        public async Task<IActionResult> Delete(string code)
         {
-            if (!Ulid.TryParse(id, out var gId)) return BadRequest("Invalid Group ID.");
-            await _service.DeleteGroupAsync(gId);
+            var entity = await _service.GetGroupByCodeAsync(code);
+            if (entity == null) return NotFound($"Group with code '{code}' not found.");
+            await _service.DeleteGroupAsync(entity.Id);
             return NoContent();
         }
     }

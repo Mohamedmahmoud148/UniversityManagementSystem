@@ -28,6 +28,7 @@ using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
 using UniversityManagementSystem.Infrastructure.Services;
 using UniversityManagementSystem.Infrastructure.Jobs;
+using UniversityManagementSystem.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -286,6 +287,10 @@ builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IBulkUploadJob, BulkUploadJob>();
 builder.Services.AddScoped<IExcelImportService, ExcelImportService>();
+
+// Cloudflare R2 Storage
+builder.Services.Configure<R2Settings>(builder.Configuration.GetSection("R2"));
+builder.Services.AddSingleton<IStorageService, R2StorageService>();
 
 
 var app = builder.Build();

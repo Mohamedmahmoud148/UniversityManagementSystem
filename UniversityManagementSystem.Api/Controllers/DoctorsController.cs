@@ -40,11 +40,11 @@ namespace UniversityManagementSystem.Api.Controllers
             }));
         }
 
-        [HttpGet("by-code/{code}")]
+        [HttpGet("{code}")]
         public async Task<ActionResult<DoctorDto>> GetByCode(string code)
         {
             var d = await _service.GetDoctorByCodeAsync(code);
-            if (d == null) return NotFound();
+            if (d == null) return NotFound($"Doctor with code '{code}' not found.");
 
             return Ok(new DoctorDto
             {
@@ -90,13 +90,15 @@ namespace UniversityManagementSystem.Api.Controllers
             });
         }
 
-        [HttpPut("{id}")]
+        [HttpPut("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(Ulid id, UpdateDoctorDto dto)
+        public async Task<IActionResult> Update(string code, UpdateDoctorDto dto)
         {
+            var entity = await _service.GetDoctorByCodeAsync(code);
+            if (entity == null) return NotFound($"Doctor with code '{code}' not found.");
             try
             {
-                await _service.UpdateDoctorDetailsAsync(id, dto);
+                await _service.UpdateDoctorDetailsAsync(entity.Id, dto);
                 return NoContent();
             }
             catch (Exception ex)
@@ -105,13 +107,15 @@ namespace UniversityManagementSystem.Api.Controllers
             }
         }
 
-        [HttpDelete("{id}")]
+        [HttpDelete("{code}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(Ulid id)
+        public async Task<IActionResult> Delete(string code)
         {
+            var entity = await _service.GetDoctorByCodeAsync(code);
+            if (entity == null) return NotFound($"Doctor with code '{code}' not found.");
             try
             {
-                await _service.DeleteDoctorAsync(id);
+                await _service.DeleteDoctorAsync(entity.Id);
                 return NoContent();
             }
             catch (Exception ex)
@@ -120,10 +124,12 @@ namespace UniversityManagementSystem.Api.Controllers
             }
         }
 
-        [HttpGet("{id}/subjects")]
-        public async Task<ActionResult<IEnumerable<SubjectDto>>> GetSubjects(Ulid id)
+        [HttpGet("{code}/subjects")]
+        public async Task<ActionResult<IEnumerable<SubjectDto>>> GetSubjects(string code)
         {
-            var list = await _service.GetDoctorSubjectsAsync(id);
+            var entity = await _service.GetDoctorByCodeAsync(code);
+            if (entity == null) return NotFound($"Doctor with code '{code}' not found.");
+            var list = await _service.GetDoctorSubjectsAsync(entity.Id);
             return Ok(list.Select(s => new SubjectDto(s.Id, s.Name, s.Code, s.CollegeId, s.DepartmentId, s.BatchId)));
         }
 

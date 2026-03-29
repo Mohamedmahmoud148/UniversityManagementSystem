@@ -39,6 +39,7 @@ namespace UniversityManagementSystem.Core.Interfaces
     {
         Task<IReadOnlyList<Batch>> GetBatchesByDepartmentIdAsync(Ulid departmentId);
         Task<Batch?> GetBatchByIdAsync(Ulid id);
+        Task<Batch?> GetBatchByCodeAsync(string code);
         Task<Batch> CreateBatchAsync(Batch batch);
         Task UpdateBatchAsync(Batch batch);
         Task DeleteBatchAsync(Ulid id);
@@ -48,6 +49,7 @@ namespace UniversityManagementSystem.Core.Interfaces
     {
         Task<IReadOnlyList<Group>> GetGroupsByBatchIdAsync(Ulid batchId);
         Task<Group?> GetGroupByIdAsync(Ulid id);
+        Task<Group?> GetGroupByCodeAsync(string code);
         Task<Group> CreateGroupAsync(Group group);
         Task UpdateGroupAsync(Group group);
         Task DeleteGroupAsync(Ulid id);

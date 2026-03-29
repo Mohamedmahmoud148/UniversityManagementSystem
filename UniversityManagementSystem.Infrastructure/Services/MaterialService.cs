@@ -9,13 +9,14 @@ using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
+using UniversityManagementSystem.Infrastructure.Storage;
 using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class MaterialService(AppDbContext context) : IMaterialService
+    public class MaterialService(AppDbContext context, IStorageService storage) : IMaterialService
     {
-        private const string MaterialsFolder = "wwwroot/materials";
+        private const string StorageFolder = "materials";
 
         public async Task<MaterialDto> UploadMaterialAsync(Ulid offeringId, Ulid doctorId, IFormFile file)
         {
@@ -31,25 +32,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (offering.DoctorId != doctorId)
                 throw new UnauthorizedAccessException("You are not the instructor for this offering.");
 
-            // 2. Prepare Storage
-            var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), MaterialsFolder);
-            if (!Directory.Exists(uploadPath))
-                Directory.CreateDirectory(uploadPath);
+            // 2. Upload to R2
+            using var stream = file.OpenReadStream();
+            var fileUrl = await storage.UploadAsync(stream, file.FileName, file.ContentType, StorageFolder);
 
-            var storedFileName = $"{Guid.NewGuid()}_{file.FileName}";
-            var filePath = Path.Combine(uploadPath, storedFileName);
-
-            // 3. Save File
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
-
-            // 4. Save Entity
+            // 3. Save Entity — StoredFileName now holds the R2 public URL
             var material = new Material
             {
                 FileName = file.FileName,
-                StoredFileName = storedFileName,
+                StoredFileName = fileUrl,   // Full R2 URL
                 ContentType = file.ContentType,
                 FileSize = file.Length,
                 UploadedAt = DateTime.UtcNow,
@@ -80,11 +71,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (material.UploadedByDoctorId != doctorId)
                 throw new UnauthorizedAccessException("You are not authorized to delete this material.");
 
-            // 1. Delete File from Disk
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), MaterialsFolder, material.StoredFileName);
-            if (File.Exists(filePath))
+            // 1. Delete from R2 — extract key from stored URL
+            if (!string.IsNullOrWhiteSpace(material.StoredFileName))
             {
-                File.Delete(filePath);
+                // StoredFileName is now a full URL; extract the object key part
+                var key = ExtractKeyFromUrl(material.StoredFileName);
+                await storage.DeleteAsync(key);
             }
 
             // 2. Delete Entity
@@ -108,9 +100,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Where(m => m.SubjectOfferingId == offeringId);
 
             if (!string.IsNullOrWhiteSpace(search))
-            {
                 query = query.Where(m => m.FileName.Contains(search));
-            }
 
             var totalCount = await query.CountAsync();
 
@@ -137,14 +127,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task<(string FilePath, string ContentType, string FileName, DateTime LastModified)> GetMaterialFileInfoAsync(Ulid materialId, Ulid studentId)
+        public async Task<string> GetMaterialUrlAsync(Ulid materialId, Ulid studentId)
         {
             var material = await context.Materials
                 .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.Id == materialId)
                 ?? throw new KeyNotFoundException($"Material with ID {materialId} not found.");
 
-            // 1. Validate Enrollment
+            // Validate Enrollment
             var isEnrolled = await context.Enrollments
                 .AsNoTracking()
                 .AnyAsync(e => e.StudentId == studentId && e.SubjectOfferingId == material.SubjectOfferingId);
@@ -152,14 +142,18 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (!isEnrolled)
                 throw new UnauthorizedAccessException("You are not enrolled in this course.");
 
-            // 2. Get File Info
-            var filePath = Path.Combine(Directory.GetCurrentDirectory(), MaterialsFolder, material.StoredFileName);
+            return material.StoredFileName; // Full R2 public URL
+        }
 
-            if (!File.Exists(filePath))
-                throw new FileNotFoundException("File not found on server.");
-
-            // Since we upgraded to PhysicalFileResult, we return path instead of stream
-            return (filePath, material.ContentType, material.FileName, material.UploadedAt);
+        /// <summary>
+        /// Extracts the object key from a full R2 URL by removing the scheme+host prefix.
+        /// e.g. "https://pub-xxx.r2.dev/materials/file.pdf" → "materials/file.pdf"
+        /// </summary>
+        private static string ExtractKeyFromUrl(string url)
+        {
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                return uri.AbsolutePath.TrimStart('/');
+            return url;
         }
     }
 }

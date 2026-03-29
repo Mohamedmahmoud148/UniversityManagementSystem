@@ -99,6 +99,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
             => await _repo.GetAsync(b => b.DepartmentId == departmentId);
 
         public async Task<Batch?> GetBatchByIdAsync(Ulid id) => await _repo.GetByIdAsync(id);
+        public async Task<Batch?> GetBatchByCodeAsync(string code)
+        {
+            var batches = await _repo.GetAsync(b => b.Code == code);
+            return batches.FirstOrDefault();
+        }
         public async Task<Batch> CreateBatchAsync(Batch batch) => await _repo.AddAsync(batch);
         public async Task UpdateBatchAsync(Batch batch) => await _repo.UpdateAsync(batch);
         public async Task DeleteBatchAsync(Ulid id)
@@ -120,6 +125,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
             => await _repo.GetAsync(g => g.BatchId == batchId);
 
         public async Task<Group?> GetGroupByIdAsync(Ulid id) => await _repo.GetByIdAsync(id);
+        public async Task<Group?> GetGroupByCodeAsync(string code)
+        {
+            var groups = await _repo.GetAsync(g => g.Code == code);
+            return groups.FirstOrDefault();
+        }
         public async Task<Group> CreateGroupAsync(Group group) => await _repo.AddAsync(group);
         public async Task UpdateGroupAsync(Group group) => await _repo.UpdateAsync(group);
         public async Task DeleteGroupAsync(Ulid id)
