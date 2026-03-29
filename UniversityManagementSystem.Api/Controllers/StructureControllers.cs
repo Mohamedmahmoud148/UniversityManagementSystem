@@ -200,9 +200,10 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
     [Route("api/[controller]")]
-    public class DepartmentsController(IDepartmentService service) : ControllerBase
+    public class DepartmentsController(IDepartmentService service, ICollegeService collegeService) : ControllerBase
     {
         private readonly IDepartmentService _service = service;
+        private readonly ICollegeService _collegeService = collegeService;
 
         [HttpGet("by-college/{collegeId}")]
         public async Task<ActionResult<IEnumerable<DepartmentDto>>> GetByCollege(string collegeId)
@@ -216,7 +217,14 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<DepartmentDto>> Create(CreateDepartmentDto dto)
         {
-            var entity = new Department { Name = dto.Name, CollegeId = dto.CollegeId };
+            if (string.IsNullOrWhiteSpace(dto.CollegeCode))
+                return BadRequest("CollegeCode is required.");
+
+            var college = await _collegeService.GetCollegeByCodeAsync(dto.CollegeCode);
+            if (college == null)
+                return NotFound($"College with code '{dto.CollegeCode}' not found.");
+
+            var entity = new Department { Name = dto.Name, CollegeId = college.Id };
             var result = await _service.CreateDepartmentAsync(entity);
             return Ok(new DepartmentDto(result.Id, result.Name, result.Code, result.CollegeId));
         }
@@ -225,10 +233,17 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(string code, CreateDepartmentDto dto)
         {
+            if (string.IsNullOrWhiteSpace(dto.CollegeCode))
+                return BadRequest("CollegeCode is required.");
+
+            var college = await _collegeService.GetCollegeByCodeAsync(dto.CollegeCode);
+            if (college == null)
+                return NotFound($"College with code '{dto.CollegeCode}' not found.");
+
             var entity = await _service.GetDepartmentByCodeAsync(code);
             if (entity == null) return NotFound($"Department with code '{code}' not found.");
             entity.Name = dto.Name;
-            entity.CollegeId = dto.CollegeId;
+            entity.CollegeId = college.Id;
             await _service.UpdateDepartmentAsync(entity);
             return NoContent();
         }
@@ -251,9 +266,10 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
     [Route("api/[controller]")]
-    public class BatchesController(IBatchService service) : ControllerBase
+    public class BatchesController(IBatchService service, IDepartmentService departmentService) : ControllerBase
     {
         private readonly IBatchService _service = service;
+        private readonly IDepartmentService _departmentService = departmentService;
 
         [HttpGet("by-department/{departmentId}")]
         public async Task<ActionResult<IEnumerable<BatchDto>>> GetByDepartment(string departmentId)
@@ -267,7 +283,14 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<BatchDto>> Create(CreateBatchDto dto)
         {
-            var entity = new Batch { Name = dto.Name, DepartmentId = dto.DepartmentId };
+            if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
+                return BadRequest("DepartmentCode is required.");
+
+            var department = await _departmentService.GetDepartmentByCodeAsync(dto.DepartmentCode);
+            if (department == null)
+                return NotFound($"Department with code '{dto.DepartmentCode}' not found.");
+
+            var entity = new Batch { Name = dto.Name, DepartmentId = department.Id };
             var result = await _service.CreateBatchAsync(entity);
             return Ok(new BatchDto(result.Id, result.Name, result.Code, result.DepartmentId));
         }
@@ -276,10 +299,17 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(string code, CreateBatchDto dto)
         {
+            if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
+                return BadRequest("DepartmentCode is required.");
+
+            var department = await _departmentService.GetDepartmentByCodeAsync(dto.DepartmentCode);
+            if (department == null)
+                return NotFound($"Department with code '{dto.DepartmentCode}' not found.");
+
             var entity = await _service.GetBatchByCodeAsync(code);
             if (entity == null) return NotFound($"Batch with code '{code}' not found.");
             entity.Name = dto.Name;
-            entity.DepartmentId = dto.DepartmentId;
+            entity.DepartmentId = department.Id;
             await _service.UpdateBatchAsync(entity);
             return NoContent();
         }
@@ -302,9 +332,10 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
     [Route("api/[controller]")]
-    public class GroupsController(IGroupService service) : ControllerBase
+    public class GroupsController(IGroupService service, IBatchService batchService) : ControllerBase
     {
         private readonly IGroupService _service = service;
+        private readonly IBatchService _batchService = batchService;
 
         [HttpGet("by-batch/{batchId}")]
         public async Task<ActionResult<IEnumerable<GroupDto>>> GetByBatch(string batchId)
@@ -318,7 +349,14 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<GroupDto>> Create(CreateGroupDto dto)
         {
-            var entity = new Group { Name = dto.Name, BatchId = dto.BatchId };
+            if (string.IsNullOrWhiteSpace(dto.BatchCode))
+                return BadRequest("BatchCode is required.");
+
+            var batch = await _batchService.GetBatchByCodeAsync(dto.BatchCode);
+            if (batch == null)
+                return NotFound($"Batch with code '{dto.BatchCode}' not found.");
+
+            var entity = new Group { Name = dto.Name, BatchId = batch.Id };
             var result = await _service.CreateGroupAsync(entity);
             return Ok(new GroupDto(result.Id, result.Name, result.BatchId));
         }
@@ -327,10 +365,17 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(string code, CreateGroupDto dto)
         {
+            if (string.IsNullOrWhiteSpace(dto.BatchCode))
+                return BadRequest("BatchCode is required.");
+
+            var batch = await _batchService.GetBatchByCodeAsync(dto.BatchCode);
+            if (batch == null)
+                return NotFound($"Batch with code '{dto.BatchCode}' not found.");
+
             var entity = await _service.GetGroupByCodeAsync(code);
             if (entity == null) return NotFound($"Group with code '{code}' not found.");
             entity.Name = dto.Name;
-            entity.BatchId = dto.BatchId;
+            entity.BatchId = batch.Id;
             await _service.UpdateGroupAsync(entity);
             return NoContent();
         }

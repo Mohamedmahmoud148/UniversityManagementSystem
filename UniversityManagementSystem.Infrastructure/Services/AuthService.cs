@@ -130,41 +130,60 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 // Auto-generate credentials
                 string password = GeneratePassword();
-                string universityEmail = await GenerateUniversityEmailAsync("student", UserRole.Student); // Standardized prefix 'student'
+                string universityEmail = await GenerateUniversityEmailAsync("student", UserRole.Student);
                 string universityIdStr = await GenerateUniversityIdAsync(UserRole.Student);
 
                 // Ensure uniqueness checks
                 if (await _context.SystemUsers.AnyAsync(u => u.NationalId == dto.NationalId))
                     throw new Exception("NationalId exists");
 
-                // Validate Academic Hierarchy
-                var department = await _context.Departments.FindAsync(dto.DepartmentId);
-                if (department == null) throw new Exception("Department not found");
-                if (department.CollegeId != dto.CollegeId) throw new Exception("Department does not belong to the selected College");
+                // Resolve CollegeCode → College
+                if (string.IsNullOrWhiteSpace(dto.CollegeCode))
+                    throw new ArgumentException("CollegeCode is required.");
+                var college = await _context.Colleges
+                    .FirstOrDefaultAsync(c => c.Code.ToLower() == dto.CollegeCode.ToLower())
+                    ?? throw new KeyNotFoundException($"College with code '{dto.CollegeCode}' not found.");
 
-                var batch = await _context.Batches.FindAsync(dto.BatchId);
-                if (batch == null) throw new Exception("Batch not found");
-                if (batch.DepartmentId != dto.DepartmentId) throw new Exception("Batch does not belong to the selected Department");
+                // Resolve DepartmentCode → Department
+                if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
+                    throw new ArgumentException("DepartmentCode is required.");
+                var department = await _context.Departments
+                    .FirstOrDefaultAsync(d => d.Code.ToLower() == dto.DepartmentCode.ToLower())
+                    ?? throw new KeyNotFoundException($"Department with code '{dto.DepartmentCode}' not found.");
 
-                var group = await _context.Groups.FindAsync(dto.GroupId);
-                if (group == null) throw new Exception("Group not found");
-                if (group.BatchId != dto.BatchId) throw new Exception("Group does not belong to the selected Batch");
+                // Academic Integrity: Department must belong to College
+                if (department.CollegeId != college.Id)
+                    throw new InvalidOperationException("Department does not belong to the selected College.");
 
-                // Get University ID (Assuming single university for now, or from College->University)
-                // We can get it from College navigation if included, or just query.
-                // Or easier: generic '1' if only one uni, but better to query.
-                var universityId = await _context.Colleges
-                    .Where(c => c.Id == dto.CollegeId)
-                    .Select(c => c.UniversityId)
-                    .FirstOrDefaultAsync();
+                // Resolve BatchCode → Batch
+                if (string.IsNullOrWhiteSpace(dto.BatchCode))
+                    throw new ArgumentException("BatchCode is required.");
+                var batch = await _context.Batches
+                    .FirstOrDefaultAsync(b => b.Code.ToLower() == dto.BatchCode.ToLower())
+                    ?? throw new KeyNotFoundException($"Batch with code '{dto.BatchCode}' not found.");
 
-                if (universityId == Ulid.Empty) throw new Exception("Invalid College/University association");
+                // Academic Integrity: Batch must belong to Department
+                if (batch.DepartmentId != department.Id)
+                    throw new InvalidOperationException("Batch does not belong to the selected Department.");
+
+                // Resolve GroupCode → Group
+                if (string.IsNullOrWhiteSpace(dto.GroupCode))
+                    throw new ArgumentException("GroupCode is required.");
+                var group = await _context.Groups
+                    .FirstOrDefaultAsync(g => g.Code.ToLower() == dto.GroupCode.ToLower())
+                    ?? throw new KeyNotFoundException($"Group with code '{dto.GroupCode}' not found.");
+
+                // Academic Integrity: Group must belong to Batch
+                if (group.BatchId != batch.Id)
+                    throw new InvalidOperationException("Group does not belong to the selected Batch.");
+
+                var universityId = college.UniversityId;
 
                 var user = new SystemUser
                 {
                     FullName = dto.FullName,
                     UniversityEmail = universityEmail,
-                    Email = universityEmail, // Keeping Email sync for login compatibility
+                    Email = universityEmail,
                     NationalId = dto.NationalId,
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                     Role = UserRole.Student,
@@ -177,15 +196,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 var student = new Student
                 {
                     FullName = dto.FullName,
-                    // Student.Email (Personal) -> DTO has no Email. Leave empty.
                     Email = "",
                     Phone = dto.Phone,
-                    UniversityStudentId = universityIdStr, // Renamed to avoid confusion with int UniversityId
+                    UniversityStudentId = universityIdStr,
                     UniversityId = universityId,
-                    CollegeId = dto.CollegeId,
-                    DepartmentId = dto.DepartmentId,
-                    BatchId = dto.BatchId,
-                    GroupId = dto.GroupId,
+                    CollegeId = college.Id,
+                    DepartmentId = department.Id,
+                    BatchId = batch.Id,
+                    GroupId = group.Id,
                     SystemUserId = user.Id
                 };
 
@@ -220,6 +238,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 if (await _context.SystemUsers.AnyAsync(u => u.NationalId == dto.NationalId))
                     throw new Exception("NationalId exists");
 
+                // Resolve DepartmentCode → Department
+                if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
+                    throw new ArgumentException("DepartmentCode is required.");
+                var department = await _context.Departments
+                    .FirstOrDefaultAsync(d => d.Code.ToLower() == dto.DepartmentCode.ToLower())
+                    ?? throw new KeyNotFoundException($"Department with code '{dto.DepartmentCode}' not found.");
+
                 var user = new SystemUser
                 {
                     FullName = dto.FullName,
@@ -237,11 +262,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 var doctor = new Doctor
                 {
                     FullName = dto.FullName,
-                    // Doctor.Email (Personal) -> DTO has no Email. Leave empty.
                     Email = "",
                     Phone = dto.Phone,
                     UniversityStaffId = universityId,
-                    DepartmentId = dto.DepartmentId,
+                    DepartmentId = department.Id,   // Resolved from DepartmentCode
                     SystemUserId = user.Id
                 };
 

@@ -24,15 +24,15 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required] string FullName,
         [Required] string NationalId,
         [Required][Phone] string Phone,
-        [Required] Ulid BatchId,
-        [Required] Ulid GroupId
+        [Required] string BatchCode,     // replaces BatchId
+        [Required] string GroupCode      // replaces GroupId
     );
 
     public record UpdateStudentDto(
         [Required] string FullName,
         [Required][Phone] string Phone,
-        [Required] Ulid BatchId,
-        [Required] Ulid GroupId
+        [Required] string BatchCode,     // replaces BatchId
+        [Required] string GroupCode      // replaces GroupId
     );
 
     public record DoctorDto
@@ -51,7 +51,7 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required] string FullName,
         [Required] string NationalId,
         [Required][Phone] string Phone,
-        [Required] Ulid DepartmentId
+        [Required] string DepartmentCode  // replaces DepartmentId
     );
 
     public record UpdateDoctorDto(
@@ -64,9 +64,9 @@ namespace UniversityManagementSystem.Core.DTOs
     public record CreateSubjectDto(
         [Required] string Name,
         [Required] string Code,
-        Ulid? CollegeId,
-        [Required] Ulid DepartmentId,
-        Ulid? BatchId
+        string? CollegeCode,             // replaces CollegeId  (optional)
+        [Required] string DepartmentCode, // replaces DepartmentId
+        string? BatchCode                // replaces BatchId    (optional)
     );
 
     public record UpdateSubjectDto(
@@ -87,7 +87,7 @@ namespace UniversityManagementSystem.Core.DTOs
         public string DoctorName { get; init; } = string.Empty;
         public string SemesterName { get; init; } = string.Empty;
         public DateTime EnrolledAt { get; init; }
-        public bool IsActive { get; init; } // Should match IsActive logic
+        public bool IsActive { get; init; }
     }
 
     public record CreateEnrollmentDto(
@@ -99,6 +99,6 @@ namespace UniversityManagementSystem.Core.DTOs
 
     public record CreateGroupDto(
         [Required] string Name,
-        [Required] Ulid BatchId
+        [Required] string BatchCode       // replaces BatchId
     );
 }

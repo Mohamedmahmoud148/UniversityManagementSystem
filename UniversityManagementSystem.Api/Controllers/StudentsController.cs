@@ -18,11 +18,18 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class StudentsController(IStudentService service, IAuthService authService, IExcelImportService excelImportService) : ControllerBase
+    public class StudentsController(
+        IStudentService service,
+        IAuthService authService,
+        IExcelImportService excelImportService,
+        IBatchService batchService,
+        IGroupService groupService) : ControllerBase
     {
         private readonly IStudentService _studentService = service;
         private readonly IAuthService _authService = authService;
         private readonly IExcelImportService _excelImportService = excelImportService;
+        private readonly IBatchService _batchService = batchService;
+        private readonly IGroupService _groupService = groupService;
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<StudentDto>>> GetAll([FromQuery] int page = 1, [FromQuery] int size = 10)
@@ -88,13 +95,28 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<StudentDto>> Create(CreateStudentDto dto)
         {
+            // Resolve BatchCode → Id
+            if (string.IsNullOrWhiteSpace(dto.BatchCode))
+                return BadRequest("BatchCode is required.");
+            var batch = await _batchService.GetBatchByCodeAsync(dto.BatchCode);
+            if (batch == null)
+                return NotFound($"Batch with code '{dto.BatchCode}' not found.");
+
+            // Resolve GroupCode → Id
+            if (string.IsNullOrWhiteSpace(dto.GroupCode))
+                return BadRequest("GroupCode is required.");
+            var group = await _groupService.GetGroupByCodeAsync(dto.GroupCode);
+            if (group == null)
+                return NotFound($"Group with code '{dto.GroupCode}' not found.");
+
             // Use AuthService to ensure consistent creation (SystemUser + Student)
             var registerDto = new RegisterStudentDto
             {
                 FullName = dto.FullName,
                 Phone = dto.Phone,
                 NationalId = dto.NationalId,
-                BatchId = dto.BatchId
+                BatchCode = batch.Code,
+                GroupCode = group.Code
             };
 
             var creatorId = Ulid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);

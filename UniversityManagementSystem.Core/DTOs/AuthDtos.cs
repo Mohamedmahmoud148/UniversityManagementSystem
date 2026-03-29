@@ -54,12 +54,10 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required]
         public string FullName { get; set; } = string.Empty;
 
-
-
         public string? UniversityStaffId { get; set; }
 
         [Required]
-        public Ulid DepartmentId { get; set; }
+        public string DepartmentCode { get; set; } = string.Empty;  // replaces DepartmentId
 
         [Required]
         public string NationalId { get; set; } = string.Empty;
@@ -75,10 +73,10 @@ namespace UniversityManagementSystem.Core.DTOs
         public string FullName { get; set; } = string.Empty;
 
         [Required]
-        public Ulid CollegeId { get; set; }
+        public string CollegeCode { get; set; } = string.Empty;  // replaces CollegeId
 
         [Required]
-        public Ulid DepartmentId { get; set; }
+        public string DepartmentCode { get; set; } = string.Empty;  // replaces DepartmentId
 
         [Required]
         public string NationalId { get; set; } = string.Empty;
@@ -86,10 +84,10 @@ namespace UniversityManagementSystem.Core.DTOs
         public string? UniversityStudentId { get; set; }
 
         [Required]
-        public Ulid BatchId { get; set; }
+        public string BatchCode { get; set; } = string.Empty;  // replaces BatchId
 
         [Required]
-        public Ulid GroupId { get; set; }
+        public string GroupCode { get; set; } = string.Empty;  // replaces GroupId
 
         [Required]
         [Phone]

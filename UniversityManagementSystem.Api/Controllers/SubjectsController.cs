@@ -20,11 +20,20 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class SubjectsController(ISubjectService service, IDistributedCache cache, AppDbContext context) : ControllerBase
+    public class SubjectsController(
+        ISubjectService service,
+        IDistributedCache cache,
+        AppDbContext context,
+        IDepartmentService departmentService,
+        ICollegeService collegeService,
+        IBatchService batchService) : ControllerBase
     {
         private readonly ISubjectService _service = service;
         private readonly IDistributedCache _cache = cache;
         private readonly AppDbContext _context = context;
+        private readonly IDepartmentService _departmentService = departmentService;
+        private readonly ICollegeService _collegeService = collegeService;
+        private readonly IBatchService _batchService = batchService;
         private const string CachePrefix = "Subjects_Batch_";
 
         // ── GET /api/subjects/search?name={query} ────────────────────────────
@@ -84,21 +93,46 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<SubjectDto>> Create(CreateSubjectDto dto)
         {
+            // Resolve DepartmentCode → Id
+            if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
+                return BadRequest("DepartmentCode is required.");
+            var department = await _departmentService.GetDepartmentByCodeAsync(dto.DepartmentCode);
+            if (department == null)
+                return NotFound($"Department with code '{dto.DepartmentCode}' not found.");
+
+            // Resolve optional CollegeCode → Id
+            Ulid? collegeId = null;
+            if (!string.IsNullOrWhiteSpace(dto.CollegeCode))
+            {
+                var college = await _collegeService.GetCollegeByCodeAsync(dto.CollegeCode);
+                if (college == null)
+                    return NotFound($"College with code '{dto.CollegeCode}' not found.");
+                collegeId = college.Id;
+            }
+
+            // Resolve optional BatchCode → Id
+            Ulid? batchId = null;
+            if (!string.IsNullOrWhiteSpace(dto.BatchCode))
+            {
+                var batch = await _batchService.GetBatchByCodeAsync(dto.BatchCode);
+                if (batch == null)
+                    return NotFound($"Batch with code '{dto.BatchCode}' not found.");
+                batchId = batch.Id;
+            }
+
             var entity = new Subject
             {
                 Name = dto.Name,
                 Code = dto.Code,
-                CollegeId = dto.CollegeId,
-                DepartmentId = dto.DepartmentId,
-                BatchId = dto.BatchId
+                CollegeId = collegeId,
+                DepartmentId = department.Id,
+                BatchId = batchId
             };
             var result = await _service.CreateSubjectAsync(entity);
 
             // Invalidate relevant batch cache
-            if (dto.BatchId.HasValue)
-            {
-                await _cache.RemoveAsync($"{CachePrefix}{dto.BatchId}");
-            }
+            if (batchId.HasValue)
+                await _cache.RemoveAsync($"{CachePrefix}{batchId}");
 
             return Ok(new SubjectDto(result.Id, result.Name, result.Code, result.CollegeId, result.DepartmentId, result.BatchId));
         }

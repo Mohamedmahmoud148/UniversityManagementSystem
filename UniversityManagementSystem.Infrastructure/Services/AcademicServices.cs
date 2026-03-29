@@ -43,26 +43,37 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var student = await _repo.GetByIdAsync(id);
             if (student == null) throw new Exception("Student not found");
 
-            // Validate Batch if changed
-            if (student.BatchId != dto.BatchId)
-            {
-                var batchExists = await _context.Batches.AnyAsync(b => b.Id == dto.BatchId);
-                if (!batchExists) throw new Exception("Batch not found");
+            // Resolve BatchCode → Batch entity
+            if (string.IsNullOrWhiteSpace(dto.BatchCode))
+                throw new ArgumentException("BatchCode is required.");
 
-                // Academic Integrity: Ensure new Batch is within same Department?
-                // Rule 1: "Validate Batch exists" - Done.
-                // Should we check Department? Original request didn't explicitly say so for UPDATE,
-                // but integrity implies it. Let's start with basic exist check as requested.
-                // However, if we change Batch, we might violate "Student.Department == Batch.Department".
-                // Let's add that check to be safe.
-                var batch = await _context.Batches.FindAsync(dto.BatchId);
-                if (batch!.DepartmentId != student.DepartmentId)
-                    throw new Exception("New Batch must belong to the Student's Department.");
+            var batch = await _context.Batches
+                .FirstOrDefaultAsync(b => b.Code.ToLower() == dto.BatchCode.ToLower())
+                ?? throw new KeyNotFoundException($"Batch with code '{dto.BatchCode}' not found.");
+
+            // Academic Integrity: new Batch must belong to same Department as student
+            if (batch.Id != student.BatchId)
+            {
+                if (batch.DepartmentId != student.DepartmentId)
+                    throw new InvalidOperationException("New Batch must belong to the Student's Department.");
             }
+
+            // Resolve GroupCode → Group entity
+            if (string.IsNullOrWhiteSpace(dto.GroupCode))
+                throw new ArgumentException("GroupCode is required.");
+
+            var group = await _context.Groups
+                .FirstOrDefaultAsync(g => g.Code.ToLower() == dto.GroupCode.ToLower())
+                ?? throw new KeyNotFoundException($"Group with code '{dto.GroupCode}' not found.");
+
+            // Academic Integrity: group must belong to the resolved batch
+            if (group.BatchId != batch.Id)
+                throw new InvalidOperationException("Group must belong to the specified Batch.");
 
             student.FullName = dto.FullName;
             student.Phone = dto.Phone;
-            student.BatchId = dto.BatchId;
+            student.BatchId = batch.Id;
+            student.GroupId = group.Id;
 
             await _repo.UpdateAsync(student);
         }

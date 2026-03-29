@@ -18,10 +18,11 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class DoctorsController(IDoctorService service, IAuthService authService) : ControllerBase
+    public class DoctorsController(IDoctorService service, IAuthService authService, IDepartmentService departmentService) : ControllerBase
     {
         private readonly IDoctorService _service = service;
         private readonly IAuthService _authService = authService;
+        private readonly IDepartmentService _departmentService = departmentService;
 
         [HttpGet]
         public async Task<ActionResult<IEnumerable<DoctorDto>>> GetAll([FromQuery] int page = 1, [FromQuery] int size = 10)
@@ -63,12 +64,19 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<DoctorDto>> Create(CreateDoctorDto dto)
         {
+            // Resolve DepartmentCode → Id
+            if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
+                return BadRequest("DepartmentCode is required.");
+            var department = await _departmentService.GetDepartmentByCodeAsync(dto.DepartmentCode);
+            if (department == null)
+                return NotFound($"Department with code '{dto.DepartmentCode}' not found.");
+
             var registerDto = new RegisterDoctorDto
             {
                 FullName = dto.FullName,
                 Phone = dto.Phone,
                 NationalId = dto.NationalId,
-                DepartmentId = dto.DepartmentId
+                DepartmentCode = department.Code
             };
 
             var creatorId = Ulid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
