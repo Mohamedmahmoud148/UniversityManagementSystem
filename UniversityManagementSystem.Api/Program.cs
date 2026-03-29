@@ -211,6 +211,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ResponseWrapperFilter>();
+})
+.AddJsonOptions(options =>
+{
+    // Fix ULID deserialization: allows clients to send ULIDs as plain strings
+    // e.g. "universityId": "01KMXCAWPP16MDYJKA7W7GKH8J"
+    options.JsonSerializerOptions.Converters.Add(new UniversityManagementSystem.Api.Converters.UlidJsonConverter());
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
