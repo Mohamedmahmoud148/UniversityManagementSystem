@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
@@ -17,6 +20,40 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly IAuditService _auditService = auditService;
         private readonly IStorageService _storage = storage;
         private const string StorageFolder = "files";
+
+        /// <inheritdoc/>
+        public async Task<FileUploadResponseDto> UploadFormFileAsync(Ulid userId, IFormFile file)
+        {
+            using var stream = file.OpenReadStream();
+            var storageKey = await _storage.UploadAsync(stream, file.FileName, file.ContentType, StorageFolder);
+
+            var uploadedFile = new UploadedFile
+            {
+                FileName = file.FileName,
+                StorageKey = storageKey,
+                StoredPath = storageKey,   // legacy mirror
+                ContentType = file.ContentType,
+                FileSizeBytes = file.Length,
+                UploadedByUserId = userId,
+                ValidationStatus = "Ready",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.UploadedFiles.Add(uploadedFile);
+            await _context.SaveChangesAsync();
+
+            // Return a 60-minute signed URL immediately so the caller can use the file
+            var signedUrl = await _storage.GenerateSignedUrlAsync(storageKey, expiryMinutes: 60);
+
+            return new FileUploadResponseDto
+            {
+                FileId = uploadedFile.Id.ToString(),
+                FileName = uploadedFile.FileName,
+                ContentType = uploadedFile.ContentType,
+                Size = uploadedFile.FileSizeBytes,
+                Url = signedUrl
+            };
+        }
 
 
         public async Task<FileStatusDto?> GetFileStatusAsync(Ulid fileId)
@@ -54,13 +91,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (string.IsNullOrEmpty(fileName)) throw new ArgumentException("Filename missing", nameof(fileName));
 
-            // Upload to R2
-            var fileUrl = await _storage.UploadAsync(stream, fileName, contentType, StorageFolder);
+            // Upload to R2 — returns object key
+            var storageKey = await _storage.UploadAsync(stream, fileName, contentType, StorageFolder);
 
             var uploadedFile = new UploadedFile
             {
                 FileName = fileName,
-                StoredPath = fileUrl,       // R2 public URL
+                StorageKey = storageKey,      // New: the R2 object key
+                StoredPath = storageKey,      // Legacy: mirrors StorageKey
                 ContentType = contentType,
                 FileSizeBytes = fileLength,
                 UploadedByUserId = userId,
@@ -79,47 +117,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task<FileStatusDto> UploadFileAsync(Ulid userId, UploadFileDto fileDto)
-        {
-            // 1. Upload to R2 via MemoryStream
-            var fileBytes = Convert.FromBase64String(fileDto.Base64Content);
-            string fileUrl;
-            using (var ms = new MemoryStream(fileBytes))
-            {
-                fileUrl = await _storage.UploadAsync(ms, fileDto.FileName, fileDto.ContentType, StorageFolder);
-            }
-
-            // 2. Create Entity — StoredPath holds the R2 URL
-            var uploadedFile = new UploadedFile
-            {
-                FileName = fileDto.FileName,
-                StoredPath = fileUrl,
-                ContentType = fileDto.ContentType,
-                FileSizeBytes = fileBytes.Length,
-                UploadedByUserId = userId,
-                ValidationStatus = "Processing"
-            };
-            _context.UploadedFiles.Add(uploadedFile);
-            await _context.SaveChangesAsync();
-
-            // 3. Trigger AI Extraction — pass URL as file reference
-            var extraction = await _aiService.ExtractDataFromFileAsync(fileUrl, fileDto.ContentType);
-
-            uploadedFile.ValidationStatus = extraction.Success ? "Validated" : "Rejected";
-            uploadedFile.ExtractedDataJson = extraction.ExtractectedJson;
-            uploadedFile.ValidationErrors = extraction.Errors != null ? string.Join(", ", extraction.Errors) : null;
-
-            await _context.SaveChangesAsync();
-
-            return new FileStatusDto
-            {
-                Id = uploadedFile.Id,
-                FileName = uploadedFile.FileName,
-                Status = uploadedFile.ValidationStatus,
-                ExtractedData = uploadedFile.ExtractedDataJson,
-                Errors = uploadedFile.ValidationErrors
-            };
-        }
 
         public async Task RenameFileAsync(Ulid fileId, RenameFileDto dto)
         {

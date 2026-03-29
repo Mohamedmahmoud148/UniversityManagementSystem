@@ -6,6 +6,15 @@ namespace UniversityManagementSystem.Core.Entities
     public class Material : BaseEntity
     {
         public string FileName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The R2 object key (e.g. "materials/guid_file.pdf").
+        /// Use IStorageService.BuildUrl(StorageKey) for public URL,
+        /// or GenerateSignedUrlAsync(StorageKey) for secure downloads.
+        /// </summary>
+        public string StorageKey { get; set; } = string.Empty;
+
+        /// <summary>Legacy field — kept for backward compatibility. Mirrors StorageKey.</summary>
         public string StoredFileName { get; set; } = string.Empty;
         public string ContentType { get; set; } = string.Empty;
         public long FileSize { get; set; }

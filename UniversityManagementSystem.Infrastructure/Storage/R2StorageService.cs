@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using Amazon;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
@@ -19,11 +18,16 @@ namespace UniversityManagementSystem.Infrastructure.Storage
         {
             _settings = options.Value;
 
+            // ── Read credentials from environment variables first (production-safe) ──
+            // Set: R2__AccessKey and R2__SecretKey as environment variables.
+            // .NET configuration automatically maps R2__AccessKey → R2:AccessKey,
+            // so these are already bound via IOptions<R2Settings>.
+            // R2Settings.AccessKey/SecretKey are populated from env vars at startup.
             var credentials = new BasicAWSCredentials(_settings.AccessKey, _settings.SecretKey);
             var config = new AmazonS3Config
             {
                 ServiceURL = _settings.ServiceUrl,
-                ForcePathStyle = true,       // Required for R2 / non-AWS S3 endpoints
+                ForcePathStyle = true,        // Required for R2 / non-AWS S3 endpoints
                 AuthenticationRegion = "auto" // Cloudflare R2 uses "auto"
             };
 
@@ -31,10 +35,14 @@ namespace UniversityManagementSystem.Infrastructure.Storage
         }
 
         /// <inheritdoc/>
+        /// <returns>
+        /// The <b>storage object key</b> (e.g. "materials/guid_file.pdf"),
+        /// NOT the full URL. Use <see cref="BuildUrl"/> or <see cref="GenerateSignedUrlAsync"/>.
+        /// </returns>
         public async Task<string> UploadAsync(Stream stream, string fileName, string contentType, string folder)
         {
-            // Build a unique object key: folder/guid_filename
             var sanitized = SanitizeFileName(fileName);
+            // Key format: "folder/guid_filename"
             var key = $"{folder.TrimEnd('/')}/{Guid.NewGuid()}_{sanitized}";
 
             var request = new PutObjectRequest
@@ -48,15 +56,18 @@ namespace UniversityManagementSystem.Infrastructure.Storage
 
             await _s3.PutObjectAsync(request);
 
-            // Return the full public URL
-            var baseUrl = _settings.PublicBaseUrl.TrimEnd('/');
-            return $"{baseUrl}/{key}";
+            // Return the OBJECT KEY only — not the full URL
+            return key;
         }
 
         /// <inheritdoc/>
         public async Task DeleteAsync(string objectKey)
         {
             if (string.IsNullOrWhiteSpace(objectKey)) return;
+
+            // Accept either a raw key or a full URL — extract key if needed
+            if (objectKey.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                objectKey = ExtractKeyFromUrl(objectKey);
 
             var request = new DeleteObjectRequest
             {
@@ -67,34 +78,12 @@ namespace UniversityManagementSystem.Infrastructure.Storage
             await _s3.DeleteObjectAsync(request);
         }
 
-        /// <summary>
-        /// Extracts the R2 object key from a full public URL stored in the database.
-        /// e.g. "https://pub-xxx.r2.dev/materials/abc.pdf" → "materials/abc.pdf"
-        /// </summary>
-        public static string ExtractKeyFromUrl(string publicBaseUrl, string fullUrl)
-        {
-            var prefix = publicBaseUrl.TrimEnd('/') + "/";
-            return fullUrl.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-                ? fullUrl[prefix.Length..]
-                : fullUrl; // Fallback: treat as raw key
-        }
-
-        private static string SanitizeFileName(string fileName)
-        {
-            // Replace spaces and dangerous characters
-            return Path.GetFileName(fileName)
-                .Replace(" ", "_")
-                .Replace("#", "")
-                .Replace("?", "")
-                .Replace("&", "");
-        }
-
         /// <inheritdoc/>
         public Task<string> GenerateSignedUrlAsync(string objectKey, int expiryMinutes = 60)
         {
-            // If the caller passes a full public URL, extract just the key portion
+            // Accept either a raw key or a full URL — extract key if needed
             if (objectKey.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                objectKey = ExtractKeyFromUrl(_settings.PublicBaseUrl, objectKey);
+                objectKey = ExtractKeyFromUrl(objectKey);
 
             var request = new GetPreSignedUrlRequest
             {
@@ -105,9 +94,45 @@ namespace UniversityManagementSystem.Infrastructure.Storage
                 Protocol = Protocol.HTTPS
             };
 
-            var url = _s3.GetPreSignedURL(request);
-            return Task.FromResult(url);
+            return Task.FromResult(_s3.GetPreSignedURL(request));
         }
+
+        /// <inheritdoc/>
+        public string BuildUrl(string objectKey)
+        {
+            // Construct the public CDN URL: https://files.yourdomain.com/materials/guid_file.pdf
+            return $"{_settings.PublicBaseUrl.TrimEnd('/')}/{objectKey}";
+        }
+
+        // ── Helpers ────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Extracts the R2 object key from a full URL stored in the database.
+        /// Handles both the new CDN domain and old S3-endpoint URLs for backward compatibility.
+        /// e.g. "https://files.yourdomain.com/materials/abc.pdf" → "materials/abc.pdf"
+        /// </summary>
+        private string ExtractKeyFromUrl(string fullUrl)
+        {
+            // Try PublicBaseUrl first
+            var prefix = _settings.PublicBaseUrl.TrimEnd('/') + "/";
+            if (fullUrl.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return fullUrl[prefix.Length..];
+
+            // Fallback: strip the S3 service URL + bucket name (old format)
+            var oldPrefix = $"{_settings.ServiceUrl.TrimEnd('/')}/{_settings.BucketName}/";
+            if (fullUrl.StartsWith(oldPrefix, StringComparison.OrdinalIgnoreCase))
+                return fullUrl[oldPrefix.Length..];
+
+            // Last resort: treat as raw key
+            return fullUrl;
+        }
+
+        private static string SanitizeFileName(string fileName) =>
+            System.IO.Path.GetFileName(fileName)
+                .Replace(" ", "_")
+                .Replace("#", "")
+                .Replace("?", "")
+                .Replace("&", "");
 
         public void Dispose() => _s3?.Dispose();
     }

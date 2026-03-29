@@ -77,9 +77,10 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new { SignedUrl = signedUrl, ExpiresInMinutes = 60 });
         }
 
-        // ── GET /api/materials/{id}/metadata ─────────────────────────────────
+        // ── GET /api/materials/{id}/metadata ──────────────────────────────────────
         /// <summary>
-        /// Returns lightweight file metadata. FileUrl is now the full R2 public URL.
+        /// Returns lightweight file metadata with a signed URL (valid 60 min).
+        /// Never exposes the raw storage key or public URL.
         /// </summary>
         [HttpGet("{id}/metadata")]
         [Authorize]
@@ -95,15 +96,24 @@ namespace UniversityManagementSystem.Api.Controllers
             if (material is null)
                 return NotFound($"Material '{id}' not found.");
 
-            // StoredFileName is now a full R2 URL
-            var dto = new MaterialMetadataDto(
-                MaterialId: material.Id.ToString(),
-                FileName: material.FileName,
-                FileUrl: material.StoredFileName,   // Full R2 public URL
-                SubjectOfferingId: material.SubjectOfferingId.ToString()
-            );
+            // Prefer StorageKey (new); fall back to StoredFileName (legacy rows)
+            var key = !string.IsNullOrWhiteSpace(material.StorageKey)
+                ? material.StorageKey
+                : material.StoredFileName;
 
-            return Ok(dto);
+            // Generate a 60-minute signed URL — never expose the raw key/URL
+            var signedUrl = await storageService.GenerateSignedUrlAsync(key, expiryMinutes: 60);
+
+            return Ok(new
+            {
+                MaterialId = material.Id.ToString(),
+                FileName = material.FileName,
+                ContentType = material.ContentType,
+                FileSize = material.FileSize,
+                UploadedAt = material.UploadedAt,
+                SignedUrl = signedUrl,
+                ExpiresInMinutes = 60
+            });
         }
     }
 }

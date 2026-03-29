@@ -32,15 +32,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (offering.DoctorId != doctorId)
                 throw new UnauthorizedAccessException("You are not the instructor for this offering.");
 
-            // 2. Upload to R2
+            // 2. Upload to R2 — returns the object key, NOT a URL
             using var stream = file.OpenReadStream();
-            var fileUrl = await storage.UploadAsync(stream, file.FileName, file.ContentType, StorageFolder);
+            var storageKey = await storage.UploadAsync(stream, file.FileName, file.ContentType, StorageFolder);
 
-            // 3. Save Entity — StoredFileName now holds the R2 public URL
+            // 3. Save Entity — store the key; keep StoredFileName in sync for backward compatibility
             var material = new Material
             {
                 FileName = file.FileName,
-                StoredFileName = fileUrl,   // Full R2 URL
+                StorageKey = storageKey,                       // New: the R2 object key
+                StoredFileName = storageKey,                   // Legacy: mirrors StorageKey
                 ContentType = file.ContentType,
                 FileSize = file.Length,
                 UploadedAt = DateTime.UtcNow,
@@ -71,13 +72,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (material.UploadedByDoctorId != doctorId)
                 throw new UnauthorizedAccessException("You are not authorized to delete this material.");
 
-            // 1. Delete from R2 — extract key from stored URL
-            if (!string.IsNullOrWhiteSpace(material.StoredFileName))
-            {
-                // StoredFileName is now a full URL; extract the object key part
-                var key = ExtractKeyFromUrl(material.StoredFileName);
+            // 1. Delete from R2 — use StorageKey directly (no URL parsing needed)
+            var key = !string.IsNullOrWhiteSpace(material.StorageKey)
+                ? material.StorageKey
+                : material.StoredFileName; // fallback for rows created before this fix
+            if (!string.IsNullOrWhiteSpace(key))
                 await storage.DeleteAsync(key);
-            }
 
             // 2. Delete Entity
             context.Materials.Remove(material);

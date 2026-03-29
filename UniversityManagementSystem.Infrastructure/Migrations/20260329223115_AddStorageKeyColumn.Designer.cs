@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UniversityManagementSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using UniversityManagementSystem.Infrastructure.Data;
 namespace UniversityManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260329223115_AddStorageKeyColumn")]
+    partial class AddStorageKeyColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -900,6 +903,7 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Content")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
@@ -907,10 +911,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("FileId")
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
@@ -923,8 +923,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("FileId");
 
                     b.ToTable("Regulations");
                 });
@@ -1785,15 +1783,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Regulation", b =>
-                {
-                    b.HasOne("UniversityManagementSystem.Core.Entities.UploadedFile", "File")
-                        .WithMany()
-                        .HasForeignKey("FileId");
-
-                    b.Navigation("File");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Semester", b =>
