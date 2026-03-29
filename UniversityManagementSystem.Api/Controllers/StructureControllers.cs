@@ -165,7 +165,17 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<CollegeDto>> Create(CreateCollegeDto dto)
         {
-            var entity = new College { Name = dto.Name, UniversityId = dto.UniversityId };
+            if (string.IsNullOrWhiteSpace(dto.Code))
+                return BadRequest("College code is required.");
+
+            var codeUpper = dto.Code.ToUpper();
+
+            // Uniqueness check
+            var existing = await _service.GetCollegeByCodeAsync(codeUpper);
+            if (existing != null)
+                return Conflict($"A College with code '{codeUpper}' already exists.");
+
+            var entity = new College { Name = dto.Name, Code = codeUpper, UniversityId = dto.UniversityId };
             var result = await _service.CreateCollegeAsync(entity);
             return Ok(new CollegeDto(result.Id, result.Name, result.Code, result.UniversityId));
         }
@@ -178,6 +188,14 @@ namespace UniversityManagementSystem.Api.Controllers
             if (entity == null) return NotFound($"College with code '{code}' not found.");
             entity.Name = dto.Name;
             entity.UniversityId = dto.UniversityId;
+            // Only update Code if a new one was explicitly provided and differs
+            if (!string.IsNullOrWhiteSpace(dto.Code) && dto.Code.ToUpper() != entity.Code)
+            {
+                var codeConflict = await _service.GetCollegeByCodeAsync(dto.Code.ToUpper());
+                if (codeConflict != null)
+                    return Conflict($"A College with code '{dto.Code.ToUpper()}' already exists.");
+                entity.Code = dto.Code.ToUpper();
+            }
             await _service.UpdateCollegeAsync(entity);
             return NoContent();
         }

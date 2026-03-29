@@ -8,7 +8,7 @@ namespace UniversityManagementSystem.Core.DTOs
     public record CreateUniversityDto([Required] string Name);
 
     public record CollegeDto(Ulid Id, string Name, string Code, Ulid UniversityId);
-    public record CreateCollegeDto([Required] string Name, [Required] Ulid UniversityId);
+    public record CreateCollegeDto([Required] string Name, [Required] string Code, [Required] Ulid UniversityId);
 
     public record DepartmentDto(Ulid Id, string Name, string Code, Ulid CollegeId);
     public record CreateDepartmentDto(
