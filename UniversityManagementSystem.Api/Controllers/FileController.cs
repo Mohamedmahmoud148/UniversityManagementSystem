@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using NUlid;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
@@ -12,12 +10,13 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class FileController(IFileService fileService) : ControllerBase
+    public class FileController(IFileService fileService, IUserContextService userContext) : ControllerBase
     {
         private readonly IFileService _fileService = fileService;
+        private readonly IUserContextService _userContext = userContext;
 
         // Allowed MIME types — covers documents, images, spreadsheets
-        private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly System.Collections.Generic.HashSet<string> AllowedMimeTypes = new(System.StringComparer.OrdinalIgnoreCase)
         {
             "application/pdf",
             "image/jpeg", "image/png", "image/gif", "image/webp",
@@ -35,12 +34,10 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Returns a FileId + 60-minute signed download URL.
         /// </summary>
         [HttpPost("upload")]
-        [RequestSizeLimit(52_428_800)] // 50 MB
+        [RequestSizeLimit(52_428_800)]
         public async Task<IActionResult> UploadFile(IFormFile file)
         {
-            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Ulid.TryParse(claim, out var userId))
-                return Unauthorized("Invalid user ID in token.");
+            var userId = _userContext.GetUserId();
 
             if (file == null || file.Length == 0)
                 return BadRequest("No file provided.");
@@ -49,7 +46,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 return BadRequest($"File type '{file.ContentType}' is not allowed. Supported: PDF, images, Word, Excel, text.");
 
             if (file.Length > MaxFileSizeBytes)
-                return BadRequest($"File exceeds the 50 MB size limit.");
+                return BadRequest("File exceeds the 50 MB size limit.");
 
             var result = await _fileService.UploadFormFileAsync(userId, file);
             return Ok(result);
@@ -59,8 +56,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetMyFiles()
         {
-            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Ulid.TryParse(claim, out var userId)) return Unauthorized("Invalid user ID in token.");
+            var userId = _userContext.GetUserId();
             var files = await _fileService.GetUserFilesAsync(userId);
             return Ok(files);
         }
@@ -69,7 +65,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RenameFile(string id, [FromBody] RenameFileDto dto)
         {
-            if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid file ID.");
+            if (!NUlid.Ulid.TryParse(id, out var uid)) return BadRequest("Invalid file ID.");
             await _fileService.RenameFileAsync(uid, dto);
             return NoContent();
         }
@@ -78,7 +74,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteFile(string id)
         {
-            if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid file ID.");
+            if (!NUlid.Ulid.TryParse(id, out var uid)) return BadRequest("Invalid file ID.");
             await _fileService.DeleteFileAsync(uid);
             return NoContent();
         }

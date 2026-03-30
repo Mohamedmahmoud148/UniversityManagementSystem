@@ -252,10 +252,13 @@ builder.Services.AddHealthChecks()
     .AddHangfire(options => { options.MinimumAvailableServers = 1; });
 
 // 9. Dependency Injection Registrations
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
+builder.Services.AddScoped<IUserContextService, UserContextService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+
 
 // Background Jobs (Hangfire)
 builder.Services.AddScoped<IEmailJob, EmailJob>();

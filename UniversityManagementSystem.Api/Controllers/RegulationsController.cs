@@ -25,13 +25,15 @@ namespace UniversityManagementSystem.Api.Controllers
         IDistributedCache cache,
         AppDbContext context,
         IStorageService storageService,
-        IFileService fileService) : ControllerBase
+        IFileService fileService,
+        IUserContextService userContext) : ControllerBase
     {
         private readonly IRegulationService _service = service;
         private readonly IDistributedCache _cache = cache;
         private readonly AppDbContext _context = context;
         private readonly IStorageService _storageService = storageService;
         private readonly IFileService _fileService = fileService;
+        private readonly IUserContextService _userContext = userContext;
         private const string CacheKey = "Regulations_All";
 
         // Allowed file MIME types for regulation attachments
@@ -130,13 +132,11 @@ namespace UniversityManagementSystem.Api.Controllers
             }
 
             // Resolve current user (Admin/SuperAdmin) for file upload
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             Ulid? uploadedFileId = null;
 
             if (dto.File != null)
             {
-                if (!Ulid.TryParse(userIdStr, out var uploaderId))
-                    return Unauthorized("Cannot resolve current user from token.");
+                var uploaderId = _userContext.GetUserId();
 
                 // Reuse existing FileService — stream upload to R2 "files/" folder
                 var uploaded = await _fileService.UploadFileStreamAsync(
@@ -177,7 +177,6 @@ namespace UniversityManagementSystem.Api.Controllers
             if (string.IsNullOrWhiteSpace(dto.Content) && dto.File == null)
                 return BadRequest("At least one of 'content' or a file attachment must be provided.");
 
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             Ulid? uploadedFileId = null;
 
             if (dto.File != null)
@@ -188,8 +187,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 if (!AllowedMimeTypes.Contains(dto.File.ContentType))
                     return BadRequest($"File type '{dto.File.ContentType}' is not allowed.");
 
-                if (!Ulid.TryParse(userIdStr, out var uploaderId))
-                    return Unauthorized("Cannot resolve current user from token.");
+                var uploaderId = _userContext.GetUserId();
 
                 var uploaded = await _fileService.UploadFileStreamAsync(
                     userId: uploaderId,

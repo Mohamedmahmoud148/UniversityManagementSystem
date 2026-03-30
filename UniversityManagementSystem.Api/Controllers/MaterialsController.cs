@@ -16,15 +16,14 @@ namespace UniversityManagementSystem.Api.Controllers
     public class MaterialsController(
         IMaterialService materialService,
         AppDbContext context,
-        IStorageService storageService) : ControllerBase
+        IStorageService storageService,
+        IUserContextService userContext) : ControllerBase
     {
         [HttpPost("upload")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> UploadMaterial([FromForm] Core.DTOs.UploadMaterialDto dto)
         {
-            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
-            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = Ulid.Parse(profileClaim.Value);
+            var doctorId = userContext.GetProfileId();
 
             var material = await materialService.UploadMaterialAsync(dto.OfferingId, doctorId, dto.File);
             return CreatedAtAction(nameof(DownloadMaterial), new { id = material.Id.ToString() }, material);
@@ -35,9 +34,7 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<IActionResult> DeleteMaterial(string id)
         {
             if (!Ulid.TryParse(id, out var materialId)) return BadRequest("Invalid Material ID.");
-            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
-            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = Ulid.Parse(profileClaim.Value);
+            var doctorId = userContext.GetProfileId();
 
             await materialService.DeleteMaterialAsync(materialId, doctorId);
             return NoContent();

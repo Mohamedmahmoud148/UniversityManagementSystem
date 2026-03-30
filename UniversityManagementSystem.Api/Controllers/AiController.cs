@@ -19,12 +19,13 @@ namespace UniversityManagementSystem.Api.Controllers;
 
 [Route("api/ai")]
 [ApiController]
-public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IAiService aiService, IStudentFileService studentFileService) : ControllerBase
+public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IAiService aiService, IStudentFileService studentFileService, IUserContextService userContext) : ControllerBase
 {
     private readonly AiToolRegistry _toolRegistry = toolRegistry;
     private readonly AppDbContext _context = context;
     private readonly IAiService _aiService = aiService;
     private readonly IStudentFileService _studentFileService = studentFileService;
+    private readonly IUserContextService _userContext = userContext;
 
 
     [HttpPost("execute")]
@@ -33,8 +34,8 @@ public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IAi
     {
         try
         {
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var role = User.FindFirstValue(ClaimTypes.Role);
+            var userIdStr = _userContext.GetUserIdString();
+            var role = _userContext.GetRole();
 
             if (string.IsNullOrEmpty(role))
             {
@@ -242,17 +243,15 @@ public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IAi
         catch (UnauthorizedAccessException) { return Forbid(); }
     }
 
-    // ── Private: resolve student ID from JWT ─────────────────────────────
-    private Ulid? ResolveStudentId()
+    // ── Private: resolve student ID from JWT via IUserContextService ───────────────
+    private NUlid.Ulid? ResolveStudentId()
     {
-        var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId")?.Value;
-        if (!string.IsNullOrEmpty(profileClaim) && Ulid.TryParse(profileClaim, out var fromProfile))
-            return fromProfile;
+        var raw = _userContext.TryGetProfileId();
+        if (!string.IsNullOrEmpty(raw) && NUlid.Ulid.TryParse(raw, out var pid))
+            return pid;
 
-        var nameId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (!string.IsNullOrEmpty(nameId) && Ulid.TryParse(nameId, out var fromName))
-            return fromName;
-
-        return null;
+        // Fallback: try userId claim
+        try { return _userContext.GetUserId(); }
+        catch { return null; }
     }
 }

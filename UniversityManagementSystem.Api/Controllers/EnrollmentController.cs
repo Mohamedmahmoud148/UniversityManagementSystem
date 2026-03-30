@@ -1,20 +1,21 @@
-using System.Security.Claims;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using NUlid;
-using UniversityManagementSystem.Core.DTOs;
+using System.Threading.Tasks;
 using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Infrastructure.Data;
+using NUlid;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
-    [Authorize(Roles = "Admin,SuperAdmin")]
     [ApiController]
     [Route("api/[controller]")]
-    public class EnrollmentController(IEnrollmentUploadService enrollmentUploadService) : ControllerBase
+    public class EnrollmentController(
+        IEnrollmentUploadService enrollmentUploadService,
+        IUserContextService userContext) : ControllerBase
     {
         private readonly IEnrollmentUploadService _enrollmentUploadService = enrollmentUploadService;
+        private readonly IUserContextService _userContext = userContext;
 
         private static readonly string[] AllowedExtensions = [".xlsx", ".csv"];
         private const long MaxSizeBytes = 10 * 1024 * 1024; // 10 MB
@@ -25,11 +26,11 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Returns a summary of created vs skipped students.
         /// </summary>
         [HttpPost("upload")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [RequestSizeLimit(10_485_760)]
         public async Task<IActionResult> Upload(IFormFile file)
         {
-            var adminId = ResolveAdminId();
-            if (adminId == null) return Unauthorized("Admin identity not found in token.");
+            var adminId = _userContext.GetUserId();
 
             if (file == null || file.Length == 0)
                 return BadRequest("No file provided.");
@@ -41,16 +42,8 @@ namespace UniversityManagementSystem.Api.Controllers
             if (file.Length > MaxSizeBytes)
                 return BadRequest("File exceeds the 10 MB size limit.");
 
-            var result = await _enrollmentUploadService.ProcessExcelAsync(adminId.Value, file);
+            var result = await _enrollmentUploadService.ProcessExcelAsync(adminId, file);
             return Ok(result);
-        }
-
-        private Ulid? ResolveAdminId()
-        {
-            var nameId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!string.IsNullOrEmpty(nameId) && Ulid.TryParse(nameId, out var uid))
-                return uid;
-            return null;
         }
     }
 }

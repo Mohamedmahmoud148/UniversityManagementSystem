@@ -1,12 +1,8 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using NUlid;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
 
@@ -15,11 +11,14 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize(Roles = "Student")]
     [ApiController]
     [Route("api/[controller]")]
-    public class StudentFilesController(IStudentFileService studentFileService) : ControllerBase
+    public class StudentFilesController(
+        IStudentFileService studentFileService,
+        IUserContextService userContext) : ControllerBase
     {
         private readonly IStudentFileService _studentFileService = studentFileService;
+        private readonly IUserContextService _userContext = userContext;
 
-        private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
+        private static readonly HashSet<string> AllowedMimeTypes = new(System.StringComparer.OrdinalIgnoreCase)
         {
             "application/pdf",
             "text/plain",
@@ -39,8 +38,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [RequestSizeLimit(31_457_280)]
         public async Task<IActionResult> Upload(IFormFile file)
         {
-            var studentId = ResolveStudentId();
-            if (studentId == null) return Unauthorized("Student identity not found in token.");
+            var studentId = _userContext.GetProfileId();
 
             if (file == null || file.Length == 0)
                 return BadRequest("No file provided.");
@@ -51,7 +49,7 @@ namespace UniversityManagementSystem.Api.Controllers
             if (file.Length > MaxSizeBytes)
                 return BadRequest("File exceeds the 30 MB size limit.");
 
-            var result = await _studentFileService.UploadAsync(studentId.Value, file);
+            var result = await _studentFileService.UploadAsync(studentId, file);
             return Ok(result);
         }
 
@@ -59,27 +57,9 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpGet("my")]
         public async Task<IActionResult> GetMyFiles()
         {
-            var studentId = ResolveStudentId();
-            if (studentId == null) return Unauthorized("Student identity not found in token.");
-
-            var files = await _studentFileService.GetMyFilesAsync(studentId.Value);
+            var studentId = _userContext.GetProfileId();
+            var files = await _studentFileService.GetMyFilesAsync(studentId);
             return Ok(files);
-        }
-
-        // ── Private: resolves student ProfileId from JWT claims ─────────────────
-        private Ulid? ResolveStudentId()
-        {
-            // Try "ProfileId" claim first (set during student login)
-            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId")?.Value;
-            if (!string.IsNullOrEmpty(profileClaim) && Ulid.TryParse(profileClaim, out var fromProfile))
-                return fromProfile;
-
-            // Fallback to NameIdentifier
-            var nameId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!string.IsNullOrEmpty(nameId) && Ulid.TryParse(nameId, out var fromName))
-                return fromName;
-
-            return null;
         }
     }
 }

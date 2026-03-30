@@ -38,7 +38,7 @@ namespace UniversityManagementSystem.Api.Middleware
 
             var statusCode = exception switch
             {
-                UnauthorizedAccessException => (int)HttpStatusCode.Forbidden,
+                UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
                 KeyNotFoundException => (int)HttpStatusCode.NotFound,
                 ArgumentException => (int)HttpStatusCode.BadRequest,
                 InvalidOperationException => (int)HttpStatusCode.BadRequest,
