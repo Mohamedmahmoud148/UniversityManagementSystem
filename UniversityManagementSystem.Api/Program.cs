@@ -300,6 +300,9 @@ builder.Services.AddScoped<IMaterialService, MaterialService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IBulkUploadJob, BulkUploadJob>();
 builder.Services.AddScoped<IExcelImportService, ExcelImportService>();
+builder.Services.AddScoped<IStudentFileService, StudentFileService>();
+builder.Services.AddScoped<IEnrollmentUploadService, EnrollmentUploadService>();
+
 
 // Cloudflare R2 Storage
 builder.Services.Configure<R2Settings>(builder.Configuration.GetSection("R2"));

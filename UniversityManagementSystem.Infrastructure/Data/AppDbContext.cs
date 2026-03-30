@@ -39,6 +39,9 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<Material> Materials { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<AiActionLog> AiActionLogs { get; set; } = null!;
+        public DbSet<StudentFile> StudentFiles { get; set; } = null!;
+        public DbSet<EnrollmentUpload> EnrollmentUploads { get; set; } = null!;
+
 
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         {
