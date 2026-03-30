@@ -45,20 +45,35 @@ namespace UniversityManagementSystem.Infrastructure.Storage
             // Key format: "folder/guid_filename"
             var key = $"{folder.TrimEnd('/')}/{Guid.NewGuid()}_{sanitized}";
 
+            // ── Reset stream position (required for Content-Length header) ──────
+            if (stream.CanSeek)
+                stream.Position = 0;
+
             var request = new PutObjectRequest
             {
                 BucketName = _settings.BucketName,
                 Key = key,
                 InputStream = stream,
                 ContentType = contentType,
+                AutoCloseStream = true,
+
+                // 🔥 CRITICAL: Cloudflare R2 does NOT support chunked transfer
+                // encoding (STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER).
+                // Must force Content-Length upload instead.
+                UseChunkEncoding = false,
                 // Do NOT set CannedACL — Cloudflare R2 ignores ACLs and errors if set
             };
+
+            // Set explicit Content-Length when the stream supports it
+            if (stream.CanSeek)
+                request.Headers.ContentLength = stream.Length;
 
             await _s3.PutObjectAsync(request);
 
             // Return the OBJECT KEY only — not the full URL
             return key;
         }
+
 
         /// <inheritdoc/>
         public async Task DeleteAsync(string objectKey)
