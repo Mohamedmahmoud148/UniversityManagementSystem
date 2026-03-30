@@ -27,8 +27,10 @@ namespace UniversityManagementSystem.Infrastructure.Storage
             var config = new AmazonS3Config
             {
                 ServiceURL = _settings.ServiceUrl,
-                ForcePathStyle = true,        // Required for R2 / non-AWS S3 endpoints
-                AuthenticationRegion = "auto" // Cloudflare R2 uses "auto"
+                ForcePathStyle = true,       // Required for R2 / non-AWS S3 endpoints
+                AuthenticationRegion = "us-east-1"  // R2 requires us-east-1 for SigV4 signing
+                                                    // (do NOT use 'auto' — the AWS SDK cannot
+                                                    //  generate a valid signature with that value)
             };
 
             _s3 = new AmazonS3Client(credentials, config);
@@ -42,35 +44,33 @@ namespace UniversityManagementSystem.Infrastructure.Storage
         public async Task<string> UploadAsync(Stream stream, string fileName, string contentType, string folder)
         {
             var sanitized = SanitizeFileName(fileName);
-            // Key format: "folder/guid_filename"
             var key = $"{folder.TrimEnd('/')}/{Guid.NewGuid()}_{sanitized}";
 
-            // ── Reset stream position (required for Content-Length header) ──────
-            if (stream.CanSeek)
-                stream.Position = 0;
+            // ── Buffer into MemoryStream ────────────────────────────────────────
+            // IFormFile.OpenReadStream() returns a non-seekable HttpRequestStream.
+            // The AWS SDK must know the exact Content-Length before signing;
+            // a non-seekable stream causes a signature mismatch on Cloudflare R2.
+            // Copying to MemoryStream guarantees seekability and a correct Length.
+            using var memStream = new MemoryStream();
+            await stream.CopyToAsync(memStream);
+            memStream.Position = 0;
 
             var request = new PutObjectRequest
             {
                 BucketName = _settings.BucketName,
                 Key = key,
-                InputStream = stream,
+                InputStream = memStream,
                 ContentType = contentType,
-                AutoCloseStream = true,
-
-                // 🔥 CRITICAL: Cloudflare R2 does NOT support chunked transfer
-                // encoding (STREAMING-AWS4-HMAC-SHA256-PAYLOAD-TRAILER).
-                // Must force Content-Length upload instead.
-                UseChunkEncoding = false,
-                // Do NOT set CannedACL — Cloudflare R2 ignores ACLs and errors if set
+                AutoCloseStream = false,        // we own the using block
+                UseChunkEncoding = false,        // R2 does not support chunked streaming
+                // Do NOT set CannedACL — Cloudflare R2 ignores ACLs and may error
             };
 
-            // Set explicit Content-Length when the stream supports it
-            if (stream.CanSeek)
-                request.Headers.ContentLength = stream.Length;
+            // Set explicit Content-Length — prevents SDK from using Transfer-Encoding: chunked
+            request.Headers.ContentLength = memStream.Length;
 
             await _s3.PutObjectAsync(request);
 
-            // Return the OBJECT KEY only — not the full URL
             return key;
         }
 
