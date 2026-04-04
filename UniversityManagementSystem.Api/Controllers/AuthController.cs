@@ -45,7 +45,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize]
         public async Task<IActionResult> ChangePassword(ChangePasswordDto dto)
         {
-            var claim = User.FindFirst("UserId")?.Value;
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!Ulid.TryParse(claim, out var userId)) return Unauthorized("Invalid UserId in token.");
             var result = await _authService.ChangePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
             if (!result) return BadRequest("Password change failed.");
@@ -71,7 +71,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<AuthResponseDto>> RegisterStudent(RegisterStudentDto dto)
         {
-            var claim = User.FindFirst("UserId")?.Value;
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!Ulid.TryParse(claim, out var creatorId)) return Unauthorized("Invalid creator ID.");
             var result = await _authService.RegisterStudentAsync(dto, creatorId);
             return Ok(result);
@@ -81,7 +81,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<AuthResponseDto>> RegisterDoctor(RegisterDoctorDto dto)
         {
-            var claim = User.FindFirst("UserId")?.Value;
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!Ulid.TryParse(claim, out var creatorId)) return Unauthorized("Invalid creator ID.");
             var result = await _authService.RegisterDoctorAsync(dto, creatorId);
             return Ok(result);
@@ -91,7 +91,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "SuperAdmin")]
         public async Task<ActionResult<AuthResponseDto>> RegisterAdmin(RegisterAdminDto dto)
         {
-            var claim = User.FindFirst("nameid")?.Value;
+            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!Ulid.TryParse(claim, out var creatorId)) return Unauthorized("Invalid creator ID.");
             var result = await _authService.RegisterAdminAsync(dto, creatorId);
             return Ok(result);
