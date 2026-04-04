@@ -30,43 +30,43 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 name: "IX_SystemUsers_Code",
                 table: "SystemUsers",
                 column: "Code",
-                unique: true);
+                unique: false);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Students_Code",
                 table: "Students",
                 column: "Code",
-                unique: true);
+                unique: false);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Groups_Code",
                 table: "Groups",
                 column: "Code",
-                unique: true);
+                unique: false);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Doctors_Code",
                 table: "Doctors",
                 column: "Code",
-                unique: true);
+                unique: false);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Departments_Code",
                 table: "Departments",
                 column: "Code",
-                unique: true);
+                unique: false);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Colleges_Code",
                 table: "Colleges",
                 column: "Code",
-                unique: true);
+                unique: false);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Batches_Code",
                 table: "Batches",
                 column: "Code",
-                unique: true);
+                unique: false);
         }
 
         /// <inheritdoc />
