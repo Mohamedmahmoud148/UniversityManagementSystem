@@ -72,7 +72,11 @@ if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCas
 
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+{
+    options.UseNpgsql(connectionString);
+    options.ConfigureWarnings(warnings => 
+        warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
+});
 
 // 3. Redis
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
