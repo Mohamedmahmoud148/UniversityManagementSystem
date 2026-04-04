@@ -26,11 +26,11 @@ namespace UniversityManagementSystem.Core.Entities
         /// <summary>
         /// FK → UploadedFiles.Id
         /// </summary>
-        public Ulid FileId { get; set; }
+        public Ulid? FileId { get; set; }
 
         // Navigation Properties
         public SubjectOffering SubjectOffering { get; set; } = null!;
         public Doctor UploadedByDoctor { get; set; } = null!;
-        public UploadedFile File { get; set; } = null!;
+        public UploadedFile? File { get; set; }
     }
 }

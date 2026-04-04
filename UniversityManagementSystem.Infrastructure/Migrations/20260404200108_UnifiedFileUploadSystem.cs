@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -19,16 +19,14 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                 table: "StudentFiles",
                 type: "character varying(26)",
                 maxLength: 26,
-                nullable: false,
-                defaultValue: "");
+                nullable: true);
 
             migrationBuilder.AddColumn<string>(
                 name: "FileId",
                 table: "Materials",
                 type: "character varying(26)",
                 maxLength: 26,
-                nullable: false,
-                defaultValue: "");
+                nullable: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_StudentFiles_FileId",

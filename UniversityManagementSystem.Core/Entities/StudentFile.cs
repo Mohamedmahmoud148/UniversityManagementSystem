@@ -22,7 +22,7 @@ namespace UniversityManagementSystem.Core.Entities
         /// <summary>
         /// FK → UploadedFiles.Id
         /// </summary>
-        public Ulid FileId { get; set; }
+        public Ulid? FileId { get; set; }
 
         /// <summary>
         /// Text extracted from the file (for AI queries).
@@ -32,6 +32,6 @@ namespace UniversityManagementSystem.Core.Entities
 
         // Navigation
         public Student UploadedByStudent { get; set; } = null!;
-        public UploadedFile File { get; set; } = null!;
+        public UploadedFile? File { get; set; }
     }
 }
