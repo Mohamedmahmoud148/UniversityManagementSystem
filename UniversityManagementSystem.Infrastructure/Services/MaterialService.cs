@@ -85,9 +85,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await context.SaveChangesAsync();
             
             // Delete the related UploadedFile if it exists
-            if (material.FileId != default)
+            if (material.FileId.HasValue)
             {
-                await fileService.DeleteFileAsync(material.FileId);
+                await fileService.DeleteFileAsync(material.FileId.Value);
             }
             else if (!string.IsNullOrWhiteSpace(key))
             {
