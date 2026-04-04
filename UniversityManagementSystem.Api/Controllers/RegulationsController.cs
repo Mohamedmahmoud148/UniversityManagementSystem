@@ -36,6 +36,12 @@ namespace UniversityManagementSystem.Api.Controllers
         private readonly IUserContextService _userContext = userContext;
         private const string CacheKey = "Regulations_All";
 
+        private static readonly JsonSerializerOptions _jsonOptions = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            Converters = { new UniversityManagementSystem.Api.Converters.UlidJsonConverter() }
+        };
+
         // Allowed file MIME types for regulation attachments
         private static readonly HashSet<string> AllowedMimeTypes = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -80,14 +86,24 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var cached = await _cache.GetStringAsync(CacheKey);
             if (!string.IsNullOrEmpty(cached))
-                return Ok(JsonSerializer.Deserialize<IEnumerable<RegulationDto>>(cached));
+            {
+                try
+                {
+                    return Ok(JsonSerializer.Deserialize<IEnumerable<RegulationDto>>(cached, _jsonOptions));
+                }
+                catch
+                {
+                    // If deserialization fails (e.g. outdated cache schema), ignore and fetch from DB
+                    await _cache.RemoveAsync(CacheKey);
+                }
+            }
 
             var list = await _service.GetAllAsync();
             var dtos = new List<RegulationDto>();
             foreach (var r in list)
                 dtos.Add(await ToDto(r));
 
-            await _cache.SetStringAsync(CacheKey, JsonSerializer.Serialize(dtos),
+            await _cache.SetStringAsync(CacheKey, JsonSerializer.Serialize(dtos, _jsonOptions),
                 new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) });
 
             return Ok(dtos);
