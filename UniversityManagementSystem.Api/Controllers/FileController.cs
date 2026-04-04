@@ -49,7 +49,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 return BadRequest("File exceeds the 50 MB size limit.");
 
             var result = await _fileService.UploadFormFileAsync(userId, file);
-            return Ok(result);
+            return Ok(new { FileId = result.FileId });
         }
 
         /// <summary>GET /api/File — returns all files uploaded by the authenticated user.</summary>

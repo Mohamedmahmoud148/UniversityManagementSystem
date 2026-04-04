@@ -189,10 +189,10 @@ namespace UniversityManagementSystem.Api.Controllers
 
                 var userId = Ulid.Parse(userIdClaim.Value);
                 using var stream = file.OpenReadStream();
-                var status = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
+                var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
 
-                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessDoctorUpload(status.Id, userId));
-                return Accepted(new { JobId = status.Id, Message = "File accepted for processing" });
+                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessDoctorUpload(fileId, userId));
+                return Accepted(new { JobId = fileId, Message = "File accepted for processing" });
             }
             catch (Exception ex)
             {

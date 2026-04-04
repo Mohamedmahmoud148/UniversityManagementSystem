@@ -20,6 +20,11 @@ namespace UniversityManagementSystem.Core.Entities
         public Ulid UploadedByStudentId { get; set; }
 
         /// <summary>
+        /// FK → UploadedFiles.Id
+        /// </summary>
+        public Ulid FileId { get; set; }
+
+        /// <summary>
         /// Text extracted from the file (for AI queries).
         /// Populated for PDF and TXT files. Null for other types.
         /// </summary>
@@ -27,5 +32,6 @@ namespace UniversityManagementSystem.Core.Entities
 
         // Navigation
         public Student UploadedByStudent { get; set; } = null!;
+        public UploadedFile File { get; set; } = null!;
     }
 }

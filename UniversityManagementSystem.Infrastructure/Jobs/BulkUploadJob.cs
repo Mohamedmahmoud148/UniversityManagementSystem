@@ -36,9 +36,9 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
             try
             {
                 // Ensure file exists
-                if (!File.Exists(file.StoredPath)) throw new FileNotFoundException("File not found on disk");
+                if (!File.Exists(file.StorageKey)) throw new FileNotFoundException("File not found on disk");
 
-                using var stream = File.OpenRead(file.StoredPath);
+                using var stream = File.OpenRead(file.StorageKey);
                 var students = _excelService.ParseStudents(stream);
                 int successCount = 0;
                 int failCount = 0;
@@ -135,9 +135,9 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
             try
             {
-                if (!File.Exists(file.StoredPath)) throw new FileNotFoundException("File not found on disk");
+                if (!File.Exists(file.StorageKey)) throw new FileNotFoundException("File not found on disk");
 
-                var extractionResult = await _aiService.ExtractDataFromFileAsync(file.StoredPath, file.ContentType);
+                var extractionResult = await _aiService.ExtractDataFromFileAsync(file.StorageKey, file.ContentType);
                 if (!extractionResult.Success || string.IsNullOrEmpty(extractionResult.ExtractectedJson))
                 {
                     file.ValidationStatus = "Failed";
@@ -237,9 +237,9 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
             try
             {
-                if (!File.Exists(file.StoredPath)) throw new FileNotFoundException("File not found on disk");
+                if (!File.Exists(file.StorageKey)) throw new FileNotFoundException("File not found on disk");
 
-                using var stream = File.OpenRead(file.StoredPath);
+                using var stream = File.OpenRead(file.StorageKey);
                 var doctors = _excelService.ParseDoctors(stream);
                 int successCount = 0;
                 int failCount = 0;

@@ -16,22 +16,21 @@ namespace UniversityManagementSystem.Infrastructure.Services
 {
     public class EnrollmentUploadService(
         AppDbContext context,
-        IStorageService storage) : IEnrollmentUploadService
+        IFileService fileService) : IEnrollmentUploadService
     {
         private readonly AppDbContext _context = context;
-        private readonly IStorageService _storage = storage;
+        private readonly IFileService _fileService = fileService;
         private const string Folder = "enrollment";
 
         public async Task<EnrollmentUploadResultDto> ProcessExcelAsync(Ulid adminId, IFormFile file)
         {
             var result = new EnrollmentUploadResultDto();
 
-            // 1. Upload raw file to R2 for audit trail
-            string storageKey;
-            using (var uploadStream = file.OpenReadStream())
-            {
-                storageKey = await _storage.UploadAsync(uploadStream, file.FileName, file.ContentType, Folder);
-            }
+            // 1. Upload raw file to R2 for audit trail via FileService
+            var fileId = await _fileService.UploadFileStreamAsync(adminId, file.OpenReadStream(), file.FileName, file.ContentType, file.Length);
+            var uploadedFile = await _context.UploadedFiles.FindAsync(fileId) 
+                               ?? throw new InvalidOperationException("Failed to retrieve uploaded file.");
+            var storageKey = uploadedFile.StorageKey;
 
             // 2. Create EnrollmentUpload tracking record
             var upload = new EnrollmentUpload

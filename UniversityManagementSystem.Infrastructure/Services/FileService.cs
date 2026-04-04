@@ -31,7 +31,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 FileName = file.FileName,
                 StorageKey = storageKey,
-                StoredPath = storageKey,   // legacy mirror
                 ContentType = file.ContentType,
                 FileSizeBytes = file.Length,
                 UploadedByUserId = userId,
@@ -86,7 +85,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .ToListAsync();
         }
 
-        public async Task<FileStatusDto> UploadFileStreamAsync(Ulid userId, Stream stream, string fileName, string contentType, long fileLength)
+        public async Task<Ulid> UploadFileStreamAsync(Ulid userId, Stream stream, string fileName, string contentType, long fileLength)
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (string.IsNullOrEmpty(fileName)) throw new ArgumentException("Filename missing", nameof(fileName));
@@ -98,7 +97,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 FileName = fileName,
                 StorageKey = storageKey,      // New: the R2 object key
-                StoredPath = storageKey,      // Legacy: mirrors StorageKey
                 ContentType = contentType,
                 FileSizeBytes = fileLength,
                 UploadedByUserId = userId,
@@ -109,12 +107,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             _context.UploadedFiles.Add(uploadedFile);
             await _context.SaveChangesAsync();
 
-            return new FileStatusDto
-            {
-                Id = uploadedFile.Id,
-                FileName = uploadedFile.FileName,
-                Status = uploadedFile.ValidationStatus
-            };
+            return uploadedFile.Id;
         }
 
 

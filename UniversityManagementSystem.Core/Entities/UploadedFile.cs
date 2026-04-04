@@ -14,8 +14,6 @@ namespace UniversityManagementSystem.Core.Entities
         /// </summary>
         public string StorageKey { get; set; } = string.Empty;
 
-        /// <summary>Legacy field — kept for backward compatibility. Mirrors StorageKey.</summary>
-        public string StoredPath { get; set; } = string.Empty;
         public string ContentType { get; set; } = string.Empty;
         public long FileSizeBytes { get; set; }
 

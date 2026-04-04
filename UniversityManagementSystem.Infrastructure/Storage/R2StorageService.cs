@@ -63,6 +63,7 @@ namespace UniversityManagementSystem.Infrastructure.Storage
                 ContentType = contentType,
                 AutoCloseStream = false,        // we own the using block
                 UseChunkEncoding = false,        // R2 does not support chunked streaming
+                DisablePayloadSigning = true
                 // Do NOT set CannedACL — Cloudflare R2 ignores ACLs and may error
             };
 

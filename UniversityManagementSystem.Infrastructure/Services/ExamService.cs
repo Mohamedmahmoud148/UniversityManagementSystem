@@ -521,7 +521,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 EndTime = DateTime.UtcNow.AddDays(1).AddHours(2),
                 Status = ExamStatus.Draft,
                 Mode = ExamMode.File,
-                FilePath = fileStatus.FileName, // Or mapped URL depending on FileService return
+                FilePath = file.FileName, // Or mapped URL depending on FileService return
                 CreatedByDoctorId = doctorId,
                 SubjectOfferingId = subjectOfferingId,
                 CreatedAt = DateTime.UtcNow

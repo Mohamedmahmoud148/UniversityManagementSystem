@@ -18,7 +18,7 @@ namespace UniversityManagementSystem.Core.Interfaces
         /// <summary>
         /// Uploads a raw stream (used internally, e.g. from Excel import jobs).
         /// </summary>
-        Task<FileStatusDto> UploadFileStreamAsync(Ulid userId, Stream stream, string fileName, string contentType, long fileLength);
+        Task<Ulid> UploadFileStreamAsync(Ulid userId, Stream stream, string fileName, string contentType, long fileLength);
 
         Task<IEnumerable<FileStatusDto>> GetUserFilesAsync(Ulid userId);
         Task<FileStatusDto?> GetFileStatusAsync(Ulid fileId);

@@ -19,11 +19,37 @@ namespace UniversityManagementSystem.Api.Controllers
         IStorageService storageService,
         IUserContextService userContext) : ControllerBase
     {
+        private static readonly System.Collections.Generic.HashSet<string> AllowedMimeTypes = new(System.StringComparer.OrdinalIgnoreCase)
+        {
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "image/jpeg",
+            "image/png",
+            "text/plain",
+            "application/zip"
+        };
+        private const long MaxFileSizeBytes = 50 * 1024 * 1024; // 50 MB
+
         [HttpPost("upload")]
         [Authorize(Roles = "Doctor")]
+        [RequestSizeLimit(52_428_800)]
         public async Task<IActionResult> UploadMaterial([FromForm] Core.DTOs.UploadMaterialDto dto)
         {
             var doctorId = userContext.GetProfileId();
+
+            if (dto.File == null || dto.File.Length == 0)
+                return BadRequest("No file provided.");
+
+            if (!AllowedMimeTypes.Contains(dto.File.ContentType))
+                return BadRequest($"File type '{dto.File.ContentType}' is not allowed.");
+
+            if (dto.File.Length > MaxFileSizeBytes)
+                return BadRequest("File exceeds the 50 MB size limit.");
 
             var material = await materialService.UploadMaterialAsync(dto.OfferingId, doctorId, dto.File);
             return CreatedAtAction(nameof(DownloadMaterial), new { id = material.Id.ToString() }, material);
@@ -87,16 +113,16 @@ namespace UniversityManagementSystem.Api.Controllers
                 return BadRequest("Invalid Material ID.");
 
             var material = await context.Materials
+                .Include(m => m.File)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.Id == materialId);
 
             if (material is null)
                 return NotFound($"Material '{id}' not found.");
 
-            // Prefer StorageKey (new); fall back to StoredFileName (legacy rows)
-            var key = !string.IsNullOrWhiteSpace(material.StorageKey)
-                ? material.StorageKey
-                : material.StoredFileName;
+            // Prefer StorageKey from UploadedFile, fall back to Material's StorageKey/legacy
+            var key = material.File?.StorageKey 
+                ?? (!string.IsNullOrWhiteSpace(material.StorageKey) ? material.StorageKey : material.StoredFileName);
 
             // Generate a 60-minute signed URL — never expose the raw key/URL
             var signedUrl = await storageService.GenerateSignedUrlAsync(key, expiryMinutes: 60);

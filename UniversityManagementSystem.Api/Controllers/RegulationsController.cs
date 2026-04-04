@@ -57,7 +57,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 var file = await _context.UploadedFiles.FindAsync(r.FileId.Value);
                 if (file != null)
                 {
-                    var key = !string.IsNullOrWhiteSpace(file.StorageKey) ? file.StorageKey : file.StoredPath;
+                    var key = file.StorageKey;
                     fileUrl = await _storageService.GenerateSignedUrlAsync(key, expiryMinutes: 60);
                 }
             }
@@ -139,14 +139,12 @@ namespace UniversityManagementSystem.Api.Controllers
                 var uploaderId = _userContext.GetUserId();
 
                 // Reuse existing FileService — stream upload to R2 "files/" folder
-                var uploaded = await _fileService.UploadFileStreamAsync(
+                uploadedFileId = await _fileService.UploadFileStreamAsync(
                     userId: uploaderId,
                     stream: dto.File.OpenReadStream(),
                     fileName: dto.File.FileName,
                     contentType: dto.File.ContentType,
                     fileLength: dto.File.Length);
-
-                uploadedFileId = uploaded.Id;
             }
 
             var entity = new Regulation
@@ -189,14 +187,12 @@ namespace UniversityManagementSystem.Api.Controllers
 
                 var uploaderId = _userContext.GetUserId();
 
-                var uploaded = await _fileService.UploadFileStreamAsync(
+                uploadedFileId = await _fileService.UploadFileStreamAsync(
                     userId: uploaderId,
                     stream: dto.File.OpenReadStream(),
                     fileName: dto.File.FileName,
                     contentType: dto.File.ContentType,
                     fileLength: dto.File.Length);
-
-                uploadedFileId = uploaded.Id;
             }
 
             var entity = new Regulation

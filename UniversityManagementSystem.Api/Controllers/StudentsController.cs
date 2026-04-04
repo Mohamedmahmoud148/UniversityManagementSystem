@@ -243,10 +243,10 @@ namespace UniversityManagementSystem.Api.Controllers
 
                 if (!Ulid.TryParse(userIdClaim.Value, out var userId)) return Unauthorized("Invalid user ID.");
                 using var stream = file.OpenReadStream();
-                var status = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
+                var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
 
-                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentDirectUpload(status.Id, userId));
-                return Accepted(new { JobId = status.Id, Message = "File accepted for direct processing" });
+                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentDirectUpload(fileId, userId));
+                return Accepted(new { JobId = fileId, Message = "File accepted for direct processing" });
             }
             catch (Exception ex)
             {
@@ -269,10 +269,10 @@ namespace UniversityManagementSystem.Api.Controllers
 
                 if (!Ulid.TryParse(userIdClaim.Value, out var userId)) return Unauthorized("Invalid user ID.");
                 using var stream = file.OpenReadStream();
-                var status = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
+                var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
 
-                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentAiUpload(status.Id, userId));
-                return Accepted(new { JobId = status.Id, Message = "File accepted for AI processing" });
+                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentAiUpload(fileId, userId));
+                return Accepted(new { JobId = fileId, Message = "File accepted for AI processing" });
             }
             catch (Exception ex)
             {

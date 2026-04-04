@@ -14,7 +14,7 @@ using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class MaterialService(AppDbContext context, IStorageService storage) : IMaterialService
+    public class MaterialService(AppDbContext context, IStorageService storage, IFileService fileService) : IMaterialService
     {
         private const string StorageFolder = "materials";
 
@@ -32,9 +32,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (offering.DoctorId != doctorId)
                 throw new UnauthorizedAccessException("You are not the instructor for this offering.");
 
-            // 2. Upload to R2 — returns the object key, NOT a URL
-            using var stream = file.OpenReadStream();
-            var storageKey = await storage.UploadAsync(stream, file.FileName, file.ContentType, StorageFolder);
+            // 2. Upload using FileService
+            var fileId = await fileService.UploadFileStreamAsync(doctorId, file.OpenReadStream(), file.FileName, file.ContentType, file.Length);
+            var uploadedFile = await context.UploadedFiles.FindAsync(fileId) 
+                               ?? throw new InvalidOperationException("Failed to retrieve uploaded file.");
+            var storageKey = uploadedFile.StorageKey;
 
             // 3. Save Entity — store the key; keep StoredFileName in sync for backward compatibility
             var material = new Material
@@ -46,7 +48,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 FileSize = file.Length,
                 UploadedAt = DateTime.UtcNow,
                 SubjectOfferingId = offeringId,
-                UploadedByDoctorId = doctorId
+                UploadedByDoctorId = doctorId,
+                FileId = fileId
             };
 
             context.Materials.Add(material);
@@ -72,16 +75,24 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (material.UploadedByDoctorId != doctorId)
                 throw new UnauthorizedAccessException("You are not authorized to delete this material.");
 
-            // 1. Delete from R2 — use StorageKey directly (no URL parsing needed)
+            // 1. Delete from R2 — use StorageKey directly or delegate to fileService
             var key = !string.IsNullOrWhiteSpace(material.StorageKey)
                 ? material.StorageKey
                 : material.StoredFileName; // fallback for rows created before this fix
-            if (!string.IsNullOrWhiteSpace(key))
-                await storage.DeleteAsync(key);
-
+            
             // 2. Delete Entity
             context.Materials.Remove(material);
             await context.SaveChangesAsync();
+            
+            // Delete the related UploadedFile if it exists
+            if (material.FileId != default)
+            {
+                await fileService.DeleteFileAsync(material.FileId);
+            }
+            else if (!string.IsNullOrWhiteSpace(key))
+            {
+                await storage.DeleteAsync(key);
+            }
         }
 
         public async Task<PaginatedMaterialResponseDto> GetMaterialsByOfferingAsync(Ulid offeringId, Ulid studentId, int page, int pageSize, string? search)
@@ -130,6 +141,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task<string> GetMaterialUrlAsync(Ulid materialId, Ulid studentId)
         {
             var material = await context.Materials
+                .Include(m => m.File)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(m => m.Id == materialId)
                 ?? throw new KeyNotFoundException($"Material with ID {materialId} not found.");
@@ -142,7 +154,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (!isEnrolled)
                 throw new UnauthorizedAccessException("You are not enrolled in this course.");
 
-            return material.StoredFileName; // Full R2 public URL
+            var key = material.File?.StorageKey 
+                      ?? (!string.IsNullOrWhiteSpace(material.StorageKey) ? material.StorageKey : material.StoredFileName);
+                      
+            return key; // Full R2 object key
         }
 
         /// <summary>
