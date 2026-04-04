@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -10,19 +10,21 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "StorageKey",
-                table: "UploadedFiles",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
+            // ALREADY EXISTS IN PROD
+            // migrationBuilder.AddColumn<string>(
+            //     name: "StorageKey",
+            //     table: "UploadedFiles",
+            //     type: "text",
+            //     nullable: false,
+            //     defaultValue: "");
 
-            migrationBuilder.AddColumn<string>(
-                name: "StorageKey",
-                table: "Materials",
-                type: "text",
-                nullable: false,
-                defaultValue: "");
+            // ALREADY EXISTS IN PROD
+            // migrationBuilder.AddColumn<string>(
+            //     name: "StorageKey",
+            //     table: "Materials",
+            //     type: "text",
+            //     nullable: false,
+            //     defaultValue: "");
 
             migrationBuilder.CreateIndex(
                 name: "IX_SystemUsers_Code",
