@@ -374,7 +374,12 @@ namespace UniversityManagementSystem.Api.Controllers
             if (college == null)
                 return NotFound($"College with code '{dto.CollegeCode}' not found.");
 
-            var entity = new Department { Name = dto.Name, CollegeId = college.Id };
+            var codeUpper = dto.Code.ToUpper();
+            var existing = await _service.GetDepartmentByCodeAsync(codeUpper);
+            if (existing != null)
+                return Conflict($"A Department with code '{codeUpper}' already exists.");
+
+            var entity = new Department { Name = dto.Name, Code = codeUpper, CollegeId = college.Id };
             var result = await _service.CreateDepartmentAsync(entity);
             return Ok(new DepartmentDto(result.Id, result.Name, result.Code, result.CollegeId));
         }
@@ -459,7 +464,12 @@ namespace UniversityManagementSystem.Api.Controllers
             if (department == null)
                 return NotFound($"Department with code '{dto.DepartmentCode}' not found.");
 
-            var entity = new Batch { Name = dto.Name, DepartmentId = department.Id };
+            var codeUpper = dto.Code.ToUpper();
+            var existing = await _service.GetBatchByCodeAsync(codeUpper);
+            if (existing != null)
+                return Conflict($"A Batch with code '{codeUpper}' already exists.");
+
+            var entity = new Batch { Name = dto.Name, Code = codeUpper, DepartmentId = department.Id };
             var result = await _service.CreateBatchAsync(entity);
             return Ok(new BatchDto(result.Id, result.Name, result.Code, result.DepartmentId));
         }
@@ -546,7 +556,12 @@ namespace UniversityManagementSystem.Api.Controllers
             if (batch == null)
                 return NotFound($"Batch with code '{dto.BatchCode}' not found.");
 
-            var entity = new Group { Name = dto.Name, BatchId = batch.Id };
+            var codeUpper = dto.Code.ToUpper();
+            var existing = await _service.GetGroupByCodeAsync(codeUpper);
+            if (existing != null)
+                return Conflict($"A Group with code '{codeUpper}' already exists.");
+
+            var entity = new Group { Name = dto.Name, Code = codeUpper, BatchId = batch.Id };
             var result = await _service.CreateGroupAsync(entity);
             // ✅ FIX: GroupDto now includes Code field
             return Ok(new GroupDto(result.Id, result.Name, result.Code, result.BatchId));

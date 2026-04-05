@@ -23,12 +23,14 @@ namespace UniversityManagementSystem.Core.DTOs
     public record DepartmentDto(Ulid Id, string Name, string Code, Ulid CollegeId);
     public record CreateDepartmentDto(
         [Required] string Name,
+        [Required] string Code,            // Missing before
         [Required] string CollegeCode      // Admin input: public code, not internal ULID
     );
 
     public record BatchDto(Ulid Id, string Name, string Code, Ulid DepartmentId);
     public record CreateBatchDto(
         [Required] string Name,
+        [Required] string Code,            // Missing before
         [Required] string DepartmentCode   // Admin input: public code, not internal ULID
     );
 }
