@@ -26,7 +26,8 @@ namespace UniversityManagementSystem.Api.Controllers
         AppDbContext context,
         IDepartmentService departmentService,
         ICollegeService collegeService,
-        IBatchService batchService) : ControllerBase
+        IBatchService batchService,
+        IDoctorService doctorService) : ControllerBase
     {
         private readonly ISubjectService _service = service;
         private readonly IDistributedCache _cache = cache;
@@ -34,6 +35,7 @@ namespace UniversityManagementSystem.Api.Controllers
         private readonly IDepartmentService _departmentService = departmentService;
         private readonly ICollegeService _collegeService = collegeService;
         private readonly IBatchService _batchService = batchService;
+        private readonly IDoctorService _doctorService = doctorService;
         private const string CachePrefix = "Subjects_Batch_";
 
         // ── GET /api/subjects/search?name={query} ────────────────────────────
@@ -164,9 +166,11 @@ namespace UniversityManagementSystem.Api.Controllers
             }
         }
 
-        [HttpPut("assign-doctor")]
+        // ── LEGACY (kept for AI/internal use): assign by internal ULID ─────────
+        [HttpPut("assign-doctor-by-id")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> AssignDoctor(string subjectId, string doctorId)
+        [ApiExplorerSettings(GroupName = "legacy")]
+        public async Task<IActionResult> AssignDoctorById(string subjectId, string doctorId)
         {
             if (!Ulid.TryParse(subjectId, out var sId)) return BadRequest("Invalid Subject ID.");
             if (!Ulid.TryParse(doctorId, out var dId)) return BadRequest("Invalid Doctor ID.");
@@ -174,14 +178,81 @@ namespace UniversityManagementSystem.Api.Controllers
             return NoContent();
         }
 
-        [HttpPut("assign-assistant")]
+        // ── NEW (preferred): Admin routes using public Codes ──────────────────
+        /// <summary>
+        /// [PREFERRED] Assign a doctor to a subject using public Codes.
+        /// Admin/frontend MUST use this route. ULIDs are resolved internally.
+        /// </summary>
+        [HttpPut("assign-doctor")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> AssignAssistant(string subjectId, string assistantId)
+        public async Task<IActionResult> AssignDoctor([FromQuery] string subjectCode, [FromQuery] string doctorCode)
+        {
+            if (string.IsNullOrWhiteSpace(subjectCode)) return BadRequest("subjectCode is required.");
+            if (string.IsNullOrWhiteSpace(doctorCode))  return BadRequest("doctorCode is required.");
+
+            // Resolve codes → internal ULIDs
+            var subject = await _service.GetSubjectByCodeAsync(subjectCode);
+            if (subject == null) return NotFound($"Subject with code '{subjectCode}' not found.");
+
+            var doctor = await _doctorService.GetDoctorByCodeAsync(doctorCode);
+            if (doctor == null) return NotFound($"Doctor with code '{doctorCode}' not found.");
+
+            await _service.AssignSubjectToDoctorAsync(subject.Id, doctor.Id);
+            return Ok(new
+            {
+                message   = "Doctor assigned successfully.",
+                subjectId = subject.Id.ToString(),
+                subjectCode,
+                subjectName = subject.Name,
+                doctorId   = doctor.Id.ToString(),
+                doctorCode,
+                doctorName = doctor.FullName
+            });
+        }
+
+        // ── LEGACY (kept for AI/internal use): assign assistant by internal ULID
+        [HttpPut("assign-assistant-by-id")]
+        [Authorize(Roles = "Admin")]
+        [ApiExplorerSettings(GroupName = "legacy")]
+        public async Task<IActionResult> AssignAssistantById(string subjectId, string assistantId)
         {
             if (!Ulid.TryParse(subjectId, out var sId)) return BadRequest("Invalid Subject ID.");
             if (!Ulid.TryParse(assistantId, out var aId)) return BadRequest("Invalid Assistant ID.");
             await _service.AssignSubjectToAssistantAsync(sId, aId);
             return NoContent();
+        }
+
+        /// <summary>
+        /// [PREFERRED] Assign a teaching assistant to a subject using public Codes.
+        /// Admin/frontend MUST use this route. ULIDs are resolved internally.
+        /// </summary>
+        [HttpPut("assign-assistant")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AssignAssistant([FromQuery] string subjectCode, [FromQuery] string assistantCode)
+        {
+            if (string.IsNullOrWhiteSpace(subjectCode))   return BadRequest("subjectCode is required.");
+            if (string.IsNullOrWhiteSpace(assistantCode)) return BadRequest("assistantCode is required.");
+
+            // Resolve subject code → ULID
+            var subject = await _service.GetSubjectByCodeAsync(subjectCode);
+            if (subject == null) return NotFound($"Subject with code '{subjectCode}' not found.");
+
+            // Resolve assistant code via context (TeachingAssistants share Code on BaseEntity)
+            var assistant = await _context.TeachingAssistants
+                .AsNoTracking()
+                .FirstOrDefaultAsync(ta => ta.Code == assistantCode);
+            if (assistant == null) return NotFound($"Teaching Assistant with code '{assistantCode}' not found.");
+
+            await _service.AssignSubjectToAssistantAsync(subject.Id, assistant.Id);
+            return Ok(new
+            {
+                message       = "Assistant assigned successfully.",
+                subjectId     = subject.Id.ToString(),
+                subjectCode,
+                subjectName   = subject.Name,
+                assistantId   = assistant.Id.ToString(),
+                assistantCode
+            });
         }
     }
 }

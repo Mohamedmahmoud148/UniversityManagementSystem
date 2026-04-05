@@ -69,21 +69,29 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<ActionResult<IEnumerable<UniversityDto>>> GetStructure()
         {
             var universities = await _service.GetAllUniversitiesAsync();
-            return Ok(universities.Select(u => new UniversityDto(u.Id, u.Name)));
+            // ✅ FIX: UniversityDto now includes Code (was missing before)
+            return Ok(universities.Select(u => new UniversityDto(u.Id, u.Name, u.Code)));
         }
 
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UniversityDto>> Create(CreateUniversityDto dto)
         {
-            var entity = new University { Name = dto.Name };
+            var codeUpper = dto.Code.ToUpper();
+            var existing = await _service.GetUniversityByCodeAsync(codeUpper);
+            if (existing != null)
+                return Conflict($"A University with code '{codeUpper}' already exists.");
+
+            var entity = new University { Name = dto.Name, Code = codeUpper };
             var result = await _service.CreateUniversityAsync(entity);
-            return Ok(new UniversityDto(result.Id, result.Name));
+            return Ok(new UniversityDto(result.Id, result.Name, result.Code));
         }
 
+        // ── LEGACY (keep for backward compat): PUT/DELETE by internal ULID ────
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(string id, CreateUniversityDto dto)
+        [ApiExplorerSettings(GroupName = "legacy")]
+        public async Task<IActionResult> UpdateById(string id, CreateUniversityDto dto)
         {
             if (!Ulid.TryParse(id, out var uId)) return BadRequest("Invalid University ID.");
             var entity = await _service.GetUniversityByIdAsync(uId);
@@ -95,10 +103,54 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string id)
+        [ApiExplorerSettings(GroupName = "legacy")]
+        public async Task<IActionResult> DeleteById(string id)
         {
             if (!Ulid.TryParse(id, out var uId)) return BadRequest("Invalid University ID.");
             await _service.DeleteUniversityAsync(uId);
+            return NoContent();
+        }
+
+        // ── NEW (preferred): Admin routes using public Code ───────────────────
+        /// <summary>
+        /// [PREFERRED] Update a University by its public Code.
+        /// Admin/frontend MUST use this route.
+        /// </summary>
+        [HttpPut("by-code/{code}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdateByCode(string code, CreateUniversityDto dto)
+        {
+            var entity = await _service.GetUniversityByCodeAsync(code);
+            if (entity == null) return NotFound($"University with code '{code}' not found.");
+
+            entity.Name = dto.Name;
+            // Update Code if a new one is explicitly provided and differs
+            if (!string.IsNullOrWhiteSpace(dto.Code) && dto.Code.ToUpper() != entity.Code)
+            {
+                var conflict = await _service.GetUniversityByCodeAsync(dto.Code.ToUpper());
+                if (conflict != null)
+                    return Conflict($"A University with code '{dto.Code.ToUpper()}' already exists.");
+                entity.Code = dto.Code.ToUpper();
+            }
+
+            await _service.UpdateUniversityAsync(entity);
+            await _cache.RemoveAsync(StructureCacheKey); // Invalidate full-structure cache
+            return NoContent();
+        }
+
+        /// <summary>
+        /// [PREFERRED] Delete a University by its public Code.
+        /// Admin/frontend MUST use this route.
+        /// </summary>
+        [HttpDelete("by-code/{code}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteByCode(string code)
+        {
+            var entity = await _service.GetUniversityByCodeAsync(code);
+            if (entity == null) return NotFound($"University with code '{code}' not found.");
+
+            await _service.DeleteUniversityAsync(entity.Id);
+            await _cache.RemoveAsync(StructureCacheKey);
             return NoContent();
         }
 
@@ -169,9 +221,10 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize(Roles = "Admin,Student,Doctor")]
     [ApiController]
     [Route("api/[controller]")]
-    public class CollegesController(ICollegeService service, AppDbContext context) : ControllerBase
+    public class CollegesController(ICollegeService service, IUniversityService universityService, AppDbContext context) : ControllerBase
     {
         private readonly ICollegeService _service = service;
+        private readonly IUniversityService _universityService = universityService;
         private readonly AppDbContext _context = context;
 
         [HttpGet]
@@ -197,7 +250,6 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var c = await _service.GetCollegeByCodeAsync(code);
             if (c == null) return NotFound();
-
             return Ok(new CollegeDto(c.Id, c.Name, c.Code, c.UniversityId));
         }
 
@@ -208,14 +260,20 @@ namespace UniversityManagementSystem.Api.Controllers
             if (string.IsNullOrWhiteSpace(dto.Code))
                 return BadRequest("College code is required.");
 
-            var codeUpper = dto.Code.ToUpper();
+            // ✅ FIX: Resolve UniversityCode → UniversityId internally
+            if (string.IsNullOrWhiteSpace(dto.UniversityCode))
+                return BadRequest("UniversityCode is required.");
 
-            // Uniqueness check
+            var university = await _universityService.GetUniversityByCodeAsync(dto.UniversityCode);
+            if (university == null)
+                return NotFound($"University with code '{dto.UniversityCode}' not found.");
+
+            var codeUpper = dto.Code.ToUpper();
             var existing = await _service.GetCollegeByCodeAsync(codeUpper);
             if (existing != null)
                 return Conflict($"A College with code '{codeUpper}' already exists.");
 
-            var entity = new College { Name = dto.Name, Code = codeUpper, UniversityId = dto.UniversityId };
+            var entity = new College { Name = dto.Name, Code = codeUpper, UniversityId = university.Id };
             var result = await _service.CreateCollegeAsync(entity);
             return Ok(new CollegeDto(result.Id, result.Name, result.Code, result.UniversityId));
         }
@@ -224,11 +282,25 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(string code, CreateCollegeDto dto)
         {
+            // ✅ FIX: Resolve UniversityCode → UniversityId internally
+            if (!string.IsNullOrWhiteSpace(dto.UniversityCode))
+            {
+                var university = await _universityService.GetUniversityByCodeAsync(dto.UniversityCode);
+                if (university == null)
+                    return NotFound($"University with code '{dto.UniversityCode}' not found.");
+            }
+
             var entity = await _service.GetCollegeByCodeAsync(code);
             if (entity == null) return NotFound($"College with code '{code}' not found.");
+
             entity.Name = dto.Name;
-            entity.UniversityId = dto.UniversityId;
-            // Only update Code if a new one was explicitly provided and differs
+
+            if (!string.IsNullOrWhiteSpace(dto.UniversityCode))
+            {
+                var university = await _universityService.GetUniversityByCodeAsync(dto.UniversityCode);
+                entity.UniversityId = university!.Id;
+            }
+
             if (!string.IsNullOrWhiteSpace(dto.Code) && dto.Code.ToUpper() != entity.Code)
             {
                 var codeConflict = await _service.GetCollegeByCodeAsync(dto.Code.ToUpper());
@@ -236,6 +308,7 @@ namespace UniversityManagementSystem.Api.Controllers
                     return Conflict($"A College with code '{dto.Code.ToUpper()}' already exists.");
                 entity.Code = dto.Code.ToUpper();
             }
+
             await _service.UpdateCollegeAsync(entity);
             return NoContent();
         }
@@ -446,7 +519,8 @@ namespace UniversityManagementSystem.Api.Controllers
                 .OrderBy(g => g.Name)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(g => new GroupDto(g.Id, g.Name, g.BatchId))
+                // ✅ FIX: GroupDto now includes Code field
+                .Select(g => new GroupDto(g.Id, g.Name, g.Code, g.BatchId))
                 .ToListAsync();
 
             return Ok(new { Page = page, PageSize = pageSize, Total = total, Data = list });
@@ -457,7 +531,8 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             if (!Ulid.TryParse(batchId, out var bId)) return BadRequest("Invalid Batch ID.");
             var list = await _service.GetGroupsByBatchIdAsync(bId);
-            return Ok(list.Select(g => new GroupDto(g.Id, g.Name, g.BatchId)));
+            // ✅ FIX: GroupDto now includes Code field
+            return Ok(list.Select(g => new GroupDto(g.Id, g.Name, g.Code, g.BatchId)));
         }
 
         [HttpPost]
@@ -473,7 +548,8 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var entity = new Group { Name = dto.Name, BatchId = batch.Id };
             var result = await _service.CreateGroupAsync(entity);
-            return Ok(new GroupDto(result.Id, result.Name, result.BatchId));
+            // ✅ FIX: GroupDto now includes Code field
+            return Ok(new GroupDto(result.Id, result.Name, result.Code, result.BatchId));
         }
 
         [HttpPut("{code}")]

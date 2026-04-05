@@ -95,7 +95,8 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required] Ulid SubjectOfferingId
     );
 
-    public record GroupDto(Ulid Id, string Name, Ulid BatchId);
+    /// <summary>GroupDto: id+code+name standard — Code field added for AI/API consistency.</summary>
+    public record GroupDto(Ulid Id, string Name, string Code, Ulid BatchId);
 
     public record CreateGroupDto(
         [Required] string Name,

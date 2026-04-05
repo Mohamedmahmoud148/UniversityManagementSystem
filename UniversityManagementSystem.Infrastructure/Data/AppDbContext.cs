@@ -82,6 +82,8 @@ namespace UniversityManagementSystem.Infrastructure.Data
             // Ensures fast O(log n) lookup for all code-based API routes and
             // enforces uniqueness at the DB level.
             // ─────────────────────────────────────────────────────────────────
+            modelBuilder.Entity<University>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Universities_Code");
             modelBuilder.Entity<College>()
                 .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Colleges_Code");
             modelBuilder.Entity<Department>()
@@ -96,8 +98,14 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Students_Code");
             modelBuilder.Entity<Doctor>()
                 .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Doctors_Code");
+            modelBuilder.Entity<TeachingAssistant>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_TeachingAssistants_Code");
             modelBuilder.Entity<SystemUser>()
                 .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_SystemUsers_Code");
+            modelBuilder.Entity<Regulation>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Regulations_Code");
+            modelBuilder.Entity<Exam>()
+                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Exams_Code");
 
             // --------------------------------------------------------
             // Configure RefreshToken
@@ -255,13 +263,6 @@ namespace UniversityManagementSystem.Infrastructure.Data
 
             modelBuilder.Entity<TeachingAssistant>()
                 .HasIndex(ta => ta.UniversityStaffId)
-                .IsUnique();
-
-            // --------------------------------------------------------
-            // Code index on entities that expose a human-readable Code
-            // --------------------------------------------------------
-            modelBuilder.Entity<Subject>()
-                .HasIndex(s => s.Code)
                 .IsUnique();
 
             // --------------------------------------------------------

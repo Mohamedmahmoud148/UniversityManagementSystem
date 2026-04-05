@@ -20,8 +20,19 @@ namespace UniversityManagementSystem.Api.Controllers
     public record ResolveStudentResult(string StudentId, string StudentName, string StudentCode);
     public record ResolveDoctorResult(string DoctorId, string DoctorName, string DoctorCode);
     public record StudentGpaResult(string StudentId, double Gpa);
-    public record OfferingStudentItem(string StudentId, string StudentName);
+    /// <summary>Includes studentCode so AI agents have the full id+code+name triple.</summary>
+    public record OfferingStudentItem(string StudentId, string StudentName, string StudentCode);
     public record DoctorSubjectItem(string SubjectId, string SubjectName, string SubjectCode);
+    /// <summary>A single matching offering returned by resolve-offering — list allows AI to discriminate by semester/batch.</summary>
+    public record ResolveOfferingItem(
+        string OfferingId,
+        string SubjectId,
+        string SubjectName,
+        string SubjectCode,
+        string SemesterId,
+        string SemesterName,
+        string? BatchId,
+        string? GroupId);
 
     // ─────────────────────────────────────────────
     // Controller
@@ -69,8 +80,13 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(result);
         }
 
-        // ── 2. Resolve Subject Offering ─────────────────────────────────────
-        /// <summary>GET /api/ai-tools/resolve-offering?subject={subjectName}</summary>
+        // ── 2. Resolve Subject Offering — returns a LIST (AI picks the right one) ───
+        /// <summary>
+        /// GET /api/ai-tools/resolve-offering?subject={subjectName}
+        /// Returns ALL active offerings for the subject name.
+        /// The AI must select the correct one using semester/batch/group context.
+        /// NEVER uses FirstOrDefault — temporal collision risk eliminated.
+        /// </summary>
         [HttpGet("resolve-offering")]
         public async Task<IActionResult> ResolveOffering([FromQuery] string subject)
         {
@@ -79,25 +95,35 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var lower = subject.ToLower();
 
-            var result = await _context.SubjectOfferings
+            var results = await _context.SubjectOfferings
                 .Include(o => o.Subject)
                 .Include(o => o.Semester)
                 .Where(o => o.Subject.Name.ToLower() == lower)
                 .OrderByDescending(o => o.CreatedAt)
-                .Select(o => new
-                {
-                    subjectOfferingId = o.Id.ToString(),
-                    semester = o.Semester.Name
-                })
-                .FirstOrDefaultAsync();
+                .Select(o => new ResolveOfferingItem(
+                    o.Id.ToString(),
+                    o.SubjectId.ToString(),
+                    o.Subject.Name,
+                    o.Subject.Code,
+                    o.SemesterId.ToString(),
+                    o.Semester.Name,
+                    o.BatchId != default ? o.BatchId.ToString() : null,
+                    o.GroupId.HasValue ? o.GroupId.Value.ToString() : null))
+                .ToListAsync();
 
-            if (result is null)
+            if (results.Count == 0)
             {
                 _logger.LogWarning("AI Tool: no offering found for subject '{Subject}'", subject);
-                return NotFound($"No offering found for subject '{subject}'.");
+                return NotFound($"No offerings found for subject '{subject}'.");
             }
 
-            return Ok(result);
+            // Return the full list — AI agent is responsible for selecting the correct offering.
+            return Ok(new
+            {
+                count    = results.Count,
+                note     = "Multiple offerings found. Select using semesterName and/or batchId.",
+                offerings = results
+            });
         }
 
         // ── 3. Student Academic Overview ────────────────────────────────────
@@ -117,28 +143,32 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Where(g => g.StudentId == parsedId && g.IsFinalized)
                 .AverageAsync(g => (double?)g.GradePoints) ?? 0.0;
 
-            // Active subject enrolments
+            // Active subject enrolments — now includes subjectId for AI follow-up calls
             var subjects = await _context.Enrollments
                 .Include(e => e.SubjectOffering)
                     .ThenInclude(so => so.Subject)
                 .Where(e => e.StudentId == parsedId && e.IsActive)
                 .Select(e => new
                 {
+                    subjectId   = e.SubjectOffering.SubjectId.ToString(),  // ✅ NEW
                     subjectName = e.SubjectOffering.Subject.Name,
-                    subjectCode = e.SubjectOffering.Subject.Code
+                    subjectCode = e.SubjectOffering.Subject.Code,
+                    offeringId  = e.SubjectOfferingId.ToString()            // ✅ NEW
                 })
                 .ToListAsync();
 
-            // Finalised grades
+            // Finalised grades — now includes subjectId for AI follow-up calls
             var grades = await _context.StudentGrades
                 .Include(g => g.SubjectOffering)
                     .ThenInclude(so => so.Subject)
                 .Where(g => g.StudentId == parsedId && g.IsFinalized)
                 .Select(g => new
                 {
+                    subjectId   = g.SubjectOffering.SubjectId.ToString(),   // ✅ NEW
                     subjectName = g.SubjectOffering.Subject.Name,
+                    subjectCode = g.SubjectOffering.Subject.Code,           // ✅ NEW
                     gradeLetter = g.GradeLetter,
-                    finalScore = g.FinalScore
+                    finalScore  = g.FinalScore
                 })
                 .ToListAsync();
 
@@ -341,14 +371,15 @@ namespace UniversityManagementSystem.Api.Controllers
             if (!offeringExists)
                 return NotFound($"Offering '{offeringId}' not found.");
 
-            // Active enrollments only
+            // Active enrollments only — now includes studentCode for id+code+name
             var students = await _context.Enrollments
                 .AsNoTracking()
                 .Include(e => e.Student)
                 .Where(e => e.SubjectOfferingId == parsedId && e.IsActive)
                 .Select(e => new OfferingStudentItem(
                     e.StudentId.ToString(),
-                    e.Student.FullName))
+                    e.Student.FullName,
+                    e.Student.Code))   // ✅ NEW: includes studentCode
                 .OrderBy(x => x.StudentName)
                 .ToListAsync();
 

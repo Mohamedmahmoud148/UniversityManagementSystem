@@ -9,6 +9,7 @@ namespace UniversityManagementSystem.Core.Interfaces
     {
         Task<IReadOnlyList<University>> GetAllUniversitiesAsync();
         Task<University?> GetUniversityByIdAsync(Ulid id);
+        Task<University?> GetUniversityByCodeAsync(string code);  // NEW: Admin code-based lookup
         Task<University> CreateUniversityAsync(University university);
         Task UpdateUniversityAsync(University university);
         Task DeleteUniversityAsync(Ulid id);

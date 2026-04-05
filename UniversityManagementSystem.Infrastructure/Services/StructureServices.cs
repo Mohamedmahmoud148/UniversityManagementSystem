@@ -13,6 +13,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<IReadOnlyList<University>> GetAllUniversitiesAsync() => await _repo.GetAllAsync();
         public async Task<University?> GetUniversityByIdAsync(Ulid id) => await _repo.GetByIdAsync(id);
+
+        public async Task<University?> GetUniversityByCodeAsync(string code)
+        {
+            var results = await _repo.GetAsync(u => u.Code == code.ToUpper());
+            return results.FirstOrDefault();
+        }
+
         public async Task<University> CreateUniversityAsync(University university) => await _repo.AddAsync(university);
         public async Task UpdateUniversityAsync(University university) => await _repo.UpdateAsync(university);
         public async Task DeleteUniversityAsync(Ulid id)

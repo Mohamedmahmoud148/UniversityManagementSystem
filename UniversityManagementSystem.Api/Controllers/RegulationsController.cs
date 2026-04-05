@@ -120,12 +120,29 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(dtos);
         }
 
+        // ── GET /api/Regulations/by-code/{code} ──────────────────────────────
+        /// <summary>
+        /// [PREFERRED] Retrieve a regulation by its auto-generated slug code.
+        /// Code is derived from Title, e.g. "General Rules" → "general-rules".
+        /// </summary>
+        [HttpGet("by-code/{code}")]
+        public async Task<IActionResult> GetByCode(string code)
+        {
+            var regulation = await _service.GetByCodeAsync(code);
+            if (regulation == null)
+                return NotFound($"Regulation with code '{code}' not found.");
+
+            return Ok(await ToDto(regulation));
+        }
+
         // ── POST /api/Regulations ─────────────────────────────────────────────
         /// <summary>
         /// Create a regulation. Supports two modes:
         /// 1) Text-only:          form fields: title, content, type
         /// 2) File attachment:    form fields: title, type + file (PDF/Word/Excel/TXT)
         ///    Content and File can both be provided simultaneously.
+        /// NOTE: Code is auto-generated from Title as a URL-safe slug.
+        ///       e.g. "General Academic Rules" → "general-academic-rules"
         /// </summary>
         [HttpPost]
         [Authorize(Roles = "Admin,SuperAdmin")]
@@ -178,16 +195,73 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(await ToDto(result));
         }
 
-        // ── PUT /api/Regulations/{id} ─────────────────────────────────────────
+        // ── PUT /api/Regulations/{id}  [LEGACY — keep for backward compat] ────
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(52_428_800)]
+        [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> Update(string id, [FromForm] UpdateRegulationDto dto)
         {
             if (!Ulid.TryParse(id, out var regId))
                 return BadRequest("Invalid Regulation ID.");
 
+            return await UpdateRegulationCore(regId, dto);
+        }
+
+        // ── PUT /api/Regulations/by-code/{code}  [PREFERRED — admin uses code] ─
+        /// <summary>
+        /// [PREFERRED] Update a regulation by its auto-generated slug code.
+        /// Admin/frontend MUST use this route.
+        /// </summary>
+        [HttpPut("by-code/{code}")]
+        [Authorize(Roles = "Admin")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(52_428_800)]
+        public async Task<IActionResult> UpdateByCode(string code, [FromForm] UpdateRegulationDto dto)
+        {
+            var regulation = await _service.GetByCodeAsync(code);
+            if (regulation == null)
+                return NotFound($"Regulation with code '{code}' not found.");
+
+            return await UpdateRegulationCore(regulation.Id, dto);
+        }
+
+        // ── DELETE /api/Regulations/{id}  [LEGACY — keep for backward compat] ──
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        [ApiExplorerSettings(GroupName = "legacy")]
+        public async Task<IActionResult> Delete(string id)
+        {
+            if (!Ulid.TryParse(id, out var regId))
+                return BadRequest("Invalid Regulation ID.");
+
+            await _service.DeleteAsync(regId);
+            await _cache.RemoveAsync(CacheKey);
+            return NoContent();
+        }
+
+        // ── DELETE /api/Regulations/by-code/{code}  [PREFERRED] ──────────────
+        /// <summary>
+        /// [PREFERRED] Delete a regulation by its auto-generated slug code.
+        /// Admin/frontend MUST use this route.
+        /// </summary>
+        [HttpDelete("by-code/{code}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteByCode(string code)
+        {
+            var regulation = await _service.GetByCodeAsync(code);
+            if (regulation == null)
+                return NotFound($"Regulation with code '{code}' not found.");
+
+            await _service.DeleteAsync(regulation.Id);
+            await _cache.RemoveAsync(CacheKey);
+            return NoContent();
+        }
+
+        // ── Shared update logic ───────────────────────────────────────────────
+        private async Task<IActionResult> UpdateRegulationCore(Ulid regId, UpdateRegulationDto dto)
+        {
             if (string.IsNullOrWhiteSpace(dto.Content) && dto.File == null)
                 return BadRequest("At least one of 'content' or a file attachment must be provided.");
 
@@ -202,7 +276,6 @@ namespace UniversityManagementSystem.Api.Controllers
                     return BadRequest($"File type '{dto.File.ContentType}' is not allowed.");
 
                 var uploaderId = _userContext.GetUserId();
-
                 uploadedFileId = await _fileService.UploadFileStreamAsync(
                     userId: uploaderId,
                     stream: dto.File.OpenReadStream(),
@@ -213,27 +286,14 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var entity = new Regulation
             {
-                Title = dto.Title,
-                Content = string.IsNullOrWhiteSpace(dto.Content) ? null : dto.Content,
-                Type = dto.Type,
-                FileId = uploadedFileId,
+                Title    = dto.Title,
+                Content  = string.IsNullOrWhiteSpace(dto.Content) ? null : dto.Content,
+                Type     = dto.Type,
+                FileId   = uploadedFileId,
                 IsActive = dto.IsActive
             };
 
             await _service.UpdateAsync(regId, entity);
-            await _cache.RemoveAsync(CacheKey);
-            return NoContent();
-        }
-
-        // ── DELETE /api/Regulations/{id} ─────────────────────────────────────
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string id)
-        {
-            if (!Ulid.TryParse(id, out var regId))
-                return BadRequest("Invalid Regulation ID.");
-
-            await _service.DeleteAsync(regId);
             await _cache.RemoveAsync(CacheKey);
             return NoContent();
         }

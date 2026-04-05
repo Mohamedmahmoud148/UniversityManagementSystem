@@ -183,8 +183,10 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new { message = "Submission graded successfully." });
         }
 
+        // ── LEGACY: Restore by internal ULID ──────────────────────────────────
         [HttpPost("{id}/restore")]
         [Authorize(Roles = "Admin")]
+        [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> RestoreExam(string id)
         {
             if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
@@ -192,8 +194,31 @@ namespace UniversityManagementSystem.Api.Controllers
             return NoContent();
         }
 
+        /// <summary>
+        /// [PREFERRED] Restore a deleted exam by its public Code.
+        /// Admin/frontend MUST use this route.
+        /// </summary>
+        [HttpPost("by-code/{code}/restore")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RestoreExamByCode(string code)
+        {
+            var userRole  = User.FindFirstValue(ClaimTypes.Role) ?? "Admin";
+            var userIdStr = User.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+            if (userIdStr == null) return Unauthorized("nameid claim not found.");
+            var userId = Ulid.Parse(userIdStr);
+
+            var exam = await examService.GetExamByCodeAsync(code, userId, userRole);
+            if (exam == null) return NotFound($"Exam with code '{code}' not found.");
+
+            if (!Ulid.TryParse(exam.Id.ToString(), out var examId)) return BadRequest("Could not resolve Exam ID.");
+            await examService.RestoreExamAsync(examId);
+            return NoContent();
+        }
+
+        // ── LEGACY: Admin update/delete/restore by internal ULID ─────────────────
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
+        [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<ActionResult<ExamDto>> UpdateExam(string id, UpdateExamDto dto)
         {
             if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
@@ -201,11 +226,55 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(result);
         }
 
+        // ── PREFERRED: Admin routes using public Code ─────────────────────────
+        /// <summary>
+        /// [PREFERRED] Update an exam by its public Code.
+        /// Admin/frontend MUST use this route.
+        /// </summary>
+        [HttpPut("by-code/{code}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<ExamDto>> UpdateExamByCode(string code, UpdateExamDto dto)
+        {
+            var userRole   = User.FindFirstValue(ClaimTypes.Role) ?? "Admin";
+            var userIdStr  = User.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+            if (userIdStr == null) return Unauthorized("nameid claim not found.");
+            var userId = Ulid.Parse(userIdStr);
+
+            var exam = await examService.GetExamByCodeAsync(code, userId, userRole);
+            if (exam == null) return NotFound($"Exam with code '{code}' not found.");
+
+            if (!Ulid.TryParse(exam.Id.ToString(), out var examId)) return BadRequest("Could not resolve Exam ID.");
+            var result = await examService.UpdateExamAsync(examId, dto);
+            return Ok(result);
+        }
+
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
+        [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> DeleteExam(string id)
         {
             if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
+            await examService.DeleteExamAsync(examId);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// [PREFERRED] Delete an exam by its public Code.
+        /// Admin/frontend MUST use this route.
+        /// </summary>
+        [HttpDelete("by-code/{code}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteExamByCode(string code)
+        {
+            var userRole  = User.FindFirstValue(ClaimTypes.Role) ?? "Admin";
+            var userIdStr = User.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+            if (userIdStr == null) return Unauthorized("nameid claim not found.");
+            var userId = Ulid.Parse(userIdStr);
+
+            var exam = await examService.GetExamByCodeAsync(code, userId, userRole);
+            if (exam == null) return NotFound($"Exam with code '{code}' not found.");
+
+            if (!Ulid.TryParse(exam.Id.ToString(), out var examId)) return BadRequest("Could not resolve Exam ID.");
             await examService.DeleteExamAsync(examId);
             return NoContent();
         }
