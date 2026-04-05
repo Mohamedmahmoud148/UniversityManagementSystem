@@ -31,18 +31,16 @@ namespace UniversityManagementSystem.Api.Controllers
             "image/jpeg",
             "image/png",
             "image/gif",
-            "image/webp",
             "video/mp4",
             "video/webm",
-            "video/x-matroska", // mkv
             "text/plain",
             "application/zip"
         };
-        private const long MaxFileSizeBytes = 100 * 1024 * 1024; // 100 MB for videos
+        private const long MaxFileSizeBytes = 500L * 1024 * 1024; // 500 MB
 
         [HttpPost("upload")]
         [Authorize(Roles = "Doctor")]
-        [RequestSizeLimit(104857600)] // 100 MB
+        [RequestSizeLimit(524_288_000)] // 500 MB
         public async Task<IActionResult> UploadMaterial([FromForm] Core.DTOs.UploadMaterialDto dto)
         {
             var doctorId = userContext.GetProfileId();
@@ -54,7 +52,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 return BadRequest($"File type '{dto.File.ContentType}' is not allowed.");
 
             if (dto.File.Length > MaxFileSizeBytes)
-                return BadRequest("File exceeds the 100 MB size limit.");
+                return BadRequest("File exceeds the 500 MB size limit.");
 
             var material = await materialService.UploadMaterialAsync(dto.OfferingId, doctorId, dto.File);
             return CreatedAtAction(nameof(DownloadMaterial), new { id = material.Id.ToString() }, material);
