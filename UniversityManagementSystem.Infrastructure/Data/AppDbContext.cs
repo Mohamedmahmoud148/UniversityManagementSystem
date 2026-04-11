@@ -41,7 +41,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<AiActionLog> AiActionLogs { get; set; } = null!;
         public DbSet<StudentFile> StudentFiles { get; set; } = null!;
         public DbSet<EnrollmentUpload> EnrollmentUploads { get; set; } = null!;
-
+        public DbSet<Complaint> Complaints { get; set; } = null!;
 
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         {
@@ -609,6 +609,45 @@ namespace UniversityManagementSystem.Infrastructure.Data
             {
                 entity.HasKey(e => e.Id);
                 // Ulid → string conversion and MaxLength(26) are applied globally via ConfigureConventions.
+            });
+
+            // --------------------------------------------------------
+            // Complaint
+            // --------------------------------------------------------
+            modelBuilder.Entity<Complaint>(entity =>
+            {
+                // FK → Student's SystemUser
+                entity.HasOne(c => c.User)
+                      .WithMany()
+                      .HasForeignKey(c => c.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                // FK → SubjectOffering (optional)
+                entity.HasOne(c => c.SubjectOffering)
+                      .WithMany()
+                      .HasForeignKey(c => c.SubjectOfferingId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                // Index: date-range queries — most common dashboard filter
+                entity.HasIndex(c => c.CreatedAt)
+                      .HasDatabaseName("IX_Complaints_CreatedAt");
+
+                // Index: filter by offering (student complaint list for a course)
+                entity.HasIndex(c => c.SubjectOfferingId)
+                      .HasDatabaseName("IX_Complaints_SubjectOfferingId");
+
+                // Index: filter by doctor (doctor dashboard — all complaints in their offerings)
+                entity.HasIndex(c => c.TargetDoctorId)
+                      .HasDatabaseName("IX_Complaints_TargetDoctorId");
+
+                // Index: filter by submitting user
+                entity.HasIndex(c => c.UserId)
+                      .HasDatabaseName("IX_Complaints_UserId");
+
+                entity.Property(c => c.TargetType).HasMaxLength(50).IsRequired();
+                entity.Property(c => c.Status).HasMaxLength(30).IsRequired();
+                entity.Property(c => c.Message).HasMaxLength(2000).IsRequired();
+                entity.Property(c => c.TargetId).HasMaxLength(26);
             });
         }
 

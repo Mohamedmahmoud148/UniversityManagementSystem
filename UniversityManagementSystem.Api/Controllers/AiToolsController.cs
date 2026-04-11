@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NUlid;
+using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
@@ -48,15 +50,21 @@ namespace UniversityManagementSystem.Api.Controllers
         private readonly AppDbContext _context;
         private readonly ILogger<AiToolsController> _logger;
         private readonly IGradeService _gradeService;
+        private readonly IExcelImportService _excelImport;
+        private readonly ISystemUserResolver _userResolver;
 
         public AiToolsController(
             AppDbContext context,
             ILogger<AiToolsController> logger,
-            IGradeService gradeService)
+            IGradeService gradeService,
+            IExcelImportService excelImport,
+            ISystemUserResolver userResolver)
         {
             _context = context;
             _logger = logger;
             _gradeService = gradeService;
+            _excelImport = excelImport;
+            _userResolver = userResolver;
         }
 
         // ── 1. Resolve Subject by Name ──────────────────────────────────────
@@ -419,6 +427,371 @@ namespace UniversityManagementSystem.Api.Controllers
                 .ToListAsync();
 
             return Ok(subjects);
+        }
+
+        // ── Complaint System ────────────────────────────────────────────────
+
+        /// <summary>
+        /// POST /api/ai-tools/create-complaint
+        /// Allows a student to submit a complaint.
+        /// The doctor linked to the specified offering is resolved automatically
+        /// and stored in TargetDoctorId for efficient filtering.
+        /// </summary>
+        [HttpPost("create-complaint")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> CreateComplaint([FromBody] CreateComplaintDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Validate TargetType
+            var allowedTypes = new[] { "Doctor", "Exam", "Grade", "Other" };
+            if (!allowedTypes.Contains(dto.TargetType, StringComparer.OrdinalIgnoreCase))
+                return BadRequest(new { error = $"TargetType must be one of: {string.Join(", ", allowedTypes)}." });
+
+            var userId = await _userResolver.ResolveSystemUserIdAsync(User);
+
+            // Resolve SubjectOfferingId and denormalise DoctorId
+            Ulid? offeringUlid = null;
+            Ulid? doctorUlid   = null;
+
+            if (!string.IsNullOrWhiteSpace(dto.SubjectOfferingId))
+            {
+                if (!Ulid.TryParse(dto.SubjectOfferingId, out var parsedOffering))
+                    return BadRequest(new { error = "SubjectOfferingId is not a valid ULID." });
+
+                var offering = await _context.SubjectOfferings
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(o => o.Id == parsedOffering);
+
+                if (offering == null)
+                    return BadRequest(new { error = "SubjectOffering not found." });
+
+                offeringUlid = parsedOffering;
+                doctorUlid   = offering.DoctorId;
+            }
+
+            var complaint = new Complaint
+            {
+                UserId            = userId,
+                TargetType        = dto.TargetType,
+                TargetId          = dto.TargetId,
+                SubjectOfferingId = offeringUlid,
+                TargetDoctorId    = doctorUlid,
+                Message           = dto.Message,
+                Status            = "Pending",
+                CreatedAt         = DateTime.UtcNow
+            };
+
+            _context.Complaints.Add(complaint);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "[Complaint] Created — id={Id} userId={UserId} targetType={TargetType}",
+                complaint.Id, userId, dto.TargetType);
+
+            return CreatedAtAction(nameof(GetComplaints), null, new
+            {
+                id          = complaint.Id.ToString(),
+                status      = complaint.Status,
+                createdAt   = complaint.CreatedAt
+            });
+        }
+
+        /// <summary>
+        /// GET /api/ai-tools/get-complaints
+        /// Returns a paginated, filtered list of complaints.
+        /// Admin: sees all. Doctor: sees only complaints in their offerings.
+        /// </summary>
+        [HttpGet("get-complaints")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
+        public async Task<IActionResult> GetComplaints([FromQuery] GetComplaintsQueryDto query)
+        {
+            query.PageSize = Math.Clamp(query.PageSize, 1, 100);
+            query.Page     = Math.Max(query.Page, 1);
+
+            var q = _context.Complaints.AsNoTracking().AsQueryable();
+
+            // Date range filter — hits IX_Complaints_CreatedAt
+            if (query.From.HasValue) q = q.Where(c => c.CreatedAt >= query.From.Value);
+            if (query.To.HasValue)   q = q.Where(c => c.CreatedAt <= query.To.Value);
+
+            // Offering filter — hits IX_Complaints_SubjectOfferingId
+            if (!string.IsNullOrWhiteSpace(query.SubjectOfferingId) &&
+                Ulid.TryParse(query.SubjectOfferingId, out var offeringId))
+                q = q.Where(c => c.SubjectOfferingId == offeringId);
+
+            // Doctor filter — hits IX_Complaints_TargetDoctorId
+            if (!string.IsNullOrWhiteSpace(query.DoctorId) &&
+                Ulid.TryParse(query.DoctorId, out var doctorId))
+                q = q.Where(c => c.TargetDoctorId == doctorId);
+
+            // Status filter
+            if (!string.IsNullOrWhiteSpace(query.Status))
+                q = q.Where(c => c.Status == query.Status);
+
+            // Doctor-specific scope: a doctor can only see complaints in their own offerings
+            var role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "";
+            if (string.Equals(role, "Doctor", StringComparison.OrdinalIgnoreCase))
+            {
+                var callerId = await _userResolver.ResolveSystemUserIdAsync(User);
+                var doctor = await _context.Doctors
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(d => d.SystemUserId == callerId);
+
+                if (doctor == null) return Forbid();
+
+                q = q.Where(c => c.TargetDoctorId == doctor.Id);
+            }
+
+            var total = await q.CountAsync();
+
+            var items = await q
+                .OrderByDescending(c => c.CreatedAt)
+                .Skip((query.Page - 1) * query.PageSize)
+                .Take(query.PageSize)
+                .Select(c => new ComplaintDto
+                {
+                    Id                = c.Id.ToString(),
+                    UserId            = c.UserId.ToString(),
+                    TargetType        = c.TargetType,
+                    TargetId          = c.TargetId,
+                    SubjectOfferingId = c.SubjectOfferingId.HasValue ? c.SubjectOfferingId.ToString() : null,
+                    TargetDoctorId    = c.TargetDoctorId.HasValue ? c.TargetDoctorId.ToString() : null,
+                    Message           = c.Message,
+                    Status            = c.Status,
+                    ResolutionNote    = c.ResolutionNote,
+                    CreatedAt         = c.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(new ComplaintsPageDto
+            {
+                TotalCount = total,
+                Page       = query.Page,
+                PageSize   = query.PageSize,
+                Items      = items
+            });
+        }
+
+        // ── Bulk Operations ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// POST /api/ai-tools/bulk-create-students
+        /// Accepts an .xlsx file and bulk-imports students.
+        /// Required columns: FullName | Email | UniversityStudentId | BatchCode | GroupCode
+        /// </summary>
+        [HttpPost("bulk-create-students")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [RequestSizeLimit(10 * 1024 * 1024)]   // 10 MB cap
+        public async Task<IActionResult> BulkCreateStudents(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { error = "No file uploaded. Please attach an .xlsx file." });
+
+            var ext = Path.GetExtension(file.FileName);
+            if (!ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { error = $"Invalid format '{ext}'. Only .xlsx is accepted." });
+
+            _logger.LogInformation(
+                "[BulkStudents] Import started — file={File} size={Size}B",
+                file.FileName, file.Length);
+
+            var result       = await _excelImport.ImportStudentsFromExcelAsync(file);
+            var importFailed = result.Errors.Count > 0 ? result.Skipped : 0;
+
+            _logger.LogInformation(
+                "[BulkStudents] Import complete — inserted={Ins} skipped={Skip}",
+                result.Imported, result.Skipped);
+
+            var status = result.Skipped == 0 ? StatusCodes.Status200OK : StatusCodes.Status207MultiStatus;
+
+            return StatusCode(status, new BulkOperationResultDto
+            {
+                TotalRows = result.TotalRows,
+                Inserted  = result.Imported,
+                Skipped   = result.Skipped,
+                Failed    = importFailed,
+                Errors    = result.Errors
+            });
+        }
+
+        /// <summary>
+        /// POST /api/ai-tools/bulk-upload-grades
+        /// Accepts an .xlsx file with columns:
+        ///   UniversityStudentId | SubjectOfferingId | FinalScore | GradeLetter | GradePoints
+        /// Upserts StudentGrade rows; duplicate (StudentId+OfferingId) rows are updated.
+        /// </summary>
+        [HttpPost("bulk-upload-grades")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [RequestSizeLimit(10 * 1024 * 1024)]
+        public async Task<IActionResult> BulkUploadGrades(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { error = "No file uploaded. Please attach an .xlsx file." });
+
+            var ext = Path.GetExtension(file.FileName);
+            if (!ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { error = $"Invalid format '{ext}'. Only .xlsx is accepted." });
+
+            _logger.LogInformation(
+                "[BulkGrades] Import started — file={File} size={Size}B",
+                file.FileName, file.Length);
+
+            var result = new BulkOperationResultDto();
+
+            using var stream = new System.IO.MemoryStream();
+            await file.CopyToAsync(stream);
+            stream.Position = 0;
+
+            using var workbook = new ClosedXML.Excel.XLWorkbook(stream);
+            var worksheet = workbook.Worksheet(1);
+            var range     = worksheet.RangeUsed();
+
+            if (range == null)
+                return BadRequest(new { error = "Worksheet is empty." });
+
+            var rows = range.RowsUsed().Skip(1).ToList();   // Skip header
+            result.TotalRows = rows.Count;
+
+            if (result.TotalRows == 0)
+            {
+                result.Errors.Add("No data rows found (only header present).");
+                return BadRequest(result);
+            }
+
+            // Required column headers (validated positionally)
+            // Col 1=UniversityStudentId | 2=SubjectOfferingId | 3=FinalScore | 4=GradeLetter | 5=GradePoints
+
+            // Pre-fetch all student and offering ID mappings to avoid N+1
+            var studentsByUnivId = await _context.Students
+                .AsNoTracking()
+                .ToDictionaryAsync(s => s.UniversityStudentId.ToLower(), s => s.Id);
+
+            var validOfferingIds = await _context.SubjectOfferings
+                .AsNoTracking()
+                .Select(o => o.Id)
+                .ToHashSetAsync();
+
+            var existingGrades = await _context.StudentGrades
+                .ToDictionaryAsync(g => (g.StudentId, g.SubjectOfferingId));
+
+            // In-batch duplicates
+            var batchPairs = new HashSet<(Ulid, Ulid)>();
+
+            var toInsert = new List<StudentGrade>();
+
+            foreach (var row in rows)
+            {
+                int rowNum = row.RowNumber();
+                try
+                {
+                    var univStudId   = row.Cell(1).GetValue<string>().Trim();
+                    var offeringStr  = row.Cell(2).GetValue<string>().Trim();
+                    var finalScoreRaw = row.Cell(3).GetValue<string>().Trim();
+                    var gradeLetter  = row.Cell(4).GetValue<string>().Trim();
+                    var gradePointsRaw = row.Cell(5).GetValue<string>().Trim();
+
+                    // Required fields
+                    if (string.IsNullOrWhiteSpace(univStudId) || string.IsNullOrWhiteSpace(offeringStr) ||
+                        string.IsNullOrWhiteSpace(finalScoreRaw) || string.IsNullOrWhiteSpace(gradeLetter))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: One or more required fields are empty — skipped.");
+                        continue;
+                    }
+
+                    if (!double.TryParse(finalScoreRaw, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out double finalScore) ||
+                        finalScore < 0 || finalScore > 100)
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: FinalScore '{finalScoreRaw}' is not a valid number (0-100) — skipped.");
+                        continue;
+                    }
+
+                    double gradePoints = 0;
+                    if (!string.IsNullOrWhiteSpace(gradePointsRaw))
+                        double.TryParse(gradePointsRaw, System.Globalization.NumberStyles.Any,
+                            System.Globalization.CultureInfo.InvariantCulture, out gradePoints);
+
+                    if (!Ulid.TryParse(offeringStr, out var offeringId))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: SubjectOfferingId '{offeringStr}' is not a valid ULID — skipped.");
+                        continue;
+                    }
+
+                    if (!validOfferingIds.Contains(offeringId))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: SubjectOffering '{offeringStr}' not found — skipped.");
+                        continue;
+                    }
+
+                    if (!studentsByUnivId.TryGetValue(univStudId.ToLower(), out var studentId))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: Student '{univStudId}' not found — skipped.");
+                        continue;
+                    }
+
+                    // In-batch duplicate check
+                    var pair = (studentId, offeringId);
+                    if (batchPairs.Contains(pair))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: Duplicate (StudentId, OfferingId) in file — skipped.");
+                        continue;
+                    }
+                    batchPairs.Add(pair);
+
+                    // Upsert: update existing grade or queue new insert
+                    if (existingGrades.TryGetValue((studentId, offeringId), out var existing))
+                    {
+                        existing.FinalScore   = finalScore;
+                        existing.GradeLetter  = gradeLetter;
+                        existing.GradePoints  = gradePoints;
+                        existing.IsFinalized  = true;
+                        existing.CalculatedAt = DateTime.UtcNow;
+                        _context.Entry(existing).State = EntityState.Modified;
+                        result.Inserted++;    // counts as upserted
+                    }
+                    else
+                    {
+                        toInsert.Add(new StudentGrade
+                        {
+                            StudentId         = studentId,
+                            SubjectOfferingId = offeringId,
+                            FinalScore        = finalScore,
+                            GradeLetter       = gradeLetter,
+                            GradePoints       = gradePoints,
+                            IsFinalized       = true,
+                            CalculatedAt      = DateTime.UtcNow
+                        });
+                        result.Inserted++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.Failed++;
+                    result.Errors.Add($"Row {rowNum}: Unexpected error — {ex.Message} — skipped.");
+                }
+            }
+
+            // Single batch save
+            if (toInsert.Count > 0)
+                _context.StudentGrades.AddRange(toInsert);
+
+            if (toInsert.Count > 0 || _context.ChangeTracker.HasChanges())
+                await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "[BulkGrades] Complete — inserted/updated={Ins} skipped={Skip} failed={Fail}",
+                result.Inserted, result.Skipped, result.Failed);
+
+            var httpStatus = result.Failed == 0 ? StatusCodes.Status200OK : StatusCodes.Status207MultiStatus;
+            return StatusCode(httpStatus, result);
         }
     }
 }
