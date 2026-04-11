@@ -1,10 +1,6 @@
-using System.Security.Claims;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NUlid;
-using UniversityManagementSystem.Core.Application.AI.Execution;
-using UniversityManagementSystem.Core.Application.AI.Security;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.DTOs.Ai;
 using UniversityManagementSystem.Core.Entities;
@@ -14,18 +10,33 @@ using UniversityManagementSystem.Infrastructure.Data;
 namespace UniversityManagementSystem.Infrastructure.Services
 {
     /// <summary>
-    /// Implements the full AI agentic loop:
-    ///   User → AI (initial call) → [optional] Backend Tool → AI (continuation call) → User
+    /// Manages the AI chat pipeline.
+    ///
+    /// Responsibilities (ONLY these):
+    ///   1. Validate conversation ownership.
+    ///   2. Fetch conversation history from DB (before saving current message).
+    ///   3. Enrich academic context with real user data from DB.
+    ///   4. Save the user message to DB.
+    ///   5. Call the FastAPI AI service via IAiService.
+    ///   6. Save the AI response to DB.
+    ///   7. Return the AI response DTO.
+    ///
+    /// NOT responsible for:
+    ///   - Tool execution (FastAPI handles this internally)
+    ///   - LLM calls
+    ///   - Intent detection
+    ///   - Second AI calls
+    ///
+    /// FastAPI already executes tools and returns the final natural-language
+    /// response. ChatService must never intercept or re-execute that work.
     /// </summary>
     public class ChatService(
         AppDbContext context,
         IAiService aiService,
-        AiToolRegistry toolRegistry,
         ILogger<ChatService> logger) : IChatService
     {
         private readonly AppDbContext _context = context;
         private readonly IAiService _aiService = aiService;
-        private readonly AiToolRegistry _toolRegistry = toolRegistry;
         private readonly ILogger<ChatService> _logger = logger;
 
         // ── Create Conversation ──────────────────────────────────────────────
@@ -34,8 +45,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
         {
             var conversation = new Conversation
             {
-                UserId = userId,
-                Title = title,
+                UserId   = userId,
+                Title    = title,
                 IsActive = true
             };
             _context.Conversations.Add(conversation);
@@ -52,10 +63,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .OrderBy(m => m.CreatedAt)
                 .Select(m => new ChatResponseDto
                 {
-                    Id = m.Id,
-                    Content = m.Content,
+                    Id            = m.Id,
+                    Content       = m.Content,
                     IsUserMessage = m.IsUserMessage,
-                    SentAt = m.CreatedAt
+                    SentAt        = m.CreatedAt
                 })
                 .ToListAsync();
         }
@@ -68,8 +79,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                .Where(c => c.UserId == userId && c.IsActive)
                .Select(c => new ConversationDto
                {
-                   Id = c.Id,
-                   Title = c.Title,
+                   Id            = c.Id,
+                   Title         = c.Title,
                    LastMessageAt = c.Messages
                        .OrderByDescending(m => m.CreatedAt)
                        .Select(m => m.CreatedAt)
@@ -78,21 +89,23 @@ namespace UniversityManagementSystem.Infrastructure.Services
                .ToListAsync();
         }
 
-        // ── Send Message — Full AI Agentic Loop ──────────────────────────────
+        // ── Send Message ─────────────────────────────────────────────────────
 
         public async Task<ChatResponseDto> SendMessageAsync(
             Ulid userId,
             SendMessageDto messageDto,
-            string role,
-            ClaimsPrincipal caller)
+            string role)
         {
             // ── 0. Validate Conversation ──────────────────────────────────────
             var conversation = await _context.Conversations.FindAsync(messageDto.ConversationId);
             if (conversation == null || conversation.UserId != userId)
                 throw new KeyNotFoundException("Conversation not found or access denied.");
 
+            role = string.IsNullOrWhiteSpace(role) ? "student" : role.ToLower();
+
             // ── 1. Fetch history BEFORE saving the current message ────────────
-            //  (Fetching after would include the user's own message in history)
+            //    Fetching after would pollute history with the message we're
+            //    about to process — the AI would see the same question twice.
             var history = await _context.ChatMessages
                 .Where(m => m.ConversationId == messageDto.ConversationId)
                 .OrderByDescending(m => m.CreatedAt)
@@ -105,7 +118,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 })
                 .ToListAsync();
 
-            // ── 2. Save User Message ──────────────────────────────────────────
+            // ── 2. Enrich academic context ────────────────────────────────────
+            //    FastAPI's PlannerAgent uses academic_context to auto-fill
+            //    tool parameters (userId, studentId, subjectOfferingId, etc.)
+            //    without asking the user for data they already have implicitly.
+            var academicContext = await BuildAcademicContextAsync(userId, role);
+
+            // ── 3. Save User Message ──────────────────────────────────────────
+            //    Saved AFTER fetching history to keep history clean.
             var userMsg = new ChatMessage
             {
                 ConversationId = messageDto.ConversationId,
@@ -116,55 +136,47 @@ namespace UniversityManagementSystem.Infrastructure.Services
             _context.ChatMessages.Add(userMsg);
             await _context.SaveChangesAsync();
 
-            // ── 3. Build AI request with full context ─────────────────────────
-            if (string.IsNullOrWhiteSpace(role))
-            {
-                _logger.LogWarning("[ChatService] SendMessageAsync: role is empty for userId={UserId}", userId);
-                role = "student";
-            }
-
+            // ── 4. Call AI Service ────────────────────────────────────────────
+            //    FastAPI receives full context and returns a final natural-language
+            //    response. All tool execution (exam creation, result queries, etc.)
+            //    happens inside FastAPI. We do NOT inspect tool_used.
             var aiRequest = new AiChatRequestDto
             {
                 UserId          = userId,
-                Role            = role.ToLower(),
+                Role            = role,
                 Message         = messageDto.Content,
                 History         = history.Cast<object>().ToArray(),
-                AcademicContext = new { },
+                AcademicContext = academicContext,
                 ConversationId  = conversation.Id.ToString()
             };
 
-            // ── 4. Initial AI Call ────────────────────────────────────────────
-            _logger.LogDebug("[ChatService] Calling AI for userId={UserId} conversationId={ConvId}",
-                userId, conversation.Id);
+            _logger.LogInformation(
+                "[ChatService] Calling AI — userId={UserId} role={Role} conversationId={ConvId}",
+                userId, role, conversation.Id);
 
             var aiResponse = await _aiService.SendChatMessageAsync(aiRequest);
 
-            // ── 5. Tool Execution Loop ────────────────────────────────────────
-            string finalResponseText = aiResponse.Response;
-            string finalIntent       = aiResponse.IntentExecuted;
+            // ── 5. Save AI Response ───────────────────────────────────────────
+            var responseText = string.IsNullOrWhiteSpace(aiResponse.Response)
+                ? "I'm sorry, I couldn't process your request. Please try again."
+                : aiResponse.Response;
 
-            if (!string.IsNullOrWhiteSpace(aiResponse.ToolUsed))
-            {
-                finalResponseText = await ExecuteToolAndGetFinalResponseAsync(
-                    aiResponse, aiRequest, caller, role, userId, conversation.Id.ToString());
-
-                // After tool execution, intent is the tool name
-                finalIntent = aiResponse.ToolUsed;
-            }
-
-            // ── 6. Save AI Response ───────────────────────────────────────────
             var aiMsg = new ChatMessage
             {
                 ConversationId = messageDto.ConversationId,
-                Content        = finalResponseText,
+                Content        = responseText,
                 IsUserMessage  = false,
-                Intent         = finalIntent,
+                Intent         = aiResponse.IntentExecuted,
                 CreatedAt      = DateTime.UtcNow
             };
             _context.ChatMessages.Add(aiMsg);
             await _context.SaveChangesAsync();
 
-            // ── 7. Return Final Response ──────────────────────────────────────
+            _logger.LogInformation(
+                "[ChatService] AI response saved — intent={Intent} model={Model}",
+                aiResponse.IntentExecuted, aiResponse.ModelUsed);
+
+            // ── 6. Return ─────────────────────────────────────────────────────
             return new ChatResponseDto
             {
                 Id            = aiMsg.Id,
@@ -174,146 +186,113 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        // ── Tool Execution ───────────────────────────────────────────────────
-
-        private async Task<string> ExecuteToolAndGetFinalResponseAsync(
-            AiChatResponseDto aiResponse,
-            AiChatRequestDto originalRequest,
-            ClaimsPrincipal caller,
-            string role,
-            Ulid userId,
-            string conversationId)
-        {
-            var toolName = aiResponse.ToolUsed!;
-
-            // ── 5a. Validate against capability matrix ────────────────────────
-            if (!AiCapabilityMatrix.IsAllowed(role, toolName))
-            {
-                _logger.LogWarning(
-                    "[ChatService] Role '{Role}' is not allowed to use tool '{Tool}'. Blocked.",
-                    role, toolName);
-
-                return $"I'm sorry, your role ({role}) doesn't have permission to execute the '{toolName}' action.";
-            }
-
-            // ── 5b. Resolve tool from registry ────────────────────────────────
-            var tool = _toolRegistry.GetTool(toolName);
-            if (tool == null)
-            {
-                _logger.LogWarning("[ChatService] Tool '{Tool}' requested by AI but not registered.", toolName);
-                return $"I wanted to help with '{toolName}', but that capability isn't available yet.";
-            }
-
-            // ── 5c. Extract parameters from metadata (defensive, null-safe) ───
-            object parameters;
-            try
-            {
-                parameters = ExtractToolParameters(aiResponse.Metadata, toolName);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex,
-                    "[ChatService] Failed to extract parameters for tool '{Tool}' from metadata.", toolName);
-                return "I couldn't process the required information to complete that action. Please try rephrasing your request.";
-            }
-
-            // ── 5d. Execute the tool ──────────────────────────────────────────
-            object? toolResult;
-            try
-            {
-                _logger.LogInformation(
-                    "[ChatService] Executing tool '{Tool}' for userId={UserId} role={Role}",
-                    toolName, userId, role);
-
-                toolResult = await tool.ExecuteAsync(parameters, caller);
-
-                _logger.LogInformation("[ChatService] Tool '{Tool}' executed successfully.", toolName);
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _logger.LogWarning(ex, "[ChatService] Unauthorized tool execution for tool '{Tool}'.", toolName);
-                return "You don't have permission to perform that action.";
-            }
-            catch (ArgumentException ex)
-            {
-                _logger.LogWarning(ex, "[ChatService] Invalid parameters for tool '{Tool}'.", toolName);
-                return $"I couldn't complete that action due to invalid parameters: {ex.Message}";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[ChatService] Tool '{Tool}' execution failed.", toolName);
-                return "Something went wrong while processing your request. Please try again later.";
-            }
-
-            // ── 5e. Build tool result envelope ────────────────────────────────
-            var toolResultEnvelope = new AiToolCallResult
-            {
-                Tool   = toolName,
-                Result = toolResult
-            };
-
-            // ── 5f. Send tool result back to AI for final natural-language response
-            var continuationRequest = new AiChatRequestDto
-            {
-                UserId          = originalRequest.UserId,
-                Role            = originalRequest.Role,
-                ConversationId  = conversationId,
-                Message         = originalRequest.Message,   // Keep original user intent for context
-                History         = originalRequest.History,
-                AcademicContext = originalRequest.AcademicContext,
-                ToolResult      = toolResultEnvelope          // Signal tool-result phase to FastAPI
-            };
-
-            _logger.LogDebug("[ChatService] Sending tool result back to AI for final response. Tool={Tool}", toolName);
-
-            var finalAiResponse = await _aiService.SendToolResultAsync(continuationRequest);
-
-            // If the AI itself failed after tool exec, provide a safe fallback
-            if (string.IsNullOrWhiteSpace(finalAiResponse.Response))
-            {
-                return $"The '{toolName}' action was completed successfully.";
-            }
-
-            return finalAiResponse.Response;
-        }
-
-        // ── Parameter Extraction ─────────────────────────────────────────────
+        // ── Academic Context Enrichment ──────────────────────────────────────
 
         /// <summary>
-        /// Extracts the <c>parameters</c> key from <c>metadata</c>.
-        /// FastAPI structure: <c>{ "parameters": { ... } }</c>
-        /// Falls back to an empty object if metadata is absent or malformed.
+        /// Builds a role-specific academic context dictionary that FastAPI's
+        /// PlannerAgent uses to auto-fill parameters from user context.
+        ///
+        /// Fields populated:
+        ///   All roles:  userId, role
+        ///   Students:   studentId, collegeId, departmentId, batchId, groupId,
+        ///               enrolledOfferingIds (active)
+        ///   Doctors:    doctorId, departmentId, assignedOfferingIds (active)
         /// </summary>
-        private static object ExtractToolParameters(JsonElement? metadata, string toolName)
+        private async Task<object> BuildAcademicContextAsync(Ulid userId, string role)
         {
-            if (metadata == null || metadata.Value.ValueKind == JsonValueKind.Null)
+            try
             {
-                // No metadata at all — return empty params, tool will validate
-                return new Dictionary<string, object>();
+                // Always include: userId + role
+                var baseCtx = new Dictionary<string, object?>
+                {
+                    ["userId"] = userId.ToString(),
+                    ["role"]   = role
+                };
+
+                if (role == "student")
+                {
+                    return await BuildStudentContextAsync(userId, baseCtx);
+                }
+                else if (role == "doctor")
+                {
+                    return await BuildDoctorContextAsync(userId, baseCtx);
+                }
+
+                // admin / superadmin — userId + role is sufficient
+                return baseCtx;
             }
-
-            if (metadata.Value.ValueKind != JsonValueKind.Object)
-                throw new ArgumentException(
-                    $"Expected 'metadata' to be a JSON object for tool '{toolName}', " +
-                    $"got {metadata.Value.ValueKind}.");
-
-            // Try to get metadata["parameters"]
-            if (metadata.Value.TryGetProperty("parameters", out var parametersElement))
+            catch (Exception ex)
             {
-                // Deserialize parameters to a Dictionary<string, JsonElement>
-                // so tool implementations can read strongly-typed values via JsonElement.
-                var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
-                    parametersElement.GetRawText());
+                // Context enrichment is non-fatal: AI still works with base userId/role
+                _logger.LogWarning(ex,
+                    "[ChatService] Academic context enrichment failed for userId={UserId}. " +
+                    "AI will proceed with base context only.", userId);
 
-                return (object?)dict ?? new Dictionary<string, object>();
+                return new { userId = userId.ToString(), role };
             }
+        }
 
-            // metadata exists but has no "parameters" key — return whole metadata as params
-            // This allows simple tools that embed params directly in metadata.
-            var fallback = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
-                metadata.Value.GetRawText());
+        private async Task<object> BuildStudentContextAsync(
+            Ulid userId,
+            Dictionary<string, object?> ctx)
+        {
+            // Resolve the Student record linked to this SystemUser
+            var student = await _context.Students
+                .AsNoTracking()
+                .Include(s => s.Department)
+                .Include(s => s.Batch)
+                .FirstOrDefaultAsync(s => s.SystemUserId == userId && s.IsActive);
 
-            return (object?)fallback ?? new Dictionary<string, object>();
+            if (student == null)
+                return ctx; // Guest / no profile — return base context
+
+            ctx["studentId"]    = student.Id.ToString();
+            ctx["collegeId"]    = student.CollegeId.ToString();
+            ctx["departmentId"] = student.DepartmentId.ToString();
+            ctx["batchId"]      = student.BatchId.ToString();
+            ctx["groupId"]      = student.GroupId.ToString();
+
+            // Active enrolled subject offering IDs (last 10 — capped for payload size)
+            var offeringIds = await _context.Enrollments
+                .AsNoTracking()
+                .Where(e => e.StudentId == student.Id && e.IsActive)
+                .OrderByDescending(e => e.EnrolledAt)
+                .Take(10)
+                .Select(e => e.SubjectOfferingId.ToString())
+                .ToListAsync();
+
+            ctx["enrolledOfferingIds"] = offeringIds;
+
+            return ctx;
+        }
+
+        private async Task<object> BuildDoctorContextAsync(
+            Ulid userId,
+            Dictionary<string, object?> ctx)
+        {
+            // Resolve the Doctor record linked to this SystemUser
+            var doctor = await _context.Doctors
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.SystemUserId == userId);
+
+            if (doctor == null)
+                return ctx; // No profile — return base context
+
+            ctx["doctorId"]    = doctor.Id.ToString();
+            ctx["departmentId"] = doctor.DepartmentId.ToString();
+
+            // Active subject offering IDs assigned to this doctor (last 10)
+            var offeringIds = await _context.SubjectOfferings
+                .AsNoTracking()
+                .Where(o => o.DoctorId == doctor.Id)
+                .OrderByDescending(o => o.CreatedAt)
+                .Take(10)
+                .Select(o => o.Id.ToString())
+                .ToListAsync();
+
+            ctx["assignedOfferingIds"] = offeringIds;
+
+            return ctx;
         }
 
         // ── Delete Message (Admin) ───────────────────────────────────────────

@@ -286,10 +286,9 @@ builder.Services.AddScoped<IRegulationService, RegulationService>();
 builder.Services.AddScoped<ISmartStringGenerator, SmartStringGenerator>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();
-builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Contracts.IAiTool, UniversityManagementSystem.Core.Application.AI.Tools.CreateGeneratedExamTool>();
-builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Contracts.IAiTool, UniversityManagementSystem.Infrastructure.AI.Tools.ResolveSubjectOfferingTool>();
-// AiToolRegistry aggregates all IAiTool implementations; resolved as Scoped to align with Scoped IAiTool registrations.
-builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Execution.AiToolRegistry>();
+// AiToolRegistry and IAiTool registrations removed — tool execution
+// is handled entirely inside the FastAPI AI service. The .NET backend
+// no longer re-executes tools; it only calls AI and saves the response.
 builder.Services.AddHttpClient<IAiService, AiService>(client =>
 {
     var baseUrl = Environment.GetEnvironmentVariable("AI_SERVICE_URL")

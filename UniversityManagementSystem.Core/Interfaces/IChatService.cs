@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
 using NUlid;
@@ -11,14 +10,15 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<Ulid> CreateConversationAsync(Ulid userId, string title);
 
         /// <summary>
-        /// Sends a user message through the full AI loop:
-        /// User → AI → (optional) Tool → AI → Response.
+        /// Sends a user message through the AI service, enriches academic context,
+        /// and persists both the user message and the AI response.
+        ///
+        /// Flow: Fetch history → Enrich academic context → Call AI → Save response → Return
+        ///
+        /// Tool execution is handled entirely by the FastAPI AI service internally.
+        /// This method does NOT execute any tools.
         /// </summary>
-        /// <param name="userId">Resolved system user ID.</param>
-        /// <param name="messageDto">Message payload.</param>
-        /// <param name="role">Caller's role (used for tool capability checks).</param>
-        /// <param name="caller">ClaimsPrincipal of the caller (passed to IAiTool.ExecuteAsync).</param>
-        Task<ChatResponseDto> SendMessageAsync(Ulid userId, SendMessageDto messageDto, string role, ClaimsPrincipal caller);
+        Task<ChatResponseDto> SendMessageAsync(Ulid userId, SendMessageDto messageDto, string role);
 
         Task<IEnumerable<ConversationDto>> GetUserConversationsAsync(Ulid userId);
         Task<IEnumerable<ChatResponseDto>> GetConversationMessagesAsync(Ulid conversationId);
