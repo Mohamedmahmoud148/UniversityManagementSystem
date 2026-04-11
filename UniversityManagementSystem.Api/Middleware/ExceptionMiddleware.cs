@@ -8,6 +8,11 @@ using System.Threading.Tasks;
 
 namespace UniversityManagementSystem.Api.Middleware
 {
+    /// <summary>
+    /// Global exception handler middleware.
+    /// In Development: includes exception message and stack trace in the response.
+    /// In Production:  returns a safe generic message — no internal details exposed.
+    /// </summary>
     public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger, IHostEnvironment env)
     {
         private readonly RequestDelegate _next = next;
@@ -39,24 +44,49 @@ namespace UniversityManagementSystem.Api.Middleware
             var statusCode = exception switch
             {
                 UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
-                KeyNotFoundException => (int)HttpStatusCode.NotFound,
-                ArgumentException => (int)HttpStatusCode.BadRequest,
-                InvalidOperationException => (int)HttpStatusCode.BadRequest,
-                _ => (int)HttpStatusCode.InternalServerError
+                KeyNotFoundException        => (int)HttpStatusCode.NotFound,
+                ArgumentException           => (int)HttpStatusCode.BadRequest,
+                InvalidOperationException   => (int)HttpStatusCode.BadRequest,
+                _                           => (int)HttpStatusCode.InternalServerError
             };
 
             context.Response.StatusCode = statusCode;
 
-            var response = new Core.DTOs.ApiResponse<object>
+            // ── Production: return a safe, generic message — NO stack traces ──
+            // ── Development: include full detail for debugging ────────────────
+            Core.DTOs.ApiResponse<object> response;
+
+            if (_env.IsDevelopment())
             {
-                Success = false,
-                Message = exception.Message,
-                Errors = new System.Collections.Generic.List<string>
+                response = new Core.DTOs.ApiResponse<object>
                 {
-                    exception.ToString(),
-                    exception.InnerException?.ToString() ?? "No inner exception"
-                }
-            };
+                    Success = false,
+                    Message = exception.Message,
+                    Errors  = new System.Collections.Generic.List<string>
+                    {
+                        exception.ToString(),
+                        exception.InnerException?.ToString() ?? "No inner exception"
+                    }
+                };
+            }
+            else
+            {
+                // Map status codes to safe user-facing messages
+                var safeMessage = statusCode switch
+                {
+                    (int)HttpStatusCode.Unauthorized    => "Authentication required.",
+                    (int)HttpStatusCode.NotFound        => "The requested resource was not found.",
+                    (int)HttpStatusCode.BadRequest      => exception.Message, // ArgumentException messages are safe
+                    _                                   => "An unexpected error occurred. Please try again later."
+                };
+
+                response = new Core.DTOs.ApiResponse<object>
+                {
+                    Success = false,
+                    Message = safeMessage,
+                    Errors  = new System.Collections.Generic.List<string>()
+                };
+            }
 
             var json = JsonSerializer.Serialize(response, _jsonOptions);
             await context.Response.WriteAsync(json);

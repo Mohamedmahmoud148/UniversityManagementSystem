@@ -95,13 +95,13 @@ public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IAi
                 ? $"Using the following document:\n\n{content}\n\nAnswer: {dto.Question}"
                 : $"Using the document at this URL: {content}\n\nAnswer: {dto.Question}";
 
-            var chatRequest = new AiChatRequestDto { message = contextMessage };
+            var chatRequest = new AiChatRequestDto { Message = contextMessage };
             var chatResponse = await _aiService.SendChatMessageAsync(chatRequest);
 
             return Ok(new AiQueryResponseDto
             {
                 FileId = dto.FileId,
-                Result = chatResponse.response ?? string.Empty,
+                Result = chatResponse.Response ?? string.Empty,
                 UsedExtractedText = isText
             });
         }

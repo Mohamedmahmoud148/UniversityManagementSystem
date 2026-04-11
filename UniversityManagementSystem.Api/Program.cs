@@ -288,13 +288,16 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();
 builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Contracts.IAiTool, UniversityManagementSystem.Core.Application.AI.Tools.CreateGeneratedExamTool>();
 builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Contracts.IAiTool, UniversityManagementSystem.Infrastructure.AI.Tools.ResolveSubjectOfferingTool>();
+// AiToolRegistry aggregates all IAiTool implementations; resolved as Scoped to align with Scoped IAiTool registrations.
 builder.Services.AddScoped<UniversityManagementSystem.Core.Application.AI.Execution.AiToolRegistry>();
 builder.Services.AddHttpClient<IAiService, AiService>(client =>
 {
     var baseUrl = Environment.GetEnvironmentVariable("AI_SERVICE_URL")
                   ?? "https://ai-orchestration-service-production.up.railway.app";
     client.BaseAddress = new Uri(baseUrl);
-    client.Timeout = TimeSpan.FromSeconds(60); // AI inference can be slow on cold start
+    // Polly pipeline inside AiService adds its own timeout; HttpClient timeout is
+    // a final backstop set slightly above Polly's 65 s pipeline timeout.
+    client.Timeout = TimeSpan.FromSeconds(90);
 });
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IExamService, ExamService>();

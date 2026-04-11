@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NUlid;
 using UniversityManagementSystem.Core.Entities;
+using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Api.Controllers
@@ -40,20 +42,27 @@ namespace UniversityManagementSystem.Api.Controllers
 
     [ApiController]
     [Route("api/ai-tools")]
+    [Authorize]   // All endpoints require authentication
     public class AiToolsController : ControllerBase
     {
         private readonly AppDbContext _context;
         private readonly ILogger<AiToolsController> _logger;
+        private readonly IGradeService _gradeService;
 
-        public AiToolsController(AppDbContext context, ILogger<AiToolsController> logger)
+        public AiToolsController(
+            AppDbContext context,
+            ILogger<AiToolsController> logger,
+            IGradeService gradeService)
         {
             _context = context;
             _logger = logger;
+            _gradeService = gradeService;
         }
 
         // ── 1. Resolve Subject by Name ──────────────────────────────────────
         /// <summary>GET /api/ai-tools/resolve-subject?name={subjectName}</summary>
         [HttpGet("resolve-subject")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
         public async Task<IActionResult> ResolveSubject([FromQuery] string name)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -65,7 +74,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Where(s => s.Name.ToLower() == lower)
                 .Select(s => new
                 {
-                    subjectId = s.Id.ToString(),
+                    subjectId   = s.Id.ToString(),
                     subjectName = s.Name,
                     subjectCode = s.Code
                 })
@@ -88,6 +97,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// NEVER uses FirstOrDefault — temporal collision risk eliminated.
         /// </summary>
         [HttpGet("resolve-offering")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
         public async Task<IActionResult> ResolveOffering([FromQuery] string subject)
         {
             if (string.IsNullOrWhiteSpace(subject))
@@ -117,11 +127,10 @@ namespace UniversityManagementSystem.Api.Controllers
                 return NotFound($"No offerings found for subject '{subject}'.");
             }
 
-            // Return the full list — AI agent is responsible for selecting the correct offering.
             return Ok(new
             {
-                count    = results.Count,
-                note     = "Multiple offerings found. Select using semesterName and/or batchId.",
+                count     = results.Count,
+                note      = "Multiple offerings found. Select using semesterName and/or batchId.",
                 offerings = results
             });
         }
@@ -129,6 +138,7 @@ namespace UniversityManagementSystem.Api.Controllers
         // ── 3. Student Academic Overview ────────────────────────────────────
         /// <summary>GET /api/ai-tools/student-overview/{studentId}</summary>
         [HttpGet("student-overview/{studentId}")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor,Student")]
         public async Task<IActionResult> GetStudentOverview(string studentId)
         {
             if (!Ulid.TryParse(studentId, out var parsedId))
@@ -138,35 +148,33 @@ namespace UniversityManagementSystem.Api.Controllers
             if (!exists)
                 return NotFound($"Student '{studentId}' not found.");
 
-            // GPA – average of finalised grade points (null if no grades yet)
-            var gpa = await _context.StudentGrades
-                .Where(g => g.StudentId == parsedId && g.IsFinalized)
-                .AverageAsync(g => (double?)g.GradePoints) ?? 0.0;
+            // ── GPA via GradeService (unified, credit-hour-weighted) ──────────
+            var gpaDto = await _gradeService.CalculateStudentGpaAsync(parsedId);
 
-            // Active subject enrolments — now includes subjectId for AI follow-up calls
+            // Active subject enrolments
             var subjects = await _context.Enrollments
                 .Include(e => e.SubjectOffering)
                     .ThenInclude(so => so.Subject)
                 .Where(e => e.StudentId == parsedId && e.IsActive)
                 .Select(e => new
                 {
-                    subjectId   = e.SubjectOffering.SubjectId.ToString(),  // ✅ NEW
+                    subjectId   = e.SubjectOffering.SubjectId.ToString(),
                     subjectName = e.SubjectOffering.Subject.Name,
                     subjectCode = e.SubjectOffering.Subject.Code,
-                    offeringId  = e.SubjectOfferingId.ToString()            // ✅ NEW
+                    offeringId  = e.SubjectOfferingId.ToString()
                 })
                 .ToListAsync();
 
-            // Finalised grades — now includes subjectId for AI follow-up calls
+            // Finalised grades
             var grades = await _context.StudentGrades
                 .Include(g => g.SubjectOffering)
                     .ThenInclude(so => so.Subject)
                 .Where(g => g.StudentId == parsedId && g.IsFinalized)
                 .Select(g => new
                 {
-                    subjectId   = g.SubjectOffering.SubjectId.ToString(),   // ✅ NEW
+                    subjectId   = g.SubjectOffering.SubjectId.ToString(),
                     subjectName = g.SubjectOffering.Subject.Name,
-                    subjectCode = g.SubjectOffering.Subject.Code,           // ✅ NEW
+                    subjectCode = g.SubjectOffering.Subject.Code,
                     gradeLetter = g.GradeLetter,
                     finalScore  = g.FinalScore
                 })
@@ -180,18 +188,19 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Where(es => es.StudentId == parsedId)
                 .Select(es => new
                 {
-                    examTitle = es.Exam.Title,
+                    examTitle   = es.Exam.Title,
                     subjectName = es.Exam.SubjectOffering.Subject.Name,
-                    score = es.Score,
-                    totalMarks = es.Exam.TotalMarks,
-                    isGraded = es.IsGraded
+                    score       = es.Score,
+                    totalMarks  = es.Exam.TotalMarks,
+                    isGraded    = es.IsGraded
                 })
                 .ToListAsync();
 
             return Ok(new
             {
-                studentId = studentId,
-                gpa = Math.Round(gpa, 2),
+                studentId  = studentId,
+                gpa        = gpaDto.GPA,
+                totalCreditHours = gpaDto.TotalCreditHours,
                 subjects,
                 grades,
                 exams
@@ -201,6 +210,7 @@ namespace UniversityManagementSystem.Api.Controllers
         // ── 4. Distribute Exams Randomly ────────────────────────────────────
         /// <summary>POST /api/ai-tools/distribute-exams</summary>
         [HttpPost("distribute-exams")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
         public async Task<IActionResult> DistributeExams([FromBody] DistributeExamsRequest request)
         {
             if (request is null)
@@ -212,7 +222,6 @@ namespace UniversityManagementSystem.Api.Controllers
             if (request.ExamIds is null || request.ExamIds.Count == 0)
                 return BadRequest("At least one exam ID is required.");
 
-            // Parse all exam IDs up front
             var examIds = new List<Ulid>();
             foreach (var raw in request.ExamIds)
             {
@@ -227,7 +236,6 @@ namespace UniversityManagementSystem.Api.Controllers
             if (!offeringExists)
                 return NotFound($"Offering '{request.OfferingId}' not found.");
 
-            // Load enrolled students
             var studentIds = await _context.Enrollments
                 .Where(e => e.SubjectOfferingId == parsedOfferingId && e.IsActive)
                 .Select(e => e.StudentId)
@@ -236,7 +244,6 @@ namespace UniversityManagementSystem.Api.Controllers
             if (!studentIds.Any())
                 return BadRequest("No active students are enrolled in this offering.");
 
-            // Randomly assign one exam per student (skip if assignment already exists)
             var rng = new Random();
             var toInsert = new List<ExamSubmission>();
             var skippedCount = 0;
@@ -256,9 +263,9 @@ namespace UniversityManagementSystem.Api.Controllers
 
                 toInsert.Add(new ExamSubmission
                 {
-                    StudentId = sid,
-                    ExamId = randomExamId,
-                    IsGraded = false,
+                    StudentId   = sid,
+                    ExamId      = randomExamId,
+                    IsGraded    = false,
                     AnswersJson = "[]"
                 });
             }
@@ -271,9 +278,9 @@ namespace UniversityManagementSystem.Api.Controllers
 
             return Ok(new
             {
-                message = "Exams distributed successfully.",
+                message           = "Exams distributed successfully.",
                 studentsProcessed = studentIds.Count,
-                newAssignments = toInsert.Count,
+                newAssignments    = toInsert.Count,
                 skippedDuplicates = skippedCount
             });
         }
@@ -281,6 +288,7 @@ namespace UniversityManagementSystem.Api.Controllers
         // ── 5. Resolve Student by Name ──────────────────────────────────────
         /// <summary>GET /api/ai-tools/resolve-student?name={name}</summary>
         [HttpGet("resolve-student")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
         public async Task<IActionResult> ResolveStudent([FromQuery] string name)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -310,6 +318,7 @@ namespace UniversityManagementSystem.Api.Controllers
         // ── 6. Resolve Doctor by Name ───────────────────────────────────────
         /// <summary>GET /api/ai-tools/resolve-doctor?name={name}</summary>
         [HttpGet("resolve-doctor")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
         public async Task<IActionResult> ResolveDoctor([FromQuery] string name)
         {
             if (string.IsNullOrWhiteSpace(name))
@@ -336,9 +345,10 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(result);
         }
 
-        // ── 7. Student GPA ──────────────────────────────────────────────────
+        // ── 7. Student GPA (unified via GradeService) ───────────────────────
         /// <summary>GET /api/ai-tools/student-gpa/{studentId}</summary>
         [HttpGet("student-gpa/{studentId}")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor,Student")]
         public async Task<IActionResult> GetStudentGpa(string studentId)
         {
             if (!Ulid.TryParse(studentId, out var parsedId))
@@ -348,18 +358,16 @@ namespace UniversityManagementSystem.Api.Controllers
             if (!exists)
                 return NotFound($"Student '{studentId}' not found.");
 
-            // Average of finalized GradePoints; 0.0 when no grades are recorded yet
-            var gpa = await _context.StudentGrades
-                .AsNoTracking()
-                .Where(g => g.StudentId == parsedId && g.IsFinalized)
-                .AverageAsync(g => (double?)g.GradePoints) ?? 0.0;
+            // Delegate to GradeService — credit-hour-weighted, authoritative calculation
+            var gpaDto = await _gradeService.CalculateStudentGpaAsync(parsedId);
 
-            return Ok(new StudentGpaResult(studentId, Math.Round(gpa, 2)));
+            return Ok(new StudentGpaResult(studentId, gpaDto.GPA));
         }
 
         // ── 8. Offering Students ────────────────────────────────────────────
         /// <summary>GET /api/ai-tools/offering-students/{offeringId}</summary>
         [HttpGet("offering-students/{offeringId}")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
         public async Task<IActionResult> GetOfferingStudents(string offeringId)
         {
             if (!Ulid.TryParse(offeringId, out var parsedId))
@@ -371,7 +379,6 @@ namespace UniversityManagementSystem.Api.Controllers
             if (!offeringExists)
                 return NotFound($"Offering '{offeringId}' not found.");
 
-            // Active enrollments only — now includes studentCode for id+code+name
             var students = await _context.Enrollments
                 .AsNoTracking()
                 .Include(e => e.Student)
@@ -379,7 +386,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Select(e => new OfferingStudentItem(
                     e.StudentId.ToString(),
                     e.Student.FullName,
-                    e.Student.Code))   // ✅ NEW: includes studentCode
+                    e.Student.Code))
                 .OrderBy(x => x.StudentName)
                 .ToListAsync();
 
@@ -389,6 +396,7 @@ namespace UniversityManagementSystem.Api.Controllers
         // ── 9. Doctor Subjects ──────────────────────────────────────────────
         /// <summary>GET /api/ai-tools/doctor-subjects/{doctorId}</summary>
         [HttpGet("doctor-subjects/{doctorId}")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor,Student")]
         public async Task<IActionResult> GetDoctorSubjects(string doctorId)
         {
             if (!Ulid.TryParse(doctorId, out var parsedId))
@@ -398,8 +406,6 @@ namespace UniversityManagementSystem.Api.Controllers
             if (!doctorExists)
                 return NotFound($"Doctor '{doctorId}' not found.");
 
-            // A doctor teaches subjects via SubjectOfferings where DoctorId matches.
-            // Distinct subjects are returned (a doctor may teach the same subject in multiple semesters).
             var subjects = await _context.SubjectOfferings
                 .AsNoTracking()
                 .Include(o => o.Subject)
