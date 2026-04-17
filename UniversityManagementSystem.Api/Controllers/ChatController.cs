@@ -32,10 +32,10 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("conversations/{id}/messages")]
-        public async Task<IActionResult> GetMessages(string id)
+        public async Task<IActionResult> GetMessages(string id, [FromQuery] int page = 1, [FromQuery] int pageSize = 50)
         {
             if (!Ulid.TryParse(id, out var conversationId)) return BadRequest("Invalid Conversation ID.");
-            var messages = await _chatService.GetConversationMessagesAsync(conversationId);
+            var messages = await _chatService.GetConversationMessagesAsync(conversationId, page, pageSize);
             return Ok(messages);
         }
 

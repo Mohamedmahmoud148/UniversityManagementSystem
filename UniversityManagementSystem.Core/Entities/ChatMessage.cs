@@ -7,7 +7,8 @@ namespace UniversityManagementSystem.Core.Entities
     {
         public Ulid ConversationId { get; set; }
         public string Content { get; set; } = string.Empty;
-        public bool IsUserMessage { get; set; }
+        public string Sender { get; set; } = string.Empty; // "user" or "assistant"
+        public bool IsFallback { get; set; }
         public string? Intent { get; set; }
 
         // Navigation Properties

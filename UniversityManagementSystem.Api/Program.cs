@@ -301,6 +301,7 @@ builder.Services.AddHttpClient<IAiService, AiService>(client =>
 builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IExamService, ExamService>();
 builder.Services.AddScoped<IAcademicYearService, AcademicYearService>();
+builder.Services.AddScoped<IAcademicYearDepartmentService, AcademicYearDepartmentService>();
 builder.Services.AddScoped<ISemesterService, SemesterService>();
 builder.Services.AddScoped<ISubjectOfferingService, SubjectOfferingService>();
 builder.Services.AddScoped<IGradeService, GradeService>();

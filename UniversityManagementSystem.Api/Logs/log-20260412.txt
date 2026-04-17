@@ -1,0 +1,2 @@
+2026-04-12 00:13:27.426 +02:00 [INF] Configured endpoint Attendance, Consumer: UniversityManagementSystem.Infrastructure.Consumers.AttendanceConsumer
+2026-04-12 00:13:28.282 +02:00 [ERR] An error occurred using the connection to database 'universitydb' on server 'tcp://localhost:5432'.

@@ -42,6 +42,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<StudentFile> StudentFiles { get; set; } = null!;
         public DbSet<EnrollmentUpload> EnrollmentUploads { get; set; } = null!;
         public DbSet<Complaint> Complaints { get; set; } = null!;
+        public DbSet<AcademicYearDepartment> AcademicYearDepartments { get; set; } = null!;
 
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         {
@@ -268,6 +269,21 @@ namespace UniversityManagementSystem.Infrastructure.Data
             // --------------------------------------------------------
             // AcademicYear & Semester
             // --------------------------------------------------------
+
+            // FK: AcademicYear → College
+            modelBuilder.Entity<AcademicYear>()
+                .HasOne(y => y.College)
+                .WithMany(c => c.AcademicYears)
+                .HasForeignKey(y => y.CollegeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Unique: (CollegeId, Order) — no two years in the same college share the same order
+            modelBuilder.Entity<AcademicYear>()
+                .HasIndex(y => new { y.CollegeId, y.Order })
+                .IsUnique()
+                .HasDatabaseName("IX_AcademicYears_College_Order");
+
+            // Name still unique globally
             modelBuilder.Entity<AcademicYear>()
                 .HasIndex(y => y.Name)
                 .IsUnique();
@@ -275,6 +291,30 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<Semester>()
                 .HasIndex(s => new { s.Name, s.AcademicYearId })
                 .IsUnique();
+
+            // --------------------------------------------------------
+            // AcademicYearDepartment (junction table)
+            // --------------------------------------------------------
+
+            // Unique mapping: each department can only be assigned once per year
+            modelBuilder.Entity<AcademicYearDepartment>()
+                .HasIndex(m => new { m.AcademicYearId, m.DepartmentId })
+                .IsUnique()
+                .HasDatabaseName("IX_AcademicYearDepartments_Year_Dept");
+
+            // FK: mapping → AcademicYear (cascade: delete year → delete all its mappings)
+            modelBuilder.Entity<AcademicYearDepartment>()
+                .HasOne(m => m.AcademicYear)
+                .WithMany(y => y.AcademicYearDepartments)
+                .HasForeignKey(m => m.AcademicYearId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // FK: mapping → Department (restrict: don't auto-delete dept if mapping exists)
+            modelBuilder.Entity<AcademicYearDepartment>()
+                .HasOne(m => m.Department)
+                .WithMany()
+                .HasForeignKey(m => m.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // --------------------------------------------------------
             // SubjectOffering

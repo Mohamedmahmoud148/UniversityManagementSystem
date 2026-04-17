@@ -48,6 +48,9 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
         /// </summary>
         [JsonPropertyName("metadata")]
         public System.Text.Json.JsonElement? Metadata { get; set; }
+
+        [JsonIgnore]
+        public bool IsFallback { get; set; }
     }
 
     // ── Chat request to FastAPI (PascalCase C# → snake_case wire via policy) ─

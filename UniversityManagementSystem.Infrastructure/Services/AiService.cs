@@ -73,7 +73,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private static readonly AiChatResponseDto _unavailableResponse = new()
         {
             Response = "I'm having trouble connecting to my brain right now. Please try again shortly.",
-            IntentExecuted = "None"
+            IntentExecuted = "None",
+            IsFallback = true
         };
 
         // ----------------------------------------------------------------

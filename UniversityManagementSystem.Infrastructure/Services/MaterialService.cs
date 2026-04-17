@@ -57,11 +57,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             return new MaterialDto
             {
-                Id = material.Id,
-                FileName = material.FileName,
+                Id          = material.Id,
+                FileName    = material.FileName,
                 ContentType = material.ContentType,
-                FileSize = material.FileSize,
-                UploadedAt = material.UploadedAt
+                FileSize    = material.FileSize,
+                UploadedAt  = material.UploadedAt,
+                FileUrl     = storage.BuildUrl(material.StorageKey)
             };
         }
 
@@ -115,19 +116,34 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             var totalCount = await query.CountAsync();
 
-            var items = await query
+            // ── Fetch from DB (include StorageKey for URL building) ───────────
+            // BuildUrl is a pure in-memory call — EF Core cannot translate it to SQL,
+            // so we project StorageKey out of the DB and map after ToListAsync.
+            var rawItems = await query
                 .OrderByDescending(m => m.UploadedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .Select(m => new MaterialDto
+                .Select(m => new
                 {
-                    Id = m.Id,
-                    FileName = m.FileName,
-                    ContentType = m.ContentType,
-                    FileSize = m.FileSize,
-                    UploadedAt = m.UploadedAt
+                    m.Id,
+                    m.FileName,
+                    m.ContentType,
+                    m.FileSize,
+                    m.UploadedAt,
+                    m.StorageKey
                 })
                 .ToListAsync();
+
+            // Build public CDN URL in memory — O(1) per item, no extra HTTP calls
+            var items = rawItems.Select(m => new MaterialDto
+            {
+                Id          = m.Id,
+                FileName    = m.FileName,
+                ContentType = m.ContentType,
+                FileSize    = m.FileSize,
+                UploadedAt  = m.UploadedAt,
+                FileUrl     = storage.BuildUrl(m.StorageKey)
+            }).ToList();
 
             return new PaginatedMaterialResponseDto
             {

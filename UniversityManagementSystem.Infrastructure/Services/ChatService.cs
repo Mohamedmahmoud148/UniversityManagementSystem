@@ -56,19 +56,35 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         // ── Fetch Messages ───────────────────────────────────────────────────
 
-        public async Task<IEnumerable<ChatResponseDto>> GetConversationMessagesAsync(Ulid conversationId)
+        public async Task<PaginatedChatResponseDto> GetConversationMessagesAsync(Ulid conversationId, int page = 1, int pageSize = 50)
         {
-            return await _context.ChatMessages
-                .Where(m => m.ConversationId == conversationId)
-                .OrderBy(m => m.CreatedAt)
+            var query = _context.ChatMessages
+                .Where(m => m.ConversationId == conversationId);
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(m => m.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .OrderBy(m => m.CreatedAt) // Return chronologically (oldest to newest)
                 .Select(m => new ChatResponseDto
                 {
                     Id            = m.Id,
                     Content       = m.Content,
-                    IsUserMessage = m.IsUserMessage,
+                    Sender        = m.Sender,
+                    IsFallback    = m.IsFallback,
                     SentAt        = m.CreatedAt
                 })
                 .ToListAsync();
+
+            return new PaginatedChatResponseDto
+            {
+                TotalCount = totalCount,
+                PageNumber = page,
+                PageSize   = pageSize,
+                Items      = items
+            };
         }
 
         // ── Fetch Conversations ──────────────────────────────────────────────
@@ -113,7 +129,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .OrderBy(m => m.CreatedAt)          // Restore chronological order
                 .Select(m => new
                 {
-                    role    = m.IsUserMessage ? "user" : "assistant",
+                    role    = m.Sender,
                     content = m.Content
                 })
                 .ToListAsync();
@@ -130,7 +146,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 ConversationId = messageDto.ConversationId,
                 Content        = messageDto.Content,
-                IsUserMessage  = true,
+                Sender         = "user",
+                IsFallback     = false,
                 CreatedAt      = DateTime.UtcNow
             };
             _context.ChatMessages.Add(userMsg);
@@ -165,7 +182,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 ConversationId = messageDto.ConversationId,
                 Content        = responseText,
-                IsUserMessage  = false,
+                Sender         = "assistant",
+                IsFallback     = aiResponse.IsFallback,
                 Intent         = aiResponse.IntentExecuted,
                 CreatedAt      = DateTime.UtcNow
             };
@@ -181,7 +199,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 Id            = aiMsg.Id,
                 Content       = aiMsg.Content,
-                IsUserMessage = false,
+                Sender        = aiMsg.Sender,
+                IsFallback    = aiMsg.IsFallback,
                 SentAt        = aiMsg.CreatedAt
             };
         }

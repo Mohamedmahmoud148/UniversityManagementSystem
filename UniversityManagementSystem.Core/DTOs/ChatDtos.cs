@@ -19,8 +19,17 @@ namespace UniversityManagementSystem.Core.DTOs
     {
         public Ulid Id { get; set; }
         public string Content { get; set; } = string.Empty;
-        public bool IsUserMessage { get; set; }
+        public string Sender { get; set; } = string.Empty;
+        public bool IsFallback { get; set; }
         public DateTime SentAt { get; set; }
+    }
+
+    public class PaginatedChatResponseDto
+    {
+        public int TotalCount { get; set; }
+        public int PageNumber { get; set; }
+        public int PageSize { get; set; }
+        public IEnumerable<ChatResponseDto> Items { get; set; } = [];
     }
 
     public class ConversationDto

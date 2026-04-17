@@ -21,7 +21,7 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<ChatResponseDto> SendMessageAsync(Ulid userId, SendMessageDto messageDto, string role);
 
         Task<IEnumerable<ConversationDto>> GetUserConversationsAsync(Ulid userId);
-        Task<IEnumerable<ChatResponseDto>> GetConversationMessagesAsync(Ulid conversationId);
+        Task<PaginatedChatResponseDto> GetConversationMessagesAsync(Ulid conversationId, int page = 1, int pageSize = 50);
 
         // Admin Override
         Task DeleteMessageAsync(Ulid messageId);

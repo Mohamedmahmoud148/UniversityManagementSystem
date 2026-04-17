@@ -12,5 +12,6 @@ namespace UniversityManagementSystem.Core.Entities
         public University University { get; set; } = null!;
         public ICollection<Department> Departments { get; set; } = new List<Department>();
         public ICollection<Subject> Subjects { get; set; } = new List<Subject>();
+        public ICollection<AcademicYear> AcademicYears { get; set; } = [];
     }
 }
