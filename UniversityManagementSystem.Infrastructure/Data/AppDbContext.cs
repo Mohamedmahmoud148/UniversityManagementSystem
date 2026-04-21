@@ -283,18 +283,27 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .IsUnique()
                 .HasDatabaseName("IX_AcademicYears_College_Order");
 
-            // Name still unique globally
+            // Name unique per college — two different colleges can both have "First Year"
             modelBuilder.Entity<AcademicYear>()
-                .HasIndex(y => y.Name)
-                .IsUnique();
+                .HasIndex(y => new { y.CollegeId, y.Name })
+                .IsUnique()
+                .HasDatabaseName("IX_AcademicYears_College_Name");
 
             modelBuilder.Entity<Semester>()
                 .HasIndex(s => new { s.Name, s.AcademicYearId })
                 .IsUnique();
 
             // --------------------------------------------------------
-            // AcademicYearDepartment (junction table)
+            // AcademicYearDepartment (junction / config table)
             // --------------------------------------------------------
+
+            // Explicit PK — entity does NOT inherit BaseEntity so EF needs it declared
+            modelBuilder.Entity<AcademicYearDepartment>()
+                .HasKey(m => m.Id);
+
+            // No soft-delete query filter — this is a hard-delete config table
+            // (The global BaseEntity filter loop above only targets BaseEntity subtypes,
+            //  so this entity is already excluded now that it no longer inherits BaseEntity.)
 
             // Unique mapping: each department can only be assigned once per year
             modelBuilder.Entity<AcademicYearDepartment>()
