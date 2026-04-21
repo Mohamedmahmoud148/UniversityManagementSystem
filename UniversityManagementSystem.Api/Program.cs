@@ -227,6 +227,14 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "University Management System API", Version = "v1" });
+
+    // Map Ulid → string so Swagger renders all ULID fields as plain strings instead of {}
+    c.MapType<NUlid.Ulid>(() => new Microsoft.OpenApi.Models.OpenApiSchema
+    {
+        Type    = "string",
+        Example = new Microsoft.OpenApi.Any.OpenApiString("01JSCX1234ABC56DEFGH789JKM")
+    });
+
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme.",
