@@ -399,6 +399,15 @@ namespace UniversityManagementSystem.Api.Controllers
             if (entity == null) return NotFound($"Department with code '{code}' not found.");
             entity.Name = dto.Name;
             entity.CollegeId = college.Id;
+
+            if (!string.IsNullOrWhiteSpace(dto.Code) && dto.Code.ToUpper() != entity.Code)
+            {
+                var codeConflict = await _service.GetDepartmentByCodeAsync(dto.Code.ToUpper());
+                if (codeConflict != null)
+                    return Conflict($"A Department with code '{dto.Code.ToUpper()}' already exists.");
+                entity.Code = dto.Code.ToUpper();
+            }
+
             await _service.UpdateDepartmentAsync(entity);
             return NoContent();
         }
@@ -489,6 +498,15 @@ namespace UniversityManagementSystem.Api.Controllers
             if (entity == null) return NotFound($"Batch with code '{code}' not found.");
             entity.Name = dto.Name;
             entity.DepartmentId = department.Id;
+
+            if (!string.IsNullOrWhiteSpace(dto.Code) && dto.Code.ToUpper() != entity.Code)
+            {
+                var codeConflict = await _service.GetBatchByCodeAsync(dto.Code.ToUpper());
+                if (codeConflict != null)
+                    return Conflict($"A Batch with code '{dto.Code.ToUpper()}' already exists.");
+                entity.Code = dto.Code.ToUpper();
+            }
+
             await _service.UpdateBatchAsync(entity);
             return NoContent();
         }
@@ -582,6 +600,15 @@ namespace UniversityManagementSystem.Api.Controllers
             if (entity == null) return NotFound($"Group with code '{code}' not found.");
             entity.Name = dto.Name;
             entity.BatchId = batch.Id;
+
+            if (!string.IsNullOrWhiteSpace(dto.Code) && dto.Code.ToUpper() != entity.Code)
+            {
+                var codeConflict = await _service.GetGroupByCodeAsync(dto.Code.ToUpper());
+                if (codeConflict != null)
+                    return Conflict($"A Group with code '{dto.Code.ToUpper()}' already exists.");
+                entity.Code = dto.Code.ToUpper();
+            }
+
             await _service.UpdateGroupAsync(entity);
             return NoContent();
         }
