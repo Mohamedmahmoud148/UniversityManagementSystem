@@ -38,6 +38,15 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(result);
         }
 
+        /// <summary>List all academic years for a specific college, ordered by order.</summary>
+        [HttpGet("by-college/{collegeId}")]
+        public async Task<IActionResult> GetByCollege(string collegeId)
+        {
+            if (!Ulid.TryParse(collegeId, out var uid)) return BadRequest("Invalid College ID.");
+            var result = await _service.GetByCollegeIdAsync(uid);
+            return Ok(result);
+        }
+
         /// <summary>Activate this year (deactivates all others in the same college) (Admin only).</summary>
         [HttpPost("{id}/activate")]
         [Authorize(Roles = "Admin,SuperAdmin")]

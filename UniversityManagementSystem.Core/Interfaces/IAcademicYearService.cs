@@ -11,6 +11,7 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<AcademicYearDto> UpdateAsync(Ulid id, UpdateAcademicYearDto dto);
         Task DeleteAsync(Ulid id);
         Task<IEnumerable<AcademicYearDto>> GetAllAsync();
+        Task<IEnumerable<AcademicYearDto>> GetByCollegeIdAsync(Ulid collegeId);
         Task ActivateAsync(Ulid id);
     }
 }

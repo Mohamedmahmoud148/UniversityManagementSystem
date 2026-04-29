@@ -55,6 +55,17 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return years.Select(y => MapToDto(y, y.College.Name));
         }
 
+        public async Task<IEnumerable<AcademicYearDto>> GetByCollegeIdAsync(Ulid collegeId)
+        {
+            var years = await _context.Set<AcademicYear>()
+                .Include(y => y.College)
+                .Where(y => y.CollegeId == collegeId)
+                .OrderBy(y => y.Order)
+                .ToListAsync();
+
+            return years.Select(y => MapToDto(y, y.College.Name));
+        }
+
         public async Task ActivateAsync(Ulid id)
         {
             var yearToActivate = await _context.Set<AcademicYear>()
