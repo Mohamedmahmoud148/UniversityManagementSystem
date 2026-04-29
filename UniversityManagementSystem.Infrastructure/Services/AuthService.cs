@@ -135,7 +135,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
                 // Ensure uniqueness checks
                 if (await _context.SystemUsers.AnyAsync(u => u.NationalId == dto.NationalId))
-                    throw new Exception("NationalId exists");
+                    throw new InvalidOperationException("NationalId already exists.");
 
                 // Resolve CollegeCode → College
                 if (string.IsNullOrWhiteSpace(dto.CollegeCode))
@@ -236,7 +236,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 string universityId = await GenerateUniversityIdAsync(UserRole.Doctor);
 
                 if (await _context.SystemUsers.AnyAsync(u => u.NationalId == dto.NationalId))
-                    throw new Exception("NationalId exists");
+                    throw new InvalidOperationException("NationalId already exists.");
 
                 // Resolve DepartmentCode → Department
                 if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
@@ -299,7 +299,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 string universityId = await GenerateUniversityIdAsync(UserRole.Admin);
 
                 if (await _context.SystemUsers.AnyAsync(u => u.NationalId == dto.NationalId))
-                    throw new Exception("NationalId exists");
+                    throw new InvalidOperationException("NationalId already exists.");
 
                 var user = new SystemUser
                 {

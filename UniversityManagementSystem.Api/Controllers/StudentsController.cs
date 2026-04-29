@@ -163,6 +163,9 @@ namespace UniversityManagementSystem.Api.Controllers
             if (group == null)
                 return NotFound($"Group with code '{dto.GroupCode}' not found.");
 
+            var department = await _context.Departments.FindAsync(batch.DepartmentId);
+            var college = await _context.Colleges.FindAsync(department!.CollegeId);
+
             // Use AuthService to ensure consistent creation (SystemUser + Student)
             var registerDto = new RegisterStudentDto
             {
@@ -170,7 +173,9 @@ namespace UniversityManagementSystem.Api.Controllers
                 Phone = dto.Phone,
                 NationalId = dto.NationalId,
                 BatchCode = batch.Code,
-                GroupCode = group.Code
+                GroupCode = group.Code,
+                DepartmentCode = department.Code,
+                CollegeCode = college!.Code
             };
 
             var creatorId = Ulid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
