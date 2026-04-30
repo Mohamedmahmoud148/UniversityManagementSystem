@@ -44,7 +44,8 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             Ulid userId = await _systemUserResolver.ResolveSystemUserIdAsync(User);
             var role = User.FindFirstValue("role") ?? User.FindFirstValue(ClaimTypes.Role) ?? "student";
-            var response = await _chatService.SendMessageAsync(userId, dto, role);
+            var profileId = User.FindFirstValue("ProfileId");
+            var response = await _chatService.SendMessageAsync(userId, dto, role, profileId);
             return Ok(response);
         }
 

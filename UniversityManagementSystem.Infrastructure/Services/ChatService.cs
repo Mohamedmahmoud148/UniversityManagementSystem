@@ -110,7 +110,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task<ChatResponseDto> SendMessageAsync(
             Ulid userId,
             SendMessageDto messageDto,
-            string role)
+            string role,
+            string? profileId = null)
         {
             // ── 0. Validate Conversation ──────────────────────────────────────
             var conversation = await _context.Conversations.FindAsync(messageDto.ConversationId);
@@ -138,7 +139,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             //    FastAPI's PlannerAgent uses academic_context to auto-fill
             //    tool parameters (userId, studentId, subjectOfferingId, etc.)
             //    without asking the user for data they already have implicitly.
-            var academicContext = await BuildAcademicContextAsync(userId, role);
+            var academicContext = await BuildAcademicContextAsync(userId, role, profileId);
 
             // ── 3. Save User Message ──────────────────────────────────────────
             //    Saved AFTER fetching history to keep history clean.
@@ -217,7 +218,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         ///               enrolledOfferingIds (active)
         ///   Doctors:    doctorId, departmentId, assignedOfferingIds (active)
         /// </summary>
-        private async Task<object> BuildAcademicContextAsync(Ulid userId, string role)
+        private async Task<object> BuildAcademicContextAsync(Ulid userId, string role, string? profileId = null)
         {
             try
             {
@@ -237,7 +238,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     return await BuildDoctorContextAsync(userId, baseCtx);
                 }
 
-                // admin / superadmin — userId + role is sufficient
+                // admin / superadmin — include profileId so FastAPI can call /api/Admins/{profileId}
+                if (!string.IsNullOrEmpty(profileId))
+                    baseCtx["profileId"] = profileId;
                 return baseCtx;
             }
             catch (Exception ex)
