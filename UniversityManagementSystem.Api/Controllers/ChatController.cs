@@ -43,7 +43,7 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<IActionResult> SendMessage([FromBody] SendMessageDto dto)
         {
             Ulid userId = await _systemUserResolver.ResolveSystemUserIdAsync(User);
-            var role = User.FindFirstValue(ClaimTypes.Role) ?? "student";
+            var role = User.FindFirstValue("role") ?? User.FindFirstValue(ClaimTypes.Role) ?? "student";
             var response = await _chatService.SendMessageAsync(userId, dto, role);
             return Ok(response);
         }
