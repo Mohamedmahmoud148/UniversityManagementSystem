@@ -159,7 +159,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             //    happens inside FastAPI. We do NOT inspect tool_used.
             var aiRequest = new AiChatRequestDto
             {
-                UserId          = userId,
+                UserId          = userId.ToString(),
                 Role            = role,
                 Message         = messageDto.Content,
                 History         = history.Cast<object>().ToArray(),

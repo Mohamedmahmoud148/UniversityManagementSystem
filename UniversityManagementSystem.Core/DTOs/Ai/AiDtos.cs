@@ -61,7 +61,7 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
     /// </summary>
     public class AiChatRequestDto
     {
-        public Ulid UserId { get; set; }
+        public string UserId { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public object[] History { get; set; } = [];
