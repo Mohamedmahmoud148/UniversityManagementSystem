@@ -12,7 +12,11 @@ namespace UniversityManagementSystem.Core.DTOs
     public class SendMessageDto
     {
         public Ulid ConversationId { get; set; }
-        public string Message { get; set; } = string.Empty;
+        public string? Content { get; set; }
+        public string? Message { get; set; }
+        
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string ActualMessage => !string.IsNullOrWhiteSpace(Message) ? Message : (Content ?? string.Empty);
     }
 
     public class ChatResponseDto
