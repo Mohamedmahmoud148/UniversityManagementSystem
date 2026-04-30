@@ -145,7 +145,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var userMsg = new ChatMessage
             {
                 ConversationId = messageDto.ConversationId,
-                Content        = messageDto.Content,
+                Content        = messageDto.Message,
                 Sender         = "user",
                 IsFallback     = false,
                 CreatedAt      = DateTime.UtcNow
@@ -161,7 +161,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 UserId          = userId.ToString(),
                 Role            = role,
-                Message         = messageDto.Content,
+                Message         = messageDto.Message,
                 History         = history.Cast<object>().ToArray(),
                 AcademicContext = academicContext,
                 ConversationId  = conversation.Id.ToString()
