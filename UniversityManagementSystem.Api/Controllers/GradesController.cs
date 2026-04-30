@@ -5,12 +5,41 @@ using Microsoft.AspNetCore.Mvc;
 using UniversityManagementSystem.Core.Interfaces;
 using NUlid;
 
+using Microsoft.AspNetCore.Http;
+
 namespace UniversityManagementSystem.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class GradesController(IGradeService gradeService) : ControllerBase
+    public class GradesController(IGradeService gradeService, IExcelImportService excelImportService, IFileService fileService, IUserContextService userContextService) : ControllerBase
     {
+        [HttpPost("import/{offeringId}")]
+        [Authorize(Roles = "Doctor,Admin")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ImportGrades(string offeringId, IFormFile file)
+        {
+            if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
+            
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var doctorId = Ulid.Parse(profileClaim.Value);
+
+            // Upload the Excel file to R2 bucket for archiving/auditing
+            var userId = userContextService.GetUserId();
+            var uploadedFileResult = await fileService.UploadFormFileAsync(userId, file);
+
+            var importResult = await excelImportService.ImportGradesFromExcelAsync(oId, doctorId, file);
+            importResult.UploadedFileId = uploadedFileResult.FileId.ToString();
+            
+            // If there were any imported grades (successful ones), trigger recalculation automatically
+            if (importResult.Imported > 0)
+            {
+                await gradeService.CalculateGradesForOfferingAsync(oId, doctorId);
+            }
+
+            return Ok(importResult);
+        }
+
         [HttpPost("calculate/{offeringId}")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> CalculateGrades(string offeringId)

@@ -13,6 +13,11 @@ namespace UniversityManagementSystem.Core.Interfaces
         /// FullName | Email | UniversityStudentId | BatchCode | GroupCode
         /// </summary>
         Task<ImportStudentsResultDto> ImportStudentsFromExcelAsync(IFormFile file);
+
+        /// <summary>
+        /// Imports offline grades from an .xlsx file for a specific SubjectOffering.
+        /// </summary>
+        Task<ImportGradesResultDto> ImportGradesFromExcelAsync(NUlid.Ulid offeringId, NUlid.Ulid doctorId, IFormFile file);
     }
 }
 

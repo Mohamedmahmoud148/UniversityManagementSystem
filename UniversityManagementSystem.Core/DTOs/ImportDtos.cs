@@ -26,5 +26,14 @@ namespace UniversityManagementSystem.Core.DTOs
         public int Skipped { get; set; }
         public List<string> Errors { get; set; } = new();
     }
+
+    public class ImportGradesResultDto
+    {
+        public int TotalRows { get; set; }
+        public int Imported { get; set; }
+        public int Skipped { get; set; }
+        public List<string> Errors { get; set; } = new();
+        public string UploadedFileId { get; set; } = string.Empty;
+    }
 }
 

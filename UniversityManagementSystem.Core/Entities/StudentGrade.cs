@@ -8,6 +8,13 @@ namespace UniversityManagementSystem.Core.Entities
         public double FinalScore { get; set; }
         public string GradeLetter { get; set; } = string.Empty;
         public double GradePoints { get; set; }
+        
+        // Detailed offline and platform scores
+        public double? MidtermScore { get; set; }
+        public double? CourseworkScore { get; set; }
+        public double? FinalExamScore { get; set; }
+        public double? PlatformScore { get; set; }
+
         public bool IsFinalized { get; set; }
         public DateTime CalculatedAt { get; set; } = DateTime.UtcNow;
 

@@ -22,7 +22,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<Student?> GetStudentByCodeAsync(string code)
         {
-            var students = await _repo.GetAsync(s => s.Code == code);
+            var normalizedCode = code.Trim().ToLower();
+            var students = await _repo.GetAsync(s => s.Code.ToLower() == normalizedCode);
             return students.FirstOrDefault();
         }
 
@@ -100,7 +101,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<Doctor?> GetDoctorByCodeAsync(string code)
         {
-            var doctors = await _repo.GetAsync(d => d.Code == code);
+            var normalizedCode = code.Trim().ToLower();
+            var doctors = await _repo.GetAsync(d => d.Code.ToLower() == normalizedCode);
             return doctors.FirstOrDefault();
         }
 
@@ -178,7 +180,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<Subject?> GetSubjectByCodeAsync(string code)
         {
-            var subjects = await _repo.GetAsync(s => s.Code == code);
+            var normalizedCode = code.Trim().ToLower();
+            var subjects = await _repo.GetAsync(s => s.Code.ToLower() == normalizedCode);
             return subjects.FirstOrDefault();
         }
 

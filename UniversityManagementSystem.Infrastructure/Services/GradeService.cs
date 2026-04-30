@@ -14,7 +14,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly IAuditService _auditService = auditService;
         public async Task<int> CalculateGradesForOfferingAsync(Ulid offeringId, Ulid doctorId)
         {
-            // 1. Validate Doctor & Offering
+            // 1. Validate Doctor & Offering with grading config
             var offering = await context.Set<SubjectOffering>()
                 .Include(so => so.Subject)
                 .AsNoTracking()
@@ -24,19 +24,73 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (offering.DoctorId != doctorId)
                 throw new UnauthorizedAccessException("You are not the instructor for this offering.");
 
+            // 1b. Validate Weights = 1.0 (with a small epsilon for floating point)
+            double totalWeight = offering.MidtermWeight + offering.CourseworkWeight + offering.FinalExamWeight + offering.PlatformWeight;
+            if (Math.Abs(totalWeight - 1.0) > 0.001)
+            {
+                throw new InvalidOperationException($"Total weights must equal 1.0. Current sum is {totalWeight}. Please configure the grading weights first.");
+            }
+
             // 2. Get Enrolled Students
-            var enrollments = await context.Enrollments
+            var enrolledStudentIds = await context.Enrollments
                 .Where(e => e.SubjectOfferingId == offeringId)
                 .Select(e => e.StudentId)
                 .ToListAsync();
 
-            if (enrollments.Count == 0) return 0;
+            if (enrolledStudentIds.Count == 0) return 0;
+
+            // 3. Aggregate Platform Scores in one query (GroupBy)
+            var platformScores = await context.ExamSubmissions
+                .Where(s => s.Exam.SubjectOfferingId == offeringId && enrolledStudentIds.Contains(s.StudentId))
+                .GroupBy(s => s.StudentId)
+                .Select(g => new { StudentId = g.Key, TotalPlatformScore = g.Sum(s => s.Score ?? 0) })
+                .ToDictionaryAsync(x => x.StudentId, x => x.TotalPlatformScore);
+
+            // 4. Fetch existing Grade Records
+            var existingGrades = await context.Set<StudentGrade>()
+                .IgnoreQueryFilters()
+                .Where(g => g.SubjectOfferingId == offeringId && enrolledStudentIds.Contains(g.StudentId))
+                .ToDictionaryAsync(g => g.StudentId);
 
             int processedCount = 0;
 
-            foreach (var studentId in enrollments)
+            // 5. Process each student
+            foreach (var studentId in enrolledStudentIds)
             {
-                await CalculateStudentGradeInternalAsync(studentId, offeringId);
+                double platformScore = platformScores.TryGetValue(studentId, out var pScore) ? pScore : 0;
+                
+                if (!existingGrades.TryGetValue(studentId, out var gradeRecord))
+                {
+                    gradeRecord = new StudentGrade
+                    {
+                        StudentId = studentId,
+                        SubjectOfferingId = offeringId,
+                        PlatformScore = platformScore
+                    };
+                    context.Set<StudentGrade>().Add(gradeRecord);
+                }
+                else
+                {
+                    gradeRecord.PlatformScore = platformScore;
+                    if (gradeRecord.DeletedAt != null) gradeRecord.DeletedAt = null;
+                    context.Entry(gradeRecord).State = EntityState.Modified;
+                }
+
+                // Calculate weighted Final Score
+                double finalScore = 
+                    ((gradeRecord.MidtermScore ?? 0) * offering.MidtermWeight) +
+                    ((gradeRecord.CourseworkScore ?? 0) * offering.CourseworkWeight) +
+                    ((gradeRecord.FinalExamScore ?? 0) * offering.FinalExamWeight) +
+                    ((gradeRecord.PlatformScore ?? 0) * offering.PlatformWeight);
+
+                var (letter, points) = CalculateGradeScale(finalScore);
+
+                gradeRecord.FinalScore = finalScore;
+                gradeRecord.GradeLetter = letter;
+                gradeRecord.GradePoints = points;
+                gradeRecord.IsFinalized = true;
+                gradeRecord.CalculatedAt = DateTime.UtcNow;
+
                 processedCount++;
             }
 
@@ -46,53 +100,50 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         private async Task CalculateStudentGradeInternalAsync(Ulid studentId, Ulid offeringId)
         {
-            // 3. Get Student's Submissions for this offering
-            var totalScore = await context.ExamSubmissions
+            // Re-use bulk method for single calculation to keep logic DRY and consistent with weights.
+            // But since this is called for single recalculations, we can fetch offering first.
+            var offering = await context.Set<SubjectOffering>().FirstOrDefaultAsync(o => o.Id == offeringId)
+                           ?? throw new KeyNotFoundException($"Offering {offeringId} not found");
+
+            // We can just call the bulk method. It's safe since it aggregates for all enrolled.
+            // However, to be highly optimized for a single student, we do it directly:
+            double totalWeight = offering.MidtermWeight + offering.CourseworkWeight + offering.FinalExamWeight + offering.PlatformWeight;
+            if (Math.Abs(totalWeight - 1.0) > 0.001) throw new InvalidOperationException("Weights must equal 1.0.");
+
+            var platformScore = await context.ExamSubmissions
                 .Where(s => s.StudentId == studentId && s.Exam.SubjectOfferingId == offeringId)
                 .SumAsync(s => s.Score ?? 0);
 
-            // 4. Calculate Grade
-            var (letter, points) = CalculateGradeScale(totalScore);
-
-            // 5. Update or Create StudentGrade
             var gradeRecord = await context.Set<StudentGrade>()
-                .IgnoreQueryFilters() // Include soft-deleted ones to restore them if needed? Or just create new?
-                                      // Let's stick to active ones for now, OR if invalidating means soft-delete, then re-calc should restore?
-                                      // If I soft-delete, query filter hides it. So I create new.
-                                      // If I want to "Recalculate" a deleted one, I should probably restore it.
-                                      // Let's use IgnoreQueryFilters to check.
+                .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(g => g.StudentId == studentId && g.SubjectOfferingId == offeringId);
 
             if (gradeRecord == null)
             {
-                gradeRecord = new StudentGrade
-                {
-                    StudentId = studentId,
-                    SubjectOfferingId = offeringId,
-                    FinalScore = totalScore,
-                    GradeLetter = letter,
-                    GradePoints = points,
-                    IsFinalized = true,
-                    CalculatedAt = DateTime.UtcNow
-                };
+                gradeRecord = new StudentGrade { StudentId = studentId, SubjectOfferingId = offeringId };
                 context.Set<StudentGrade>().Add(gradeRecord);
             }
-            else
+            else if (gradeRecord.DeletedAt != null)
             {
-                // If it was soft-deleted, we might want to "restore" it implicitly?
-                if (gradeRecord.DeletedAt != null)
-                {
-                    gradeRecord.DeletedAt = null;
-                }
-
-                gradeRecord.FinalScore = totalScore;
-                gradeRecord.GradeLetter = letter;
-                gradeRecord.GradePoints = points;
-                gradeRecord.IsFinalized = true;
-                gradeRecord.CalculatedAt = DateTime.UtcNow;
-
+                gradeRecord.DeletedAt = null;
                 context.Entry(gradeRecord).State = EntityState.Modified;
             }
+
+            gradeRecord.PlatformScore = platformScore;
+
+            double finalScore = 
+                    ((gradeRecord.MidtermScore ?? 0) * offering.MidtermWeight) +
+                    ((gradeRecord.CourseworkScore ?? 0) * offering.CourseworkWeight) +
+                    ((gradeRecord.FinalExamScore ?? 0) * offering.FinalExamWeight) +
+                    ((gradeRecord.PlatformScore ?? 0) * offering.PlatformWeight);
+
+            var (letter, points) = CalculateGradeScale(finalScore);
+
+            gradeRecord.FinalScore = finalScore;
+            gradeRecord.GradeLetter = letter;
+            gradeRecord.GradePoints = points;
+            gradeRecord.IsFinalized = true;
+            gradeRecord.CalculatedAt = DateTime.UtcNow;
         }
 
         public async Task RecalculateStudentGradeAsync(Ulid gradeId)

@@ -336,5 +336,182 @@ namespace UniversityManagementSystem.Infrastructure.Services
             result.Errors.Add(message);
             return result;
         }
+
+        // ── New method: Import Offline Grades ─────────────────────────────────
+        public async Task<ImportGradesResultDto> ImportGradesFromExcelAsync(Ulid offeringId, Ulid doctorId, IFormFile file)
+        {
+            var result = new ImportGradesResultDto();
+
+            if (file == null || file.Length == 0)
+            {
+                result.Errors.Add("Uploaded file is empty or missing.");
+                return result;
+            }
+
+            var ext = Path.GetExtension(file.FileName);
+            if (!ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+            {
+                result.Errors.Add($"Invalid file format '{ext}'. Only .xlsx files are accepted.");
+                return result;
+            }
+
+            // Verify doctor ownership
+            var offering = await _context.Set<SubjectOffering>().AsNoTracking().FirstOrDefaultAsync(o => o.Id == offeringId);
+            if (offering == null)
+            {
+                result.Errors.Add("Subject offering not found.");
+                return result;
+            }
+            if (offering.DoctorId != doctorId)
+            {
+                result.Errors.Add("You are not the instructor for this offering.");
+                return result;
+            }
+
+            using var memStream = new MemoryStream();
+            await file.CopyToAsync(memStream);
+            memStream.Position = 0;
+
+            using var workbook = new XLWorkbook(memStream);
+            var worksheet = workbook.Worksheet(1);
+            var range = worksheet.RangeUsed();
+
+            if (range == null)
+            {
+                result.Errors.Add("The worksheet is empty.");
+                return result;
+            }
+
+            var headerRow = range.FirstRow();
+            var dataRows = range.RowsUsed().Skip(1).ToList();
+            result.TotalRows = dataRows.Count;
+
+            if (result.TotalRows == 0)
+            {
+                result.Errors.Add("No data rows found (only header present).");
+                return result;
+            }
+
+            // Dynamic Column Mapping (Case Insensitive)
+            int idCol = -1, midtermCol = -1, courseworkCol = -1, finalCol = -1;
+            foreach (var cell in headerRow.Cells())
+            {
+                var val = cell.GetValue<string>().ToLower().Trim();
+                if (val.Contains("id") || val.Contains("student")) idCol = cell.Address.ColumnNumber;
+                else if (val.Contains("midterm")) midtermCol = cell.Address.ColumnNumber;
+                else if (val.Contains("coursework") || val.Contains("work")) courseworkCol = cell.Address.ColumnNumber;
+                else if (val.Contains("final")) finalCol = cell.Address.ColumnNumber;
+            }
+
+            if (idCol == -1)
+            {
+                result.Errors.Add("Could not identify the Student ID column. Ensure the header contains 'id' or 'student'.");
+                return result;
+            }
+
+            // Pre-fetch Enrolled Students mapping (UniversityStudentId -> StudentId)
+            var enrolledStudents = await _context.Enrollments
+                .Include(e => e.Student)
+                .Where(e => e.SubjectOfferingId == offeringId)
+                .ToDictionaryAsync(e => e.Student.UniversityStudentId.ToLower(), e => e.StudentId);
+
+            // Fetch existing Grade Records
+            var existingGrades = await _context.Set<StudentGrade>()
+                .IgnoreQueryFilters()
+                .Where(g => g.SubjectOfferingId == offeringId)
+                .ToDictionaryAsync(g => g.StudentId);
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                foreach (var row in dataRows)
+                {
+                    int rowNum = row.RowNumber();
+                    string uniId = row.Cell(idCol).GetValue<string>().Trim().ToLower();
+
+                    if (string.IsNullOrWhiteSpace(uniId))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: Student ID is missing.");
+                        continue;
+                    }
+
+                    if (!enrolledStudents.TryGetValue(uniId, out var studentId))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: Student '{uniId}' is not enrolled in this offering.");
+                        continue;
+                    }
+
+                    double? ParseDouble(int colIndex)
+                    {
+                        if (colIndex == -1) return null;
+                        var cellStr = row.Cell(colIndex).GetValue<string>().Trim();
+                        if (string.IsNullOrWhiteSpace(cellStr)) return null;
+                        if (double.TryParse(cellStr, out var d)) return d;
+                        return null; // Invalid format treated as null (or could be an error, but null is safer for partial grades)
+                    }
+
+                    double? midterm = ParseDouble(midtermCol);
+                    double? coursework = ParseDouble(courseworkCol);
+                    double? final = ParseDouble(finalCol);
+
+                    // Validations
+                    if (midterm.HasValue && midterm.Value > offering.MidtermMaxScore)
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: Midterm score {midterm.Value} exceeds max {offering.MidtermMaxScore}.");
+                        continue;
+                    }
+                    if (coursework.HasValue && coursework.Value > offering.CourseworkMaxScore)
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: Coursework score {coursework.Value} exceeds max {offering.CourseworkMaxScore}.");
+                        continue;
+                    }
+                    if (final.HasValue && final.Value > offering.FinalExamMaxScore)
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: Final score {final.Value} exceeds max {offering.FinalExamMaxScore}.");
+                        continue;
+                    }
+
+                    if (!existingGrades.TryGetValue(studentId, out var gradeRecord))
+                    {
+                        gradeRecord = new StudentGrade
+                        {
+                            StudentId = studentId,
+                            SubjectOfferingId = offeringId,
+                        };
+                        _context.Set<StudentGrade>().Add(gradeRecord);
+                        existingGrades[studentId] = gradeRecord; // track it
+                    }
+                    else
+                    {
+                        if (gradeRecord.DeletedAt != null) gradeRecord.DeletedAt = null;
+                        _context.Entry(gradeRecord).State = EntityState.Modified;
+                    }
+
+                    // Only update if value is present in the sheet
+                    if (midterm.HasValue) gradeRecord.MidtermScore = midterm.Value;
+                    if (coursework.HasValue) gradeRecord.CourseworkScore = coursework.Value;
+                    if (final.HasValue) gradeRecord.FinalExamScore = final.Value;
+
+                    result.Imported++;
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                result.Errors.Add($"Import failed critically and was rolled back: {ex.Message}");
+                result.Imported = 0; // Everything rolled back
+            }
+
+            return result;
+        }
     }
 }

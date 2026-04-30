@@ -16,7 +16,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<University?> GetUniversityByCodeAsync(string code)
         {
-            var results = await _repo.GetAsync(u => u.Code == code.ToUpper());
+            var normalizedCode = code.Trim().ToUpper();
+            var results = await _repo.GetAsync(u => u.Code.ToUpper() == normalizedCode);
             return results.FirstOrDefault();
         }
 
@@ -46,7 +47,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<College?> GetCollegeByCodeAsync(string code)
         {
-            var colleges = await _repo.GetAsync(c => c.Code == code);
+            var normalizedCode = code.Trim().ToLower();
+            var colleges = await _repo.GetAsync(c => c.Code.ToLower() == normalizedCode);
             return colleges.FirstOrDefault();
         }
         public async Task<College> CreateCollegeAsync(College college)
@@ -78,7 +80,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<Department?> GetDepartmentByCodeAsync(string code)
         {
-            var departments = await _repo.GetAsync(d => d.Code == code);
+            var normalizedCode = code.Trim().ToLower();
+            var departments = await _repo.GetAsync(d => d.Code.ToLower() == normalizedCode);
             return departments.FirstOrDefault();
         }
         public async Task<Department> CreateDepartmentAsync(Department department)
@@ -108,7 +111,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task<Batch?> GetBatchByIdAsync(Ulid id) => await _repo.GetByIdAsync(id);
         public async Task<Batch?> GetBatchByCodeAsync(string code)
         {
-            var batches = await _repo.GetAsync(b => b.Code == code);
+            var normalizedCode = code.Trim().ToLower();
+            var batches = await _repo.GetAsync(b => b.Code.ToLower() == normalizedCode);
             return batches.FirstOrDefault();
         }
         public async Task<Batch> CreateBatchAsync(Batch batch) => await _repo.AddAsync(batch);
@@ -134,7 +138,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task<Group?> GetGroupByIdAsync(Ulid id) => await _repo.GetByIdAsync(id);
         public async Task<Group?> GetGroupByCodeAsync(string code)
         {
-            var groups = await _repo.GetAsync(g => g.Code == code);
+            var normalizedCode = code.Trim().ToLower();
+            var groups = await _repo.GetAsync(g => g.Code.ToLower() == normalizedCode);
             return groups.FirstOrDefault();
         }
         public async Task<Group> CreateGroupAsync(Group group) => await _repo.AddAsync(group);
