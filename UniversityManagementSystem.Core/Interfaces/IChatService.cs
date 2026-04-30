@@ -18,7 +18,7 @@ namespace UniversityManagementSystem.Core.Interfaces
         /// Tool execution is handled entirely by the FastAPI AI service internally.
         /// This method does NOT execute any tools.
         /// </summary>
-        Task<ChatResponseDto> SendMessageAsync(Ulid userId, SendMessageDto messageDto, string role);
+        Task<ChatResponseDto> SendMessageAsync(Ulid userId, SendMessageDto messageDto, string role, string? profileId = null);
 
         Task<IEnumerable<ConversationDto>> GetUserConversationsAsync(Ulid userId);
         Task<PaginatedChatResponseDto> GetConversationMessagesAsync(Ulid conversationId, int page = 1, int pageSize = 50);
