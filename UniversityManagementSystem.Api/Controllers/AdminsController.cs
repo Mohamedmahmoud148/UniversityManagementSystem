@@ -22,11 +22,26 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "SuperAdmin")]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         public async Task<ActionResult<IEnumerable<AdminDto>>> GetAll()
         {
-            var list = await _service.GetAllAdminsAsync();
-            return Ok(list);
+            // SuperAdmin sees all admins; Admin sees only their own profile
+            if (User.IsInRole("SuperAdmin"))
+            {
+                var list = await _service.GetAllAdminsAsync();
+                return Ok(list);
+            }
+            else
+            {
+                var profileIdClaim = User.FindFirstValue("ProfileId");
+                if (!Ulid.TryParse(profileIdClaim, out var profileId))
+                    return Forbid();
+
+                var admin = await _service.GetAdminByIdAsync(profileId);
+                if (admin == null) return NotFound();
+
+                return Ok(new List<AdminDto> { admin });
+            }
         }
 
         [HttpGet("{id}")]
