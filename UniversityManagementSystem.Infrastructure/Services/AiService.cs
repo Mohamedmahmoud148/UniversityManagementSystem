@@ -27,10 +27,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
     ///   POST /extract         — file/document data extraction
     ///   POST /generate-exam   — AI-generated exam question sets
     /// </summary>
-    public class AiService(HttpClient httpClient, ILogger<AiService> logger) : IAiService
+    public class AiService(HttpClient httpClient, ILogger<AiService> logger, Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor) : IAiService
     {
         private readonly HttpClient _httpClient = httpClient;
         private readonly ILogger<AiService> _logger = logger;
+        private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
 
         // ── Shared serializer options ─────────────────────────────────────────
         // snake_case output (matches FastAPI defaults), ignore nulls to keep payloads lean.
@@ -104,8 +105,19 @@ namespace UniversityManagementSystem.Infrastructure.Services
         // Shared chat execution (with resilience pipeline)
         // ----------------------------------------------------------------
 
+        private void AttachAuthHeader()
+        {
+            var authHeader = _httpContextAccessor.HttpContext?.Request.Headers.Authorization.FirstOrDefault();
+            if (!string.IsNullOrEmpty(authHeader) && !_httpClient.DefaultRequestHeaders.Contains("Authorization"))
+            {
+                _httpClient.DefaultRequestHeaders.Add("Authorization", authHeader);
+            }
+        }
+
         private async Task<AiChatResponseDto> ExecuteChatAsync(AiChatRequestDto request, string callerName)
         {
+            AttachAuthHeader();
+
             try
             {
                 AiChatResponseDto? result = null;
@@ -145,6 +157,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<AiExtractResponseDto> ExtractDataFromFileAsync(string fileUrl, string fileType)
         {
+            AttachAuthHeader();
+
             try
             {
                 var payload = new { file_url = fileUrl, file_type = fileType };
@@ -171,6 +185,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<List<CreateExamQuestionDto>> GenerateExamAsync(AiGenerateExamRequestDto request)
         {
+            AttachAuthHeader();
+
             try
             {
                 var response = await _httpClient.PostAsJsonAsync("/generate-exam", request, _jsonOptions);
@@ -195,6 +211,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<AiResponseDto> AnalyzeTextAsync(string text)
         {
+            AttachAuthHeader();
+
             try
             {
                 var payload = new { text };
