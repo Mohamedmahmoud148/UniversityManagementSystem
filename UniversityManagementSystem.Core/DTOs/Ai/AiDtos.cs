@@ -32,22 +32,20 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
         [JsonPropertyName("intent_executed")]
         public string IntentExecuted { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Tool the AI wants the backend to execute, e.g. "CreateGeneratedExam".
-        /// Null / empty means no tool call required.
-        /// </summary>
         [JsonPropertyName("tool_used")]
         public string? ToolUsed { get; set; }
 
         [JsonPropertyName("model_used")]
         public string ModelUsed { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Arbitrary metadata from the AI. When tool_used is set, this contains
-        /// { "parameters": { ... } } — the args required by the tool.
-        /// </summary>
         [JsonPropertyName("metadata")]
         public System.Text.Json.JsonElement? Metadata { get; set; }
+
+        [JsonPropertyName("suggestions")]
+        public List<string>? Suggestions { get; set; }
+
+        [JsonPropertyName("actions_available")]
+        public List<string>? ActionsAvailable { get; set; }
 
         [JsonIgnore]
         public bool IsFallback { get; set; }

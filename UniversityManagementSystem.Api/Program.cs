@@ -214,7 +214,10 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.SetIsOriginAllowed(_ => true) // Allow any origin
+        policy.WithOrigins(
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "https://bsnu.web.app")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();

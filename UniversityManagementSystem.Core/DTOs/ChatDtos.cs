@@ -26,6 +26,7 @@ namespace UniversityManagementSystem.Core.DTOs
         public string Sender { get; set; } = string.Empty;
         public bool IsFallback { get; set; }
         public DateTime SentAt { get; set; }
+        public List<string> Suggestions { get; set; } = [];
     }
 
     public class PaginatedChatResponseDto

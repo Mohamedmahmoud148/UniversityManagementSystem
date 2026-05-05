@@ -198,11 +198,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
             // ── 6. Return ─────────────────────────────────────────────────────
             return new ChatResponseDto
             {
-                Id            = aiMsg.Id,
-                Content       = aiMsg.Content,
-                Sender        = aiMsg.Sender,
-                IsFallback    = aiMsg.IsFallback,
-                SentAt        = aiMsg.CreatedAt
+                Id          = aiMsg.Id,
+                Content     = aiMsg.Content,
+                Sender      = aiMsg.Sender,
+                IsFallback  = aiMsg.IsFallback,
+                SentAt      = aiMsg.CreatedAt,
+                Suggestions = aiResponse.Suggestions ?? []
             };
         }
 
