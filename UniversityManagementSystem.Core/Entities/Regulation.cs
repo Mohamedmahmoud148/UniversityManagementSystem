@@ -21,6 +21,11 @@ namespace UniversityManagementSystem.Core.Entities
 
         // Navigation property
         public UploadedFile? File { get; set; }
+
+        public Ulid? DepartmentId { get; set; }
+        public Department? Department { get; set; }
+
+        public ICollection<RegulationSubject> RegulationSubjects { get; set; } = new List<RegulationSubject>();
     }
 
     public enum RegulationType

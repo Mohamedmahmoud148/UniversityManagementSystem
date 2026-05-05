@@ -10,6 +10,10 @@ namespace UniversityManagementSystem.Core.Entities
 
         // Navigation Properties
         public Department Department { get; set; } = null!;
+
+        public Ulid? RegulationId { get; set; }
+        public Regulation? Regulation { get; set; }
+
         public ICollection<Student> Students { get; set; } = [];
         public ICollection<Subject> Subjects { get; set; } = [];
         public ICollection<Group> Groups { get; set; } = [];

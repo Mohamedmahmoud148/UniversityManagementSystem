@@ -28,6 +28,7 @@ namespace UniversityManagementSystem.Infrastructure.Storage
             {
                 ServiceURL = _settings.ServiceUrl,
                 ForcePathStyle = true,       // Required for R2 / non-AWS S3 endpoints
+                SignatureVersion = "4",      // Required for R2 pre-signed URLs
                 AuthenticationRegion = "us-east-1"  // R2 requires us-east-1 for SigV4 signing
                                                     // (do NOT use 'auto' — the AWS SDK cannot
                                                     //  generate a valid signature with that value)

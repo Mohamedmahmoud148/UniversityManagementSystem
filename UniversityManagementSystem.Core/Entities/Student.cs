@@ -31,7 +31,10 @@ namespace UniversityManagementSystem.Core.Entities
         // Foreign Key to SystemUser
         public Ulid SystemUserId { get; set; }
 
+        public Ulid? RegulationId { get; set; }
+
         // Navigation Properties
+        public Regulation? Regulation { get; set; }
         public SystemUser SystemUser { get; set; } = null!;
         public University University { get; set; } = null!;
         public College College { get; set; } = null!;

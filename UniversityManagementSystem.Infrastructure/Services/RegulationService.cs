@@ -58,32 +58,107 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         /// <summary>NEW: Resolve a Regulation by its auto-generated slug code.</summary>
         public async Task<Regulation?> GetByCodeAsync(string code)
-            => await _context.Regulations.FirstOrDefaultAsync(r => r.Code == code);
+            => await _context.Regulations
+                .Include(r => r.RegulationSubjects)
+                .FirstOrDefaultAsync(r => r.Code == code);
+
+        public async Task<IEnumerable<Regulation>> GetByDepartmentAsync(Ulid departmentId)
+            => await _context.Regulations
+                .Include(r => r.RegulationSubjects)
+                .Where(r => r.DepartmentId == departmentId)
+                .ToListAsync();
+
+        public async Task<Regulation?> GetForStudentAsync(Ulid studentId)
+        {
+            var student = await _context.Students.FindAsync(studentId);
+            if (student == null || !student.RegulationId.HasValue) return null;
+
+            return await _context.Regulations
+                .Include(r => r.RegulationSubjects)
+                .FirstOrDefaultAsync(r => r.Id == student.RegulationId.Value);
+        }
 
         public async Task<Regulation> CreateAsync(Regulation regulation)
+        {
+            return await CreateWithSubjectsAsync(regulation, []);
+        }
+
+        public async Task<Regulation> CreateWithSubjectsAsync(Regulation regulation, IEnumerable<RegulationSubject> subjects)
         {
             // Auto-generate Code from Title if not already set
             if (string.IsNullOrWhiteSpace(regulation.Code))
                 regulation.Code = await GenerateUniqueCodeAsync(regulation.Title);
 
+            foreach (var subject in subjects)
+            {
+                regulation.RegulationSubjects.Add(subject);
+            }
+
             _context.Regulations.Add(regulation);
+
+            // Assign to latest batch in department if DepartmentId is present
+            if (regulation.DepartmentId.HasValue)
+            {
+                var latestBatch = await _context.Batches
+                    .Where(b => b.DepartmentId == regulation.DepartmentId.Value)
+                    .OrderByDescending(b => b.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (latestBatch != null)
+                {
+                    latestBatch.RegulationId = regulation.Id;
+                    
+                    // Update all students in this batch
+                    var studentsInBatch = await _context.Students
+                        .Where(s => s.BatchId == latestBatch.Id)
+                        .ToListAsync();
+                    
+                    foreach (var student in studentsInBatch)
+                    {
+                        student.RegulationId = regulation.Id;
+                    }
+                }
+            }
+
             await _context.SaveChangesAsync();
             return regulation;
         }
 
         public async Task UpdateAsync(Ulid id, Regulation regulation)
         {
-            var existing = await _context.Regulations.FindAsync(id);
+            await UpdateWithSubjectsAsync(id, regulation, null);
+        }
+
+        public async Task UpdateWithSubjectsAsync(Ulid id, Regulation regulation, IEnumerable<RegulationSubject>? subjects)
+        {
+            var existing = await _context.Regulations
+                .Include(r => r.RegulationSubjects)
+                .FirstOrDefaultAsync(r => r.Id == id);
+                
             if (existing == null) return;
 
             existing.Title = regulation.Title;
             existing.Content = regulation.Content;
             existing.Type = regulation.Type;
             existing.IsActive = regulation.IsActive;
+            existing.DepartmentId = regulation.DepartmentId;
 
             // Re-generate slug if title changed significantly and code hasn't been customized
             if (existing.Code == Slugify(existing.Title) && existing.Title != regulation.Title)
                 existing.Code = await GenerateUniqueCodeAsync(regulation.Title);
+
+            if (subjects != null)
+            {
+                // Clear and replace subjects
+                _context.RegulationSubjects.RemoveRange(existing.RegulationSubjects);
+                existing.RegulationSubjects.Clear();
+                
+                foreach (var subject in subjects)
+                {
+                    subject.RegulationId = existing.Id;
+                    existing.RegulationSubjects.Add(subject);
+                }
+            }
 
             await _context.SaveChangesAsync();
         }

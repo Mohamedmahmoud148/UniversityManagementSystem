@@ -76,7 +76,14 @@ namespace UniversityManagementSystem.Api.Controllers
                 Type = r.Type.ToString(),
                 IsActive = r.IsActive,
                 FileId = r.FileId?.ToString(),
-                FileUrl = fileUrl
+                FileUrl = fileUrl,
+                DepartmentId = r.DepartmentId?.ToString(),
+                Subjects = r.RegulationSubjects?.Select(rs => new RegulationSubjectDto
+                {
+                    SubjectId = rs.SubjectId,
+                    Semester = rs.Semester,
+                    IsRequired = rs.IsRequired
+                }).ToList() ?? new List<RegulationSubjectDto>()
             };
         }
 
@@ -135,6 +142,35 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(await ToDto(regulation));
         }
 
+        // ── GET /api/Regulations/by-department/{departmentId} ────────────────
+        [HttpGet("by-department/{departmentId}")]
+        public async Task<IActionResult> GetByDepartment(string departmentId)
+        {
+            if (!Ulid.TryParse(departmentId, out var deptId))
+                return BadRequest("Invalid Department ID.");
+
+            var regulations = await _service.GetByDepartmentAsync(deptId);
+            var dtos = new List<RegulationDto>();
+            foreach (var r in regulations)
+                dtos.Add(await ToDto(r));
+
+            return Ok(dtos);
+        }
+
+        // ── GET /api/Regulations/student/{studentId} ─────────────────────────
+        [HttpGet("student/{studentId}")]
+        public async Task<IActionResult> GetForStudent(string studentId)
+        {
+            if (!Ulid.TryParse(studentId, out var stuId))
+                return BadRequest("Invalid Student ID.");
+
+            var regulation = await _service.GetForStudentAsync(stuId);
+            if (regulation == null)
+                return NotFound("Student has no regulation assigned.");
+
+            return Ok(await ToDto(regulation));
+        }
+
         // ── POST /api/Regulations ─────────────────────────────────────────────
         /// <summary>
         /// Create a regulation. Supports two modes:
@@ -186,10 +222,29 @@ namespace UniversityManagementSystem.Api.Controllers
                 Content = string.IsNullOrWhiteSpace(dto.Content) ? null : dto.Content,
                 Type = dto.Type,
                 FileId = uploadedFileId,
-                IsActive = true
+                IsActive = true,
+                DepartmentId = string.IsNullOrEmpty(dto.DepartmentId) ? null : Ulid.Parse(dto.DepartmentId)
             };
 
-            var result = await _service.CreateAsync(entity);
+            var subjects = new List<RegulationSubject>();
+            if (!string.IsNullOrEmpty(dto.SubjectsJson))
+            {
+                var parsedSubjects = JsonSerializer.Deserialize<List<RegulationSubjectDto>>(dto.SubjectsJson, _jsonOptions);
+                if (parsedSubjects != null)
+                {
+                    foreach (var s in parsedSubjects)
+                    {
+                        subjects.Add(new RegulationSubject
+                        {
+                            SubjectId = s.SubjectId,
+                            Semester = s.Semester,
+                            IsRequired = s.IsRequired
+                        });
+                    }
+                }
+            }
+
+            var result = await _service.CreateWithSubjectsAsync(entity, subjects);
             await _cache.RemoveAsync(CacheKey);
 
             return Ok(await ToDto(result));
@@ -290,10 +345,30 @@ namespace UniversityManagementSystem.Api.Controllers
                 Content  = string.IsNullOrWhiteSpace(dto.Content) ? null : dto.Content,
                 Type     = dto.Type,
                 FileId   = uploadedFileId,
-                IsActive = dto.IsActive
+                IsActive = dto.IsActive,
+                DepartmentId = string.IsNullOrEmpty(dto.DepartmentId) ? null : Ulid.Parse(dto.DepartmentId)
             };
 
-            await _service.UpdateAsync(regId, entity);
+            List<RegulationSubject>? subjects = null;
+            if (dto.SubjectsJson != null)
+            {
+                subjects = new List<RegulationSubject>();
+                var parsedSubjects = JsonSerializer.Deserialize<List<RegulationSubjectDto>>(dto.SubjectsJson, _jsonOptions);
+                if (parsedSubjects != null)
+                {
+                    foreach (var s in parsedSubjects)
+                    {
+                        subjects.Add(new RegulationSubject
+                        {
+                            SubjectId = s.SubjectId,
+                            Semester = s.Semester,
+                            IsRequired = s.IsRequired
+                        });
+                    }
+                }
+            }
+
+            await _service.UpdateWithSubjectsAsync(regId, entity, subjects);
             await _cache.RemoveAsync(CacheKey);
             return NoContent();
         }

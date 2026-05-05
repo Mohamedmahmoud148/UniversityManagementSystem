@@ -31,6 +31,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<AppNotification> AppNotifications { get; set; } = null!;
         public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
         public DbSet<Regulation> Regulations { get; set; } = null!;
+        public DbSet<RegulationSubject> RegulationSubjects { get; set; } = null!;
         public DbSet<Admin> Admins { get; set; } = null!;
         public DbSet<Exam> Exams { get; set; } = null!;
         public DbSet<ExamQuestion> ExamQuestions { get; set; } = null!;
@@ -198,6 +199,13 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasForeignKey(s => s.BatchId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Batch → Regulation
+            modelBuilder.Entity<Batch>()
+                .HasOne(b => b.Regulation)
+                .WithMany()
+                .HasForeignKey(b => b.RegulationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // --------------------------------------------------------
             // Student Hierarchy
             // --------------------------------------------------------
@@ -223,6 +231,12 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasOne(s => s.Group)
                 .WithMany(g => g.Students)
                 .HasForeignKey(s => s.GroupId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Student>()
+                .HasOne(s => s.Regulation)
+                .WithMany()
+                .HasForeignKey(s => s.RegulationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // --------------------------------------------------------
@@ -698,6 +712,31 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 entity.Property(c => c.Message).HasMaxLength(2000).IsRequired();
                 entity.Property(c => c.TargetId).HasMaxLength(26);
             });
+
+            // --------------------------------------------------------
+            // Regulation
+            // --------------------------------------------------------
+            modelBuilder.Entity<Regulation>()
+                .HasOne(r => r.Department)
+                .WithMany()
+                .HasForeignKey(r => r.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<RegulationSubject>()
+                .HasOne(rs => rs.Regulation)
+                .WithMany(r => r.RegulationSubjects)
+                .HasForeignKey(rs => rs.RegulationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<RegulationSubject>()
+                .HasOne(rs => rs.Subject)
+                .WithMany()
+                .HasForeignKey(rs => rs.SubjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<RegulationSubject>()
+                .HasIndex(rs => new { rs.RegulationId, rs.SubjectId })
+                .IsUnique();
         }
 
         // ── Soft Delete Intercept ────────────────────────────────────────────

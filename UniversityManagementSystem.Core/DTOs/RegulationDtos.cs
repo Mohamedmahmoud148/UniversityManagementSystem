@@ -5,6 +5,12 @@ using NUlid;
 
 namespace UniversityManagementSystem.Core.DTOs
 {
+    public class RegulationSubjectDto
+    {
+        public Ulid SubjectId { get; set; }
+        public int Semester { get; set; }
+        public bool IsRequired { get; set; }
+    }
     public class RegulationDto
     {
         public Ulid Id { get; set; }
@@ -16,6 +22,9 @@ namespace UniversityManagementSystem.Core.DTOs
         public string? FileId { get; set; }
         /// <summary>60-minute signed download URL. Null if no file is attached.</summary>
         public string? FileUrl { get; set; }
+
+        public string? DepartmentId { get; set; }
+        public List<RegulationSubjectDto> Subjects { get; set; } = new();
     }
 
     /// <summary>
@@ -39,6 +48,14 @@ namespace UniversityManagementSystem.Core.DTOs
         /// </summary>
         [JsonIgnore]
         public IFormFile? File { get; set; }
+
+        public string? DepartmentId { get; set; }
+
+        /// <summary>
+        /// JSON string representing a list of RegulationSubjectDto.
+        /// Required because this is a multipart/form-data request.
+        /// </summary>
+        public string? SubjectsJson { get; set; }
     }
 
     /// <summary>
@@ -57,5 +74,8 @@ namespace UniversityManagementSystem.Core.DTOs
         /// </summary>
         [JsonIgnore]
         public IFormFile? File { get; set; }
+
+        public string? DepartmentId { get; set; }
+        public string? SubjectsJson { get; set; }
     }
 }
