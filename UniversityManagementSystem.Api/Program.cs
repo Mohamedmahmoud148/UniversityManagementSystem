@@ -210,6 +210,17 @@ builder.Services.AddAuthentication(options =>
     options.MapInboundClaims = false;
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.SetIsOriginAllowed(_ => true) // Allow any origin
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 builder.Services.AddAuthorization();
 
 // 8. Controllers & Swagger
@@ -344,6 +355,7 @@ app.UseSwaggerUI(c =>
 app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 
 app.UseSerilogRequestLogging();
+app.UseCors();
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
