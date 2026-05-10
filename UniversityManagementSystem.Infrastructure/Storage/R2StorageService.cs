@@ -117,8 +117,17 @@ namespace UniversityManagementSystem.Infrastructure.Storage
         /// <inheritdoc/>
         public string BuildUrl(string objectKey)
         {
-            // Construct the public CDN URL: https://files.yourdomain.com/materials/guid_file.pdf
-            return $"{_settings.PublicBaseUrl.TrimEnd('/')}/{objectKey}";
+            var baseUrl = _settings.PublicBaseUrl;
+            
+            // Safeguard: If the environment variable on Railway is accidentally set to the ServiceUrl 
+            // instead of the PublicBaseUrl, force it to use the public dev URL.
+            if (string.IsNullOrWhiteSpace(baseUrl) || baseUrl.Contains("cloudflarestorage.com"))
+            {
+                baseUrl = "https://pub-f6f1bfde1fb94edc9d516cab5cf086f1.r2.dev";
+            }
+
+            // Construct the public CDN URL
+            return $"{baseUrl.TrimEnd('/')}/{objectKey}";
         }
 
         // ── Helpers ────────────────────────────────────────────────────────────
