@@ -232,5 +232,31 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             return new AiResponseDto { Intent = "None", Confidence = 0 };
         }
+
+        // ----------------------------------------------------------------
+        // Complaint Analysis  —  POST /api/ai/analyze-complaint
+        // ----------------------------------------------------------------
+
+        public async Task<AiComplaintAnalysisResponseDto> AnalyzeComplaintAsync(AiAnalyzeComplaintRequestDto request)
+        {
+            AttachAuthHeader();
+
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync("/api/ai/analyze-complaint", request, _jsonOptions);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<AiComplaintAnalysisResponseDto>(_jsonOptions) ?? new AiComplaintAnalysisResponseDto();
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "[AiService] AnalyzeComplaintAsync – HTTP error.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AiService] AnalyzeComplaintAsync – unexpected error.");
+            }
+
+            return new AiComplaintAnalysisResponseDto();
+        }
     }
 }

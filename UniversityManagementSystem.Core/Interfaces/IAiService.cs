@@ -8,6 +8,9 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<AiResponseDto> AnalyzeTextAsync(string text);
         Task<AiExtractResponseDto> ExtractDataFromFileAsync(string fileUrl, string fileType);
 
+        // Analyze student complaint
+        Task<AiComplaintAnalysisResponseDto> AnalyzeComplaintAsync(AiAnalyzeComplaintRequestDto request);
+
         /// <summary>
         /// Sends a user message to the AI and returns the AI's initial response,
         /// which may include a <c>ToolUsed</c> signals requiring backend tool execution.

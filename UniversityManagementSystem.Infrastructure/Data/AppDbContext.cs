@@ -43,6 +43,8 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<StudentFile> StudentFiles { get; set; } = null!;
         public DbSet<EnrollmentUpload> EnrollmentUploads { get; set; } = null!;
         public DbSet<Complaint> Complaints { get; set; } = null!;
+        public DbSet<ComplaintAnalysis> ComplaintAnalyses { get; set; } = null!;
+        public DbSet<ComplaintCluster> ComplaintClusters { get; set; } = null!;
         public DbSet<AcademicYearDepartment> AcademicYearDepartments { get; set; } = null!;
 
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -680,37 +682,62 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<Complaint>(entity =>
             {
                 // FK → Student's SystemUser
-                entity.HasOne(c => c.User)
+                entity.HasOne(c => c.Student)
                       .WithMany()
-                      .HasForeignKey(c => c.UserId)
+                      .HasForeignKey(c => c.StudentId)
                       .OnDelete(DeleteBehavior.Restrict);
 
-                // FK → SubjectOffering (optional)
-                entity.HasOne(c => c.SubjectOffering)
-                      .WithMany()
-                      .HasForeignKey(c => c.SubjectOfferingId)
-                      .OnDelete(DeleteBehavior.Restrict);
-
-                // Index: date-range queries — most common dashboard filter
                 entity.HasIndex(c => c.CreatedAt)
                       .HasDatabaseName("IX_Complaints_CreatedAt");
 
-                // Index: filter by offering (student complaint list for a course)
-                entity.HasIndex(c => c.SubjectOfferingId)
-                      .HasDatabaseName("IX_Complaints_SubjectOfferingId");
+                entity.HasIndex(c => c.TargetType)
+                      .HasDatabaseName("IX_Complaints_TargetType");
 
-                // Index: filter by doctor (doctor dashboard — all complaints in their offerings)
-                entity.HasIndex(c => c.TargetDoctorId)
-                      .HasDatabaseName("IX_Complaints_TargetDoctorId");
+                entity.HasIndex(c => c.TargetId)
+                      .HasDatabaseName("IX_Complaints_TargetId");
 
-                // Index: filter by submitting user
-                entity.HasIndex(c => c.UserId)
-                      .HasDatabaseName("IX_Complaints_UserId");
+                entity.HasIndex(c => c.StudentId)
+                      .HasDatabaseName("IX_Complaints_StudentId");
 
+                entity.Property(c => c.Title).HasMaxLength(200).IsRequired();
                 entity.Property(c => c.TargetType).HasMaxLength(50).IsRequired();
                 entity.Property(c => c.Status).HasMaxLength(30).IsRequired();
+                entity.Property(c => c.Priority).HasMaxLength(30).IsRequired();
                 entity.Property(c => c.Message).HasMaxLength(2000).IsRequired();
-                entity.Property(c => c.TargetId).HasMaxLength(26);
+                entity.Property(c => c.TargetId).HasMaxLength(100);
+            });
+
+            // --------------------------------------------------------
+            // ComplaintAnalysis
+            // --------------------------------------------------------
+            modelBuilder.Entity<ComplaintAnalysis>(entity =>
+            {
+                entity.HasOne(ca => ca.Complaint)
+                      .WithOne(c => c.Analysis)
+                      .HasForeignKey<ComplaintAnalysis>(ca => ca.ComplaintId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(ca => ca.DuplicateGroupId)
+                      .HasDatabaseName("IX_ComplaintAnalyses_DuplicateGroupId");
+                
+                entity.Property(ca => ca.Category).HasMaxLength(100);
+                entity.Property(ca => ca.Severity).HasMaxLength(50);
+            });
+
+            // --------------------------------------------------------
+            // ComplaintCluster
+            // --------------------------------------------------------
+            modelBuilder.Entity<ComplaintCluster>(entity =>
+            {
+                entity.HasIndex(cc => cc.TargetType)
+                      .HasDatabaseName("IX_ComplaintClusters_TargetType");
+
+                entity.HasIndex(cc => cc.TargetId)
+                      .HasDatabaseName("IX_ComplaintClusters_TargetId");
+
+                entity.Property(cc => cc.TargetType).HasMaxLength(50);
+                entity.Property(cc => cc.TargetId).HasMaxLength(100);
+                entity.Property(cc => cc.Topic).HasMaxLength(255);
             });
 
             // --------------------------------------------------------

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UniversityManagementSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using UniversityManagementSystem.Infrastructure.Data;
 namespace UniversityManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260510210424_AddComplaintIntelligenceSystem")]
+    partial class AddComplaintIntelligenceSystem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -490,6 +493,9 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsAnonymous")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -497,8 +503,7 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.Property<string>("Priority")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ResolutionNote")
                         .HasColumnType("text");
@@ -508,15 +513,20 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
-                    b.Property<string>("StudentId")
-                        .IsRequired()
+                    b.Property<string>("SubjectOfferingId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<string>("TargetDoctorId")
                         .HasMaxLength(26)
                         .HasColumnType("character varying(26)");
 
                     b.Property<string>("TargetId")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<string>("TargetName")
+                        .HasColumnType("text");
 
                     b.Property<string>("TargetType")
                         .IsRequired()
@@ -525,22 +535,29 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt")
                         .HasDatabaseName("IX_Complaints_CreatedAt");
 
-                    b.HasIndex("StudentId")
-                        .HasDatabaseName("IX_Complaints_StudentId");
+                    b.HasIndex("SubjectOfferingId")
+                        .HasDatabaseName("IX_Complaints_SubjectOfferingId");
 
-                    b.HasIndex("TargetId")
-                        .HasDatabaseName("IX_Complaints_TargetId");
+                    b.HasIndex("TargetDoctorId")
+                        .HasDatabaseName("IX_Complaints_TargetDoctorId");
 
-                    b.HasIndex("TargetType")
-                        .HasDatabaseName("IX_Complaints_TargetType");
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_Complaints_UserId");
+
+                    b.HasIndex("TargetType", "TargetId", "CreatedAt")
+                        .HasDatabaseName("IX_Complaints_Target_CreatedAt");
 
                     b.ToTable("Complaints");
                 });
@@ -557,8 +574,11 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.Property<string>("Category")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClusterId")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -575,28 +595,33 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("DuplicateGroupId")
+                    b.Property<bool>("IsProcessed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RawAiResponse")
                         .HasColumnType("text");
 
-                    b.Property<double>("SentimentScore")
-                        .HasColumnType("double precision");
+                    b.Property<string>("RecommendedAction")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Sentiment")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<float>("SentimentScore")
+                        .HasColumnType("real");
 
                     b.Property<string>("Severity")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("SuggestedAction")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ClusterId");
+
                     b.HasIndex("ComplaintId")
                         .IsUnique();
-
-                    b.HasIndex("DuplicateGroupId")
-                        .HasDatabaseName("IX_ComplaintAnalyses_DuplicateGroupId");
 
                     b.ToTable("ComplaintAnalyses");
                 });
@@ -608,6 +633,10 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .HasColumnType("character varying(26)");
 
                     b.Property<string>("AiSummary")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Category")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -624,31 +653,34 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsEscalated")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("TargetId")
+                    b.Property<string>("Severity")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetName")
+                        .HasColumnType("text");
 
                     b.Property<string>("TargetType")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Topic")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("text");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TargetId")
-                        .HasDatabaseName("IX_ComplaintClusters_TargetId");
-
-                    b.HasIndex("TargetType")
-                        .HasDatabaseName("IX_ComplaintClusters_TargetType");
+                    b.HasIndex("TargetType", "TargetId")
+                        .HasDatabaseName("IX_ComplaintClusters_Target");
 
                     b.ToTable("ComplaintClusters");
                 });
@@ -2115,22 +2147,36 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Complaint", b =>
                 {
-                    b.HasOne("UniversityManagementSystem.Core.Entities.SystemUser", "Student")
+                    b.HasOne("UniversityManagementSystem.Core.Entities.SubjectOffering", "SubjectOffering")
                         .WithMany()
-                        .HasForeignKey("StudentId")
+                        .HasForeignKey("SubjectOfferingId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("UniversityManagementSystem.Core.Entities.SystemUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Student");
+                    b.Navigation("SubjectOffering");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ComplaintAnalysis", b =>
                 {
+                    b.HasOne("UniversityManagementSystem.Core.Entities.ComplaintCluster", "Cluster")
+                        .WithMany()
+                        .HasForeignKey("ClusterId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("UniversityManagementSystem.Core.Entities.Complaint", "Complaint")
                         .WithOne("Analysis")
                         .HasForeignKey("UniversityManagementSystem.Core.Entities.ComplaintAnalysis", "ComplaintId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Cluster");
 
                     b.Navigation("Complaint");
                 });

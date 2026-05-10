@@ -451,35 +451,17 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var userId = await _userResolver.ResolveSystemUserIdAsync(User);
 
-            // Resolve SubjectOfferingId and denormalise DoctorId
-            Ulid? offeringUlid = null;
-            Ulid? doctorUlid   = null;
-
-            if (!string.IsNullOrWhiteSpace(dto.SubjectOfferingId))
-            {
-                if (!Ulid.TryParse(dto.SubjectOfferingId, out var parsedOffering))
-                    return BadRequest(new { error = "SubjectOfferingId is not a valid ULID." });
-
-                var offering = await _context.SubjectOfferings
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(o => o.Id == parsedOffering);
-
-                if (offering == null)
-                    return BadRequest(new { error = "SubjectOffering not found." });
-
-                offeringUlid = parsedOffering;
-                doctorUlid   = offering.DoctorId;
-            }
+            // Basic entity logic since the target validation is handled by AI
 
             var complaint = new Complaint
             {
-                UserId            = userId,
+                StudentId         = userId,
+                Title             = "AI Tool Complaint",
                 TargetType        = dto.TargetType,
-                TargetId          = dto.TargetId,
-                SubjectOfferingId = offeringUlid,
-                TargetDoctorId    = doctorUlid,
+                TargetId          = dto.TargetId ?? string.Empty,
                 Message           = dto.Message,
                 Status            = "Pending",
+                Priority          = "Normal",
                 CreatedAt         = DateTime.UtcNow
             };
 
@@ -516,15 +498,12 @@ namespace UniversityManagementSystem.Api.Controllers
             if (query.From.HasValue) q = q.Where(c => c.CreatedAt >= query.From.Value);
             if (query.To.HasValue)   q = q.Where(c => c.CreatedAt <= query.To.Value);
 
-            // Offering filter — hits IX_Complaints_SubjectOfferingId
-            if (!string.IsNullOrWhiteSpace(query.SubjectOfferingId) &&
-                Ulid.TryParse(query.SubjectOfferingId, out var offeringId))
-                q = q.Where(c => c.SubjectOfferingId == offeringId);
+            // Target filter
+            if (!string.IsNullOrWhiteSpace(query.TargetType))
+                q = q.Where(c => c.TargetType == query.TargetType);
 
-            // Doctor filter — hits IX_Complaints_TargetDoctorId
-            if (!string.IsNullOrWhiteSpace(query.DoctorId) &&
-                Ulid.TryParse(query.DoctorId, out var doctorId))
-                q = q.Where(c => c.TargetDoctorId == doctorId);
+            if (!string.IsNullOrWhiteSpace(query.TargetId))
+                q = q.Where(c => c.TargetId == query.TargetId);
 
             // Status filter
             if (!string.IsNullOrWhiteSpace(query.Status))
@@ -541,7 +520,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
                 if (doctor == null) return Forbid();
 
-                q = q.Where(c => c.TargetDoctorId == doctor.Id);
+                q = q.Where(c => c.TargetId == doctor.Id.ToString() && c.TargetType == "Doctor");
             }
 
             var total = await q.CountAsync();
@@ -553,13 +532,13 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Select(c => new ComplaintDto
                 {
                     Id                = c.Id.ToString(),
-                    UserId            = c.UserId.ToString(),
+                    StudentId         = c.StudentId.ToString(),
+                    Title             = c.Title,
                     TargetType        = c.TargetType,
                     TargetId          = c.TargetId,
-                    SubjectOfferingId = c.SubjectOfferingId.HasValue ? c.SubjectOfferingId.ToString() : null,
-                    TargetDoctorId    = c.TargetDoctorId.HasValue ? c.TargetDoctorId.ToString() : null,
                     Message           = c.Message,
                     Status            = c.Status,
+                    Priority          = c.Priority,
                     ResolutionNote    = c.ResolutionNote,
                     CreatedAt         = c.CreatedAt
                 })

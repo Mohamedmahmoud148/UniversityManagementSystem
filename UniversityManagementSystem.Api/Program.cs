@@ -308,6 +308,8 @@ builder.Services.AddScoped<IRegulationService, RegulationService>();
 builder.Services.AddScoped<ISmartStringGenerator, SmartStringGenerator>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();
+builder.Services.AddScoped<IComplaintService, ComplaintService>();
+builder.Services.AddScoped<IComplaintIntelligenceJob, ComplaintIntelligenceJob>();
 // AiToolRegistry and IAiTool registrations removed — tool execution
 // is handled entirely inside the FastAPI AI service. The .NET backend
 // no longer re-executes tools; it only calls AI and saves the response.
@@ -423,6 +425,27 @@ using (var scope = app.Services.CreateScope())
     {
         Log.Error(ex, "An error occurred while migrating or seeding the database.");
     }
+}
+
+// 10. Schedule Hangfire Jobs
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    
+    recurringJobManager.AddOrUpdate<IComplaintIntelligenceJob>(
+        "daily-complaint-report",
+        job => job.GenerateDailyReportAsync(),
+        Cron.Daily);
+        
+    recurringJobManager.AddOrUpdate<IComplaintIntelligenceJob>(
+        "weekly-complaint-report",
+        job => job.GenerateWeeklyReportAsync(),
+        Cron.Weekly);
+        
+    recurringJobManager.AddOrUpdate<IComplaintIntelligenceJob>(
+        "monthly-complaint-report",
+        job => job.GenerateMonthlyReportAsync(),
+        Cron.Monthly);
 }
 
 app.Run();

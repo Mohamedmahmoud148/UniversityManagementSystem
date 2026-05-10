@@ -12,46 +12,56 @@ namespace UniversityManagementSystem.Core.DTOs
     /// </summary>
     public class CreateComplaintDto
     {
-        /// <summary>
-        /// What the complaint targets.
-        /// Allowed values: "Doctor" | "Exam" | "Grade" | "Other"
-        /// </summary>
+        [Required]
+        [MaxLength(200)]
+        public string Title { get; set; } = string.Empty;
+
         [Required]
         [MaxLength(50)]
         public string TargetType { get; set; } = string.Empty;
 
-        /// <summary>
-        /// ULID string of the target entity (DoctorId / ExamId / GradeId).
-        /// Optional for TargetType = "Other".
-        /// </summary>
-        [MaxLength(26)]
+        [MaxLength(100)]
         public string? TargetId { get; set; }
 
-        /// <summary>Subject offering the complaint applies to. Optional.</summary>
-        public string? SubjectOfferingId { get; set; }
-
-        /// <summary>Full complaint text (5–2000 characters).</summary>
         [Required]
         [MinLength(5)]
         [MaxLength(2000)]
         public string Message { get; set; } = string.Empty;
     }
 
-    /// <summary>
-    /// Single complaint record returned by GET /api/ai-tools/get-complaints.
-    /// </summary>
     public class ComplaintDto
     {
         public string Id { get; set; } = string.Empty;
-        public string UserId { get; set; } = string.Empty;
+        public string StudentId { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
         public string TargetType { get; set; } = string.Empty;
-        public string? TargetId { get; set; }
-        public string? SubjectOfferingId { get; set; }
-        public string? TargetDoctorId { get; set; }
+        public string TargetId { get; set; } = string.Empty;
         public string Message { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public string Priority { get; set; } = string.Empty;
         public string? ResolutionNote { get; set; }
         public DateTime CreatedAt { get; set; }
+        public ComplaintAnalysisDto? Analysis { get; set; }
+    }
+
+    public class ComplaintAnalysisDto
+    {
+        public double SentimentScore { get; set; }
+        public string Category { get; set; } = string.Empty;
+        public string Severity { get; set; } = string.Empty;
+        public string AiSummary { get; set; } = string.Empty;
+        public string SuggestedAction { get; set; } = string.Empty;
+    }
+
+    public class ComplaintClusterDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Topic { get; set; } = string.Empty;
+        public string TargetType { get; set; } = string.Empty;
+        public string TargetId { get; set; } = string.Empty;
+        public int ComplaintCount { get; set; }
+        public string AiSummary { get; set; } = string.Empty;
+        public DateTime LastUpdated { get; set; }
     }
 
     /// <summary>
@@ -60,25 +70,12 @@ namespace UniversityManagementSystem.Core.DTOs
     /// </summary>
     public class GetComplaintsQueryDto
     {
-        /// <summary>Include complaints created on or after this date (UTC).</summary>
         public DateTime? From { get; set; }
-
-        /// <summary>Include complaints created on or before this date (UTC).</summary>
         public DateTime? To { get; set; }
-
-        /// <summary>Filter by subject offering ULID string.</summary>
-        public string? SubjectOfferingId { get; set; }
-
-        /// <summary>Filter by doctor ULID string (matches TargetDoctorId).</summary>
-        public string? DoctorId { get; set; }
-
-        /// <summary>Filter by complaint status (Pending/UnderReview/Resolved/Dismissed).</summary>
+        public string? TargetType { get; set; }
+        public string? TargetId { get; set; }
         public string? Status { get; set; }
-
-        /// <summary>Page number (1-based). Default = 1.</summary>
         public int Page { get; set; } = 1;
-
-        /// <summary>Results per page (max 100). Default = 20.</summary>
         public int PageSize { get; set; } = 20;
     }
 
