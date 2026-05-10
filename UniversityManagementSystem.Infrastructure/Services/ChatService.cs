@@ -195,16 +195,87 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 "[ChatService] AI response saved — intent={Intent} model={Model}",
                 aiResponse.IntentExecuted, aiResponse.ModelUsed);
 
-            // ── 6. Return ─────────────────────────────────────────────────────
+            // ── 6. Auto-generate title on FIRST message ────────────────────
+            string? newTitle = null;
+            bool isFirstMessage = (history.Count == 0);
+            if (isFirstMessage && conversation.Title == "New Chat")
+            {
+                newTitle = GenerateTitle(messageDto.ActualMessage);
+                conversation.Title = newTitle;
+                _context.Conversations.Update(conversation);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation(
+                    "[ChatService] Auto-generated title '{Title}' for conversation {ConvId}",
+                    newTitle, conversation.Id);
+            }
+
+            // ── 7. Return ─────────────────────────────────────────────────────
             return new ChatResponseDto
             {
-                Id          = aiMsg.Id,
-                Content     = aiMsg.Content,
-                Sender      = aiMsg.Sender,
-                IsFallback  = aiMsg.IsFallback,
-                SentAt      = aiMsg.CreatedAt,
-                Suggestions = aiResponse.Suggestions ?? []
+                Id                = aiMsg.Id,
+                Content           = aiMsg.Content,
+                Sender            = aiMsg.Sender,
+                IsFallback        = aiMsg.IsFallback,
+                SentAt            = aiMsg.CreatedAt,
+                Suggestions       = aiResponse.Suggestions ?? [],
+                ConversationTitle = newTitle   // null on all messages except the first
             };
+        }
+
+        // ── Title Auto-generation ────────────────────────────────────────────
+
+        /// <summary>
+        /// Generates a short, clean 3-7 word title from the user's first message.
+        /// No AI call needed — simple heuristic: take the first sentence, trim to 60 chars.
+        /// </summary>
+        private static string GenerateTitle(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return "New Chat";
+
+            // Take first sentence (split on . ? ! \n)
+            var sentence = System.Text.RegularExpressions.Regex
+                .Split(message.Trim(), @"[.?!\n]")
+                .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s))
+                ?.Trim() ?? message.Trim();
+
+            // Cap at 60 characters
+            if (sentence.Length > 60)
+                sentence = sentence[..57] + "...";
+
+            return sentence;
+        }
+
+        // ── Update Conversation Title ────────────────────────────────────────
+
+        public async Task<bool> UpdateConversationTitleAsync(Ulid conversationId, Ulid userId, string newTitle)
+        {
+            var conv = await _context.Conversations.FindAsync(conversationId);
+            if (conv == null) return false;
+            if (conv.UserId != userId) return false;
+
+            conv.Title = newTitle.Trim();
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // ── Delete Conversation ──────────────────────────────────────────────
+
+        public async Task<(bool Found, bool Authorized)> DeleteConversationAsync(Ulid conversationId, Ulid userId)
+        {
+            var conv = await _context.Conversations
+                .Include(c => c.Messages)
+                .FirstOrDefaultAsync(c => c.Id == conversationId);
+
+            if (conv == null) return (Found: false, Authorized: false);
+            if (conv.UserId != userId) return (Found: true, Authorized: false);
+
+            // Cascade: remove messages then conversation
+            _context.ChatMessages.RemoveRange(conv.Messages);
+            _context.Conversations.Remove(conv);
+            await _context.SaveChangesAsync();
+
+            return (Found: true, Authorized: true);
         }
 
         // ── Academic Context Enrichment ──────────────────────────────────────

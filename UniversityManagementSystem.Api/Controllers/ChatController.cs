@@ -57,5 +57,47 @@ namespace UniversityManagementSystem.Api.Controllers
             await _chatService.DeleteMessageAsync(messageId);
             return NoContent();
         }
+
+        // ── DELETE /api/Chat/conversations/{id} ──────────────────────────────
+        /// <summary>
+        /// Deletes a conversation and all its messages.
+        /// Only the owner of the conversation may delete it.
+        /// Returns 204 on success, 404 if not found, 403 if not owner.
+        /// </summary>
+        [HttpDelete("conversations/{id}")]
+        public async Task<IActionResult> DeleteConversation(string id)
+        {
+            if (!Ulid.TryParse(id, out var conversationId))
+                return BadRequest("Invalid Conversation ID.");
+
+            Ulid userId = await _systemUserResolver.ResolveSystemUserIdAsync(User);
+            var (found, authorized) = await _chatService.DeleteConversationAsync(conversationId, userId);
+
+            if (!found) return NotFound(new { message = "Conversation not found." });
+            if (!authorized) return StatusCode(403, new { message = "You do not have permission to delete this conversation." });
+
+            return NoContent(); // 204
+        }
+
+        // ── PUT /api/Chat/conversations/{id} ─────────────────────────────────
+        /// <summary>
+        /// Updates the title of a conversation manually.
+        /// Only the owner may rename it.
+        /// </summary>
+        [HttpPut("conversations/{id}")]
+        public async Task<IActionResult> UpdateConversationTitle(string id, [FromBody] UpdateConversationTitleDto dto)
+        {
+            if (!Ulid.TryParse(id, out var conversationId))
+                return BadRequest("Invalid Conversation ID.");
+
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest(new { message = "Title cannot be empty." });
+
+            Ulid userId = await _systemUserResolver.ResolveSystemUserIdAsync(User);
+            var success = await _chatService.UpdateConversationTitleAsync(conversationId, userId, dto.Title);
+
+            if (!success) return NotFound(new { message = "Conversation not found or access denied." });
+            return Ok(new { title = dto.Title });
+        }
     }
 }

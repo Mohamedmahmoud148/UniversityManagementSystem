@@ -6,6 +6,11 @@ namespace UniversityManagementSystem.Core.DTOs
 {
     public class CreateConversationDto
     {
+        public string Title { get; set; } = "New Chat";
+    }
+
+    public class UpdateConversationTitleDto
+    {
         public string Title { get; set; } = string.Empty;
     }
 
@@ -27,6 +32,11 @@ namespace UniversityManagementSystem.Core.DTOs
         public bool IsFallback { get; set; }
         public DateTime SentAt { get; set; }
         public List<string> Suggestions { get; set; } = [];
+        /// <summary>
+        /// Set ONLY on the first message of a conversation — the auto-generated title.
+        /// Null on all subsequent messages. Frontend should update sidebar title when non-null.
+        /// </summary>
+        public string? ConversationTitle { get; set; }
     }
 
     public class PaginatedChatResponseDto

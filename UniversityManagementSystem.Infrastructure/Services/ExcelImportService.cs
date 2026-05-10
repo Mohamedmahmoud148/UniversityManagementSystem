@@ -189,10 +189,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
             int fullNameCol      = FindCol("fullname", "name", "studentname", "اسم");
             int batchCodeCol     = FindCol("batchcode", "batch", "دفعة", "الدفعة");
             int groupCodeCol     = FindCol("groupcode", "group", "مجموعة", "المجموعة");
-            int nationalIdCol    = FindCol("nationalid", "national", "رقمقومي", "id");
+            int nationalIdCol    = FindCol("nationalid", "national", "رقمقومي");
             int phoneCol         = FindCol("phone", "mobile", "tel", "هاتف", "موبايل");
             int emailCol         = FindCol("email", "personalmail", "mail");
             int uniStudentIdCol  = FindCol("universitystudentid", "studentid", "studentnumber", "رقمطالب");
+            // CollegeCode & DepartmentCode are informational — Batch already carries this FK chain
+            int collegeCodeCol   = FindCol("collegecode", "college", "كلية", "الكلية");
+            int deptCodeCol      = FindCol("departmentcode", "department", "dept", "قسم", "القسم");
+
 
             // ── 4. Required column check ───────────────────────────────────
             var missing = new List<string>();

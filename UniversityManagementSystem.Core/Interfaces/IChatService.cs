@@ -23,6 +23,12 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<IEnumerable<ConversationDto>> GetUserConversationsAsync(Ulid userId);
         Task<PaginatedChatResponseDto> GetConversationMessagesAsync(Ulid conversationId, int page = 1, int pageSize = 50);
 
+        /// <summary>Update a conversation title manually.</summary>
+        Task<bool> UpdateConversationTitleAsync(Ulid conversationId, Ulid userId, string newTitle);
+
+        /// <summary>Delete a conversation and all its messages. Returns false if not found or wrong owner.</summary>
+        Task<(bool Found, bool Authorized)> DeleteConversationAsync(Ulid conversationId, Ulid userId);
+
         // Admin Override
         Task DeleteMessageAsync(Ulid messageId);
     }
