@@ -209,7 +209,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 var student = new Student
                 {
                     FullName = dto.FullName,
-                    Email = "",
+                    Code = universityIdStr, // Map the code correctly so it's not empty
+                    Email = universityEmail, // Map personal email to university email by default
                     Phone = NormalizePhone(dto.Phone),   // handles +201... or 01...
                     UniversityStudentId = universityIdStr,
                     UniversityId = universityId,

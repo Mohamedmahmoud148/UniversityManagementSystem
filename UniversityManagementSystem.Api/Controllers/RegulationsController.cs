@@ -227,22 +227,30 @@ namespace UniversityManagementSystem.Api.Controllers
             };
 
             var subjects = new List<RegulationSubject>();
-            if (!string.IsNullOrEmpty(dto.SubjectsJson))
+            if (!string.IsNullOrWhiteSpace(dto.SubjectsJson))
             {
-                var parsedSubjects = JsonSerializer.Deserialize<List<RegulationSubjectDto>>(dto.SubjectsJson, _jsonOptions);
-                if (parsedSubjects != null)
+                try
                 {
-                    foreach (var s in parsedSubjects)
+                    var parsedSubjects = JsonSerializer.Deserialize<List<RegulationSubjectDto>>(dto.SubjectsJson, _jsonOptions);
+                    if (parsedSubjects != null)
                     {
-                        subjects.Add(new RegulationSubject
+                        foreach (var s in parsedSubjects)
                         {
-                            SubjectId = s.SubjectId,
-                            Semester = s.Semester,
-                            IsRequired = s.IsRequired
-                        });
+                            subjects.Add(new RegulationSubject
+                            {
+                                SubjectId = s.SubjectId,
+                                Semester = s.Semester,
+                                IsRequired = s.IsRequired
+                            });
+                        }
                     }
                 }
+                catch (JsonException ex)
+                {
+                    return BadRequest($"Invalid JSON format in SubjectsJson: {ex.Message}. Ensure you are sending a valid JSON array.");
+                }
             }
+
 
             var result = await _service.CreateWithSubjectsAsync(entity, subjects);
             await _cache.RemoveAsync(CacheKey);
@@ -352,18 +360,32 @@ namespace UniversityManagementSystem.Api.Controllers
             List<RegulationSubject>? subjects = null;
             if (dto.SubjectsJson != null)
             {
-                subjects = new List<RegulationSubject>();
-                var parsedSubjects = JsonSerializer.Deserialize<List<RegulationSubjectDto>>(dto.SubjectsJson, _jsonOptions);
-                if (parsedSubjects != null)
+                if (string.IsNullOrWhiteSpace(dto.SubjectsJson))
                 {
-                    foreach (var s in parsedSubjects)
+                    subjects = new List<RegulationSubject>(); // explicit empty
+                }
+                else
+                {
+                    try
                     {
-                        subjects.Add(new RegulationSubject
+                        subjects = new List<RegulationSubject>();
+                        var parsedSubjects = JsonSerializer.Deserialize<List<RegulationSubjectDto>>(dto.SubjectsJson, _jsonOptions);
+                        if (parsedSubjects != null)
                         {
-                            SubjectId = s.SubjectId,
-                            Semester = s.Semester,
-                            IsRequired = s.IsRequired
-                        });
+                            foreach (var s in parsedSubjects)
+                            {
+                                subjects.Add(new RegulationSubject
+                                {
+                                    SubjectId = s.SubjectId,
+                                    Semester = s.Semester,
+                                    IsRequired = s.IsRequired
+                                });
+                            }
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        return BadRequest($"Invalid JSON format in SubjectsJson: {ex.Message}. Ensure you are sending a valid JSON array.");
                     }
                 }
             }

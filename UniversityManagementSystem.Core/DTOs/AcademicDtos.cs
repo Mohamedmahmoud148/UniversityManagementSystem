@@ -24,8 +24,11 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required] string FullName,
         [Required] string NationalId,
         [Required][Phone] string Phone,
-        [Required] string BatchCode,     // replaces BatchId
-        [Required] string GroupCode      // replaces GroupId
+        [Required] string BatchCode,
+        [Required] string GroupCode,
+        string? CollegeCode,
+        string? DepartmentCode,
+        string? UniversityStudentId
     );
 
     public record UpdateStudentDto(

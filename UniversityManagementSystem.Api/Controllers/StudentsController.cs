@@ -175,7 +175,8 @@ namespace UniversityManagementSystem.Api.Controllers
                 BatchCode = batch.Code,
                 GroupCode = group.Code,
                 DepartmentCode = department.Code,
-                CollegeCode = college!.Code
+                CollegeCode = college!.Code,
+                UniversityStudentId = dto.UniversityStudentId
             };
 
             var creatorId = Ulid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
@@ -192,10 +193,12 @@ namespace UniversityManagementSystem.Api.Controllers
                 FullName = student.FullName,
                 Email = student.Email,
                 Phone = student.Phone,
-                NationalId = student.SystemUser?.NationalId ?? "N/A",
+                NationalId = registerDto.NationalId,
                 UniversityStudentId = student.UniversityStudentId,
-                UniversityEmail = student.SystemUser?.UniversityEmail ?? "N/A",
+                UniversityEmail = authResponse.UniversityEmail ?? "N/A",
+                UniversityId = student.UniversityId,
                 BatchId = student.BatchId,
+                GroupId = student.GroupId,
                 IsActive = student.IsActive
             });
         }
