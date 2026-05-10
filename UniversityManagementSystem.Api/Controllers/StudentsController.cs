@@ -94,7 +94,9 @@ namespace UniversityManagementSystem.Api.Controllers
                 NationalId = s.SystemUser?.NationalId ?? "N/A",
                 UniversityStudentId = s.UniversityStudentId,
                 UniversityEmail = s.SystemUser?.UniversityEmail ?? "N/A",
+                UniversityId = s.UniversityId,
                 BatchId = s.BatchId,
+                GroupId = s.GroupId,
                 IsActive = s.IsActive
             }).ToList();
 
@@ -120,7 +122,9 @@ namespace UniversityManagementSystem.Api.Controllers
                 NationalId = s.SystemUser?.NationalId ?? "N/A",
                 UniversityStudentId = s.UniversityStudentId,
                 UniversityEmail = s.SystemUser?.UniversityEmail ?? "N/A",
+                UniversityId = s.UniversityId,
                 BatchId = s.BatchId,
+                GroupId = s.GroupId,
                 IsActive = s.IsActive
             });
         }
@@ -140,7 +144,9 @@ namespace UniversityManagementSystem.Api.Controllers
                 NationalId = s.SystemUser?.NationalId ?? "N/A",
                 UniversityStudentId = s.UniversityStudentId,
                 UniversityEmail = s.SystemUser?.UniversityEmail ?? "N/A",
+                UniversityId = s.UniversityId,
                 BatchId = s.BatchId,
+                GroupId = s.GroupId,
                 IsActive = s.IsActive
             }));
         }

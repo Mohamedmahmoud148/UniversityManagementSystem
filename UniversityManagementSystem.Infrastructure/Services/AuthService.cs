@@ -196,7 +196,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 {
                     FullName = dto.FullName,
                     UniversityEmail = universityEmail,
-                    Email = universityEmail,
+                    Email = dto.Email,
                     NationalId = dto.NationalId,
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                     Role = UserRole.Student,
@@ -210,7 +210,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 {
                     FullName = dto.FullName,
                     Code = universityIdStr, // Map the code correctly so it's not empty
-                    Email = universityEmail, // Map personal email to university email by default
+                    Email = dto.Email, // Map personal email
                     Phone = NormalizePhone(dto.Phone),   // handles +201... or 01...
                     UniversityStudentId = universityIdStr,
                     UniversityId = universityId,

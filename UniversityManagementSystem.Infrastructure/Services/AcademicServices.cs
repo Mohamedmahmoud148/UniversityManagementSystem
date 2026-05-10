@@ -16,28 +16,26 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly AppDbContext _context = context;
 
         public async Task<IReadOnlyList<Student>> GetStudentsByBatchIdAsync(Ulid batchId)
-            => await _repo.GetAsync(s => s.BatchId == batchId);
+            => await _context.Students.Include(s => s.SystemUser).Where(s => s.BatchId == batchId).ToListAsync();
 
         public async Task<Student?> GetStudentByIdAsync(Ulid id) => await _repo.GetByIdAsync(id);
 
         public async Task<Student?> GetStudentByCodeAsync(string code)
         {
             var normalizedCode = code.Trim().ToLower();
-            var students = await _repo.GetAsync(s => s.Code.ToLower() == normalizedCode);
-            return students.FirstOrDefault();
+            return await _context.Students.Include(s => s.SystemUser).FirstOrDefaultAsync(s => s.Code.ToLower() == normalizedCode);
         }
 
         // Use SystemUser relationship for UniversityEmail
         public async Task<Student?> GetStudentByUniversityEmailAsync(string email)
         {
-            var students = await _repo.GetAsync(s => s.SystemUser.UniversityEmail == email);
-            return students.Count > 0 ? students[0] : null;
+            return await _context.Students.Include(s => s.SystemUser).FirstOrDefaultAsync(s => s.SystemUser.UniversityEmail == email);
         }
 
         public async Task<Student> CreateStudentAsync(Student student) => await _repo.AddAsync(student);
         public async Task UpdateStudentAsync(Student student) => await _repo.UpdateAsync(student);
         public async Task<IReadOnlyList<Student>> GetPagedStudentsAsync(int page, int size)
-            => await _repo.GetPagedAsync(page, size);
+            => await _context.Students.Include(s => s.SystemUser).Skip((page - 1) * size).Take(size).ToListAsync();
 
         public async Task UpdateStudentDetailsAsync(Ulid id, Core.DTOs.UpdateStudentDto dto)
         {
