@@ -60,6 +60,22 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(results);
         }
 
+        private static SubjectDto MapToDto(Subject s)
+        {
+            return new SubjectDto(
+                s.Id,
+                s.Name,
+                s.Code,
+                s.CreditHours,
+                s.CollegeId,
+                s.College?.Name,
+                s.DepartmentId,
+                s.Department?.Name ?? string.Empty,
+                s.BatchId,
+                s.Batch?.Name
+            );
+        }
+
         [HttpGet("by-batch/{batchId}")]
         public async Task<ActionResult<IEnumerable<SubjectDto>>> GetByBatch(string batchId)
         {
@@ -72,7 +88,7 @@ namespace UniversityManagementSystem.Api.Controllers
             }
 
             var list = await _service.GetSubjectsByBatchIdAsync(bId);
-            var dtos = list.Select(s => new SubjectDto(s.Id, s.Name, s.Code, s.CollegeId, s.DepartmentId, s.BatchId));
+            var dtos = list.Select(MapToDto);
 
             await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(dtos), new DistributedCacheEntryOptions
             {
@@ -88,7 +104,52 @@ namespace UniversityManagementSystem.Api.Controllers
             var s = await _service.GetSubjectByCodeAsync(code);
             if (s == null) return NotFound($"Subject with code '{code}' not found.");
 
-            return Ok(new SubjectDto(s.Id, s.Name, s.Code, s.CollegeId, s.DepartmentId, s.BatchId));
+            return Ok(MapToDto(s));
+        }
+
+        [HttpGet("by-department/{departmentId}")]
+        public async Task<ActionResult<IEnumerable<SubjectDto>>> GetByDepartment(string departmentId)
+        {
+            if (!Ulid.TryParse(departmentId, out var deptId)) return BadRequest("Invalid Department ID.");
+            var list = await _service.GetSubjectsByDepartmentIdAsync(deptId);
+            return Ok(list.Select(MapToDto));
+        }
+
+        [HttpGet("by-college/{collegeId}")]
+        public async Task<ActionResult<IEnumerable<SubjectDto>>> GetByCollege(string collegeId)
+        {
+            if (!Ulid.TryParse(collegeId, out var colId)) return BadRequest("Invalid College ID.");
+            var list = await _service.GetSubjectsByCollegeIdAsync(colId);
+            return Ok(list.Select(MapToDto));
+        }
+
+        [HttpGet("my-subjects")]
+        public async Task<ActionResult<IEnumerable<SubjectDto>>> GetMySubjects()
+        {
+            // Resolve if Doctor or Student
+            if (User.IsInRole("Doctor"))
+            {
+                var claim = User.Claims.FirstOrDefault(c => c.Type == "nameid");
+                if (claim == null) return Unauthorized("User ID claim not found.");
+                if (!Ulid.TryParse(claim.Value, out var userId)) return Unauthorized("Invalid user ID.");
+
+                var doctor = await _doctorService.GetDoctorByIdAsync(userId);
+                if (doctor == null) return NotFound("Doctor profile not found.");
+
+                var subjects = await _service.GetDoctorSubjectsAsync(doctor.Id);
+                return Ok(subjects.Select(MapToDto));
+            }
+            else if (User.IsInRole("Student"))
+            {
+                var profileIdClaim = User.FindFirst("ProfileId");
+                if (profileIdClaim == null) return Unauthorized("Student profile not found.");
+                if (!Ulid.TryParse(profileIdClaim.Value, out var studentId)) return Unauthorized("Invalid student ID.");
+
+                var subjects = await _service.GetStudentSubjectsAsync(studentId);
+                return Ok(subjects.Select(MapToDto));
+            }
+
+            return Forbid();
         }
 
         [HttpPost]
@@ -126,6 +187,7 @@ namespace UniversityManagementSystem.Api.Controllers
             {
                 Name = dto.Name,
                 Code = dto.Code,
+                CreditHours = dto.CreditHours,
                 CollegeId = collegeId,
                 DepartmentId = department.Id,
                 BatchId = batchId
@@ -136,7 +198,10 @@ namespace UniversityManagementSystem.Api.Controllers
             if (batchId.HasValue)
                 await _cache.RemoveAsync($"{CachePrefix}{batchId}");
 
-            return Ok(new SubjectDto(result.Id, result.Name, result.Code, result.CollegeId, result.DepartmentId, result.BatchId));
+            // Need to reload with Includes to map names properly for the response
+            var loadedSubject = await _service.GetSubjectByCodeAsync(result.Code);
+
+            return Ok(MapToDto(loadedSubject!));
         }
 
         [HttpPut("{code}")]
@@ -197,7 +262,14 @@ namespace UniversityManagementSystem.Api.Controllers
             var doctor = await _doctorService.GetDoctorByCodeAsync(doctorCode);
             if (doctor == null) return NotFound($"Doctor with code '{doctorCode}' not found.");
 
-            await _service.AssignSubjectToDoctorAsync(subject.Id, doctor.Id);
+            try
+            {
+                await _service.AssignSubjectToDoctorAsync(subject.Id, doctor.Id);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
             return Ok(new
             {
                 message   = "Doctor assigned successfully.",

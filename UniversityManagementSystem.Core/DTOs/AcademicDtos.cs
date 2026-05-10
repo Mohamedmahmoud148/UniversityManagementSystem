@@ -62,11 +62,23 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required][Phone] string Phone
     );
 
-    public record SubjectDto(Ulid Id, string Name, string Code, Ulid? CollegeId, Ulid DepartmentId, Ulid? BatchId);
+    public record SubjectDto(
+        Ulid Id,
+        string Name,
+        string Code,
+        int CreditHours,
+        Ulid? CollegeId,
+        string? CollegeName,
+        Ulid DepartmentId,
+        string DepartmentName,
+        Ulid? BatchId,
+        string? BatchName
+    );
 
     public record CreateSubjectDto(
         [Required] string Name,
         [Required] string Code,
+        [Required] int CreditHours,
         string? CollegeCode,             // replaces CollegeId  (optional)
         [Required] string DepartmentCode, // replaces DepartmentId
         string? BatchCode                // replaces BatchId    (optional)
@@ -86,7 +98,9 @@ namespace UniversityManagementSystem.Core.DTOs
         public Ulid StudentId { get; init; }
         public string StudentName { get; init; } = string.Empty;
         public Ulid SubjectOfferingId { get; init; }
+        public string SubjectCode { get; init; } = string.Empty;
         public string SubjectName { get; init; } = string.Empty;
+        public string DepartmentName { get; init; } = string.Empty;
         public string DoctorName { get; init; } = string.Empty;
         public string SemesterName { get; init; } = string.Empty;
         public DateTime EnrolledAt { get; init; }

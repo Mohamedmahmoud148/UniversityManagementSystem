@@ -164,7 +164,64 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<IReadOnlyList<Subject>> GetSubjectsByBatchIdAsync(Ulid batchId)
         {
-            return await _context.Subjects.Where(s => s.BatchId == batchId).ToListAsync();
+            return await _context.Subjects
+                .Include(s => s.Department)
+                .Include(s => s.College)
+                .Include(s => s.Batch)
+                .Where(s => s.BatchId == batchId)
+                .ToListAsync();
+        }
+
+        public async Task<IReadOnlyList<Subject>> GetSubjectsByDepartmentIdAsync(Ulid departmentId)
+        {
+            return await _context.Subjects
+                .Include(s => s.Department)
+                .Include(s => s.College)
+                .Include(s => s.Batch)
+                .Where(s => s.DepartmentId == departmentId)
+                .ToListAsync();
+        }
+
+        public async Task<IReadOnlyList<Subject>> GetSubjectsByCollegeIdAsync(Ulid collegeId)
+        {
+            return await _context.Subjects
+                .Include(s => s.Department)
+                .Include(s => s.College)
+                .Include(s => s.Batch)
+                .Where(s => s.CollegeId == collegeId)
+                .ToListAsync();
+        }
+
+        public async Task<IReadOnlyList<Subject>> GetDoctorSubjectsAsync(Ulid doctorId)
+        {
+            return await _context.SubjectDoctors
+                .Include(sd => sd.Subject)
+                    .ThenInclude(s => s.Department)
+                .Include(sd => sd.Subject)
+                    .ThenInclude(s => s.College)
+                .Include(sd => sd.Subject)
+                    .ThenInclude(s => s.Batch)
+                .Where(sd => sd.DoctorId == doctorId)
+                .Select(sd => sd.Subject)
+                .ToListAsync();
+        }
+
+        public async Task<IReadOnlyList<Subject>> GetStudentSubjectsAsync(Ulid studentId)
+        {
+            return await _context.Enrollments
+                .Include(e => e.SubjectOffering)
+                    .ThenInclude(so => so.Subject)
+                        .ThenInclude(s => s.Department)
+                .Include(e => e.SubjectOffering)
+                    .ThenInclude(so => so.Subject)
+                        .ThenInclude(s => s.College)
+                .Include(e => e.SubjectOffering)
+                    .ThenInclude(so => so.Subject)
+                        .ThenInclude(s => s.Batch)
+                .Where(e => e.StudentId == studentId && e.IsActive)
+                .Select(e => e.SubjectOffering.Subject)
+                .Distinct()
+                .ToListAsync();
         }
 
         public async Task<Subject?> GetSubjectByIdAsync(Ulid id)
@@ -181,8 +238,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task<Subject?> GetSubjectByCodeAsync(string code)
         {
             var normalizedCode = code.Trim().ToLower();
-            var subjects = await _repo.GetAsync(s => s.Code.ToLower() == normalizedCode);
-            return subjects.FirstOrDefault();
+            return await _context.Subjects
+                .Include(s => s.Department)
+                .Include(s => s.College)
+                .Include(s => s.Batch)
+                .FirstOrDefaultAsync(s => s.Code.ToLower() == normalizedCode);
         }
 
         public async Task UpdateSubjectDetailsAsync(Ulid id, Core.DTOs.UpdateSubjectDto dto)

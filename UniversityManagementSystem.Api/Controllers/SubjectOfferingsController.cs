@@ -10,9 +10,10 @@ namespace UniversityManagementSystem.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class SubjectOfferingsController(ISubjectOfferingService service) : ControllerBase
+    public class SubjectOfferingsController(ISubjectOfferingService service, IEnrollmentService enrollmentService) : ControllerBase
     {
         private readonly ISubjectOfferingService _service = service;
+        private readonly IEnrollmentService _enrollmentService = enrollmentService;
 
         [HttpGet("by-code/{code}")]
         public async Task<IActionResult> GetByCode(string code)
@@ -57,8 +58,25 @@ namespace UniversityManagementSystem.Api.Controllers
             var profileIdClaim = User.FindFirst("ProfileId");
             if (profileIdClaim == null) return Unauthorized("Student profile not found.");
             if (!Ulid.TryParse(profileIdClaim.Value, out var studentId)) return Unauthorized("Invalid student ID.");
-            var result = await _service.GetByStudentAsync(studentId);
-            return Ok(result);
+            
+            var enrollments = await _enrollmentService.GetStudentEnrollmentsAsync(studentId);
+
+            var dtos = enrollments.Select(e => new EnrollmentDto
+            {
+                Id = e.Id,
+                StudentId = e.StudentId,
+                StudentName = e.Student?.FullName ?? string.Empty,
+                SubjectOfferingId = e.SubjectOfferingId,
+                SubjectCode = e.SubjectOffering?.Subject?.Code ?? string.Empty,
+                SubjectName = e.SubjectOffering?.Subject?.Name ?? string.Empty,
+                DepartmentName = e.SubjectOffering?.Department?.Name ?? string.Empty,
+                DoctorName = e.SubjectOffering?.Doctor?.FullName ?? string.Empty,
+                SemesterName = e.SubjectOffering?.Semester?.Name ?? string.Empty,
+                EnrolledAt = e.EnrolledAt,
+                IsActive = e.IsActive
+            });
+
+            return Ok(dtos);
         }
     }
 }

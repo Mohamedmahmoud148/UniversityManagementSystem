@@ -41,6 +41,10 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task DeleteSubjectAsync(Ulid id);
         Task AssignSubjectToDoctorAsync(Ulid subjectId, Ulid doctorId);
         Task AssignSubjectToAssistantAsync(Ulid subjectId, Ulid assistantId);
+        Task<IReadOnlyList<Subject>> GetSubjectsByDepartmentIdAsync(Ulid departmentId);
+        Task<IReadOnlyList<Subject>> GetSubjectsByCollegeIdAsync(Ulid collegeId);
+        Task<IReadOnlyList<Subject>> GetDoctorSubjectsAsync(Ulid doctorId);
+        Task<IReadOnlyList<Subject>> GetStudentSubjectsAsync(Ulid studentId);
     }
 
 }

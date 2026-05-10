@@ -172,7 +172,18 @@ namespace UniversityManagementSystem.Api.Controllers
             var entity = await _service.GetDoctorByCodeAsync(code);
             if (entity == null) return NotFound($"Doctor with code '{code}' not found.");
             var list = await _service.GetDoctorSubjectsAsync(entity.Id);
-            return Ok(list.Select(s => new SubjectDto(s.Id, s.Name, s.Code, s.CollegeId, s.DepartmentId, s.BatchId)));
+            return Ok(list.Select(s => new SubjectDto(
+                s.Id,
+                s.Name,
+                s.Code,
+                s.CreditHours,
+                s.CollegeId,
+                s.College?.Name,
+                s.DepartmentId,
+                s.Department?.Name ?? string.Empty,
+                s.BatchId,
+                s.Batch?.Name
+            )));
         }
 
         [HttpPost("bulk-upload")]
