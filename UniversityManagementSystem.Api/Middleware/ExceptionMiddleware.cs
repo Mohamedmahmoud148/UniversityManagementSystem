@@ -47,6 +47,7 @@ namespace UniversityManagementSystem.Api.Middleware
                 KeyNotFoundException        => (int)HttpStatusCode.NotFound,
                 ArgumentException           => (int)HttpStatusCode.BadRequest,
                 InvalidOperationException   => (int)HttpStatusCode.BadRequest,
+                Core.Exceptions.DomainException => (int)HttpStatusCode.BadRequest,
                 _                           => (int)HttpStatusCode.InternalServerError
             };
 
