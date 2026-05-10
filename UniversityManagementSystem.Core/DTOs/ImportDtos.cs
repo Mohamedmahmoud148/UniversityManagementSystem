@@ -25,6 +25,8 @@ namespace UniversityManagementSystem.Core.DTOs
         public int Imported { get; set; }
         public int Skipped { get; set; }
         public List<string> Errors { get; set; } = new();
+        /// <summary>Non-fatal notices (missing optional columns, auto-generated IDs, invalid phone fallback).</summary>
+        public List<string> Warnings { get; set; } = new();
     }
 
     public class ImportGradesResultDto

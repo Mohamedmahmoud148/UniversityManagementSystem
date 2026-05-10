@@ -123,6 +123,19 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return true;
         }
 
+        // ── Phone normalization ────────────────────────────────────────────────
+        private static string NormalizePhone(string phone)
+        {
+            phone = phone?.Trim() ?? "";
+            // Strip +20 or 0020 country code → keep local 01xxxxxxxxx format
+            if (phone.StartsWith("+20")) phone = "0" + phone[3..];
+            else if (phone.StartsWith("0020")) phone = "0" + phone[4..];
+            // Remove spaces/dashes
+            phone = phone.Replace(" ", "").Replace("-", "");
+            // If empty after normalization, use placeholder
+            return string.IsNullOrEmpty(phone) ? "01000000000" : phone;
+        }
+
         public async Task<AuthResponseDto> RegisterStudentAsync(RegisterStudentDto dto, Ulid createdByUserId)
         {
             using var transaction = await _context.Database.BeginTransactionAsync();
@@ -197,14 +210,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 {
                     FullName = dto.FullName,
                     Email = "",
-                    Phone = dto.Phone,
+                    Phone = NormalizePhone(dto.Phone),   // handles +201... or 01...
                     UniversityStudentId = universityIdStr,
                     UniversityId = universityId,
                     CollegeId = college.Id,
                     DepartmentId = department.Id,
                     BatchId = batch.Id,
                     GroupId = group.Id,
-                    SystemUserId = user.Id
+                    SystemUserId = user.Id,
+                    RegulationId = batch.RegulationId   // inherit from batch automatically
                 };
 
                 _context.Students.Add(student);

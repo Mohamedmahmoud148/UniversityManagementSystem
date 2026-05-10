@@ -120,16 +120,20 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         // ── New method: POST /api/students/import-excel ───────────────────────
         /// <summary>
-        /// Parses an .xlsx file with columns:
-        ///   1=FullName | 2=Email | 3=UniversityStudentId | 4=BatchCode | 5=GroupCode
+        /// Parses an .xlsx file using DYNAMIC header detection.
+        ///
+        /// REQUIRED columns (case-insensitive, flexible naming):
+        ///   FullName  | BatchCode | GroupCode
+        ///
+        /// OPTIONAL columns (accepted if present, warned if missing):
+        ///   NationalId | Phone | Email | UniversityStudentId
         ///
         /// Strategy:
-        ///   • Pre-fetches all Batches (with Dept→College→University chain) and Groups
-        ///     into dictionaries — zero per-row DB round trips for lookups.
-        ///   • Pre-fetches existing Email and UniversityStudentId sets for dedup.
-        ///   • Also tracks duplicates within the uploaded file itself.
-        ///   • Builds all valid Student + SystemUser pairs, then performs a single
-        ///     SaveChangesAsync call (O(1) round trips regardless of file size).
+        ///   • Reads the first row as headers — column ORDER doesn't matter.
+        ///   • Missing optional columns → warning added, default values used.
+        ///   • Missing required columns → import aborted with clear error.
+        ///   • Invalid/duplicate rows are SKIPPED and reported, never crash the whole import.
+        ///   • Single bulk SaveChangesAsync — O(1) DB round trips.
         /// </summary>
         public async Task<ImportStudentsResultDto> ImportStudentsFromExcelAsync(IFormFile file)
         {
@@ -149,25 +153,64 @@ namespace UniversityManagementSystem.Infrastructure.Services
             memStream.Position = 0;
 
             using var workbook = new XLWorkbook(memStream);
-            var worksheet = workbook.Worksheet(1);  // first sheet
+            var worksheet = workbook.Worksheet(1);
             var range = worksheet.RangeUsed();
 
             if (range == null)
                 return Fail(result, "The worksheet is empty.");
 
-            // Skip header row (row 1), materialise remaining rows
-            var dataRows = range.RowsUsed().Skip(1).ToList();
+            var allRows = range.RowsUsed().ToList();
+            if (allRows.Count < 2)
+                return Fail(result, "No data rows found (only header present or file is empty).");
+
+            // ── 3. Dynamic header detection ────────────────────────────────
+            var headerRow = allRows[0];
+            var dataRows = allRows.Skip(1).ToList();
             result.TotalRows = dataRows.Count;
 
-            if (result.TotalRows == 0)
+            // Map header name → column number (1-based)
+            var colMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var cell in headerRow.Cells())
             {
-                result.Errors.Add("No data rows found (only header present).");
-                return result;
+                var header = cell.GetValue<string>().Trim().ToLower()
+                    .Replace(" ", "").Replace("_", "").Replace("-", "");
+                if (!string.IsNullOrEmpty(header))
+                    colMap[header] = cell.Address.ColumnNumber;
             }
 
-            // ── 3. Pre-fetch lookup data (eliminates N+1 DB hits) ──────────
+            // Helper: find column by multiple possible aliases
+            int FindCol(params string[] aliases)
+            {
+                foreach (var a in aliases)
+                    if (colMap.TryGetValue(a, out var n)) return n;
+                return -1;
+            }
 
-            // Batches keyed by Code; eagerly load full FK chain
+            int fullNameCol      = FindCol("fullname", "name", "studentname", "اسم");
+            int batchCodeCol     = FindCol("batchcode", "batch", "دفعة", "الدفعة");
+            int groupCodeCol     = FindCol("groupcode", "group", "مجموعة", "المجموعة");
+            int nationalIdCol    = FindCol("nationalid", "national", "رقمقومي", "id");
+            int phoneCol         = FindCol("phone", "mobile", "tel", "هاتف", "موبايل");
+            int emailCol         = FindCol("email", "personalmail", "mail");
+            int uniStudentIdCol  = FindCol("universitystudentid", "studentid", "studentnumber", "رقمطالب");
+
+            // ── 4. Required column check ───────────────────────────────────
+            var missing = new List<string>();
+            if (fullNameCol  == -1) missing.Add("FullName");
+            if (batchCodeCol == -1) missing.Add("BatchCode");
+            if (groupCodeCol == -1) missing.Add("GroupCode");
+
+            if (missing.Count > 0)
+                return Fail(result, $"Required columns not found: {string.Join(", ", missing)}. " +
+                    "Make sure the first row contains headers (FullName, BatchCode, GroupCode).");
+
+            // Warn about missing optional columns
+            if (nationalIdCol   == -1) result.Warnings.Add("Optional column 'NationalId' not found — will be left empty.");
+            if (phoneCol        == -1) result.Warnings.Add("Optional column 'Phone' not found — default placeholder will be used.");
+            if (emailCol        == -1) result.Warnings.Add("Optional column 'Email' not found — university email will be auto-generated.");
+            if (uniStudentIdCol == -1) result.Warnings.Add("Optional column 'UniversityStudentId' not found — will be auto-generated.");
+
+            // ── 5. Pre-fetch lookup data (eliminate N+1) ───────────────────
             var batchesByCode = await _context.Batches
                 .AsNoTracking()
                 .Include(b => b.Department)
@@ -175,139 +218,181 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         .ThenInclude(c => c.University)
                 .ToDictionaryAsync(b => b.Code, StringComparer.OrdinalIgnoreCase);
 
-            // Groups keyed by Code
             var groupsByCode = await _context.Groups
                 .AsNoTracking()
                 .ToDictionaryAsync(g => g.Code, StringComparer.OrdinalIgnoreCase);
 
-            // Existing student Email and UniversityStudentId sets (for duplicate detection)
-            var existingEmails = await _context.Students
+            var existingNationalIds = await _context.SystemUsers
                 .AsNoTracking()
-                .Select(s => s.Email.ToLower())
+                .Where(u => u.NationalId != null && u.NationalId != "")
+                .Select(u => u.NationalId.ToLower())
                 .ToHashSetAsync();
 
-            var existingStudentIds = await _context.Students
+            var existingUniStudentIds = await _context.Students
                 .AsNoTracking()
                 .Select(s => s.UniversityStudentId.ToLower())
                 .ToHashSetAsync();
 
-            // In-batch dedup sets (catches duplicates within the same file)
-            var batchEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var batchStudentIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // Counter for auto-generating UniversityStudentId
+            int autoIdCounter = await _context.Students.IgnoreQueryFilters().CountAsync() + 1;
 
-            // ── 4. Row-by-row parsing ──────────────────────────────────────
+            // In-file dedup
+            var batchNationalIds  = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var batchUniStudentIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // ── 6. Row-by-row parsing ──────────────────────────────────────
             var newStudents = new List<Student>();
+
+            string GetCell(IXLRangeRow row, int col)
+                => col == -1 ? "" : row.Cell(col).GetValue<string>().Trim();
 
             foreach (var row in dataRows)
             {
                 int rowNum = row.RowNumber();
-
-                // Extract and trim each cell
-                string fullName = row.Cell(1).GetValue<string>().Trim();
-                string email = row.Cell(2).GetValue<string>().Trim();
-                string universityStId = row.Cell(3).GetValue<string>().Trim();
-                string batchCode = row.Cell(4).GetValue<string>().Trim();
-                string groupCode = row.Cell(5).GetValue<string>().Trim();
-
-                // ── 4a. Required field check ──────────────────────────────
-                if (string.IsNullOrWhiteSpace(fullName) ||
-                    string.IsNullOrWhiteSpace(email) ||
-                    string.IsNullOrWhiteSpace(universityStId) ||
-                    string.IsNullOrWhiteSpace(batchCode) ||
-                    string.IsNullOrWhiteSpace(groupCode))
-                {
-                    result.Skipped++;
-                    result.Errors.Add($"Row {rowNum}: One or more required fields are empty — skipped.");
-                    continue;
-                }
-
-                // ── 5. Resolve Batch by Code ──────────────────────────────
-                if (!batchesByCode.TryGetValue(batchCode, out var batch))
-                {
-                    result.Skipped++;
-                    result.Errors.Add($"Row {rowNum}: Batch '{batchCode}' not found — skipped.");
-                    continue;
-                }
-
-                // ── 5b. Resolve Group by Code (must belong to resolved batch)
-                if (!groupsByCode.TryGetValue(groupCode, out var group))
-                {
-                    result.Skipped++;
-                    result.Errors.Add($"Row {rowNum}: Group '{groupCode}' not found — skipped.");
-                    continue;
-                }
-
-                if (group.BatchId != batch.Id)
-                {
-                    result.Skipped++;
-                    result.Errors.Add($"Row {rowNum}: Group '{groupCode}' does not belong to batch '{batchCode}' — skipped.");
-                    continue;
-                }
-
-                // ── 6. Duplicate detection ────────────────────────────────
-                if (existingEmails.Contains(email.ToLower()) || batchEmails.Contains(email))
-                {
-                    result.Skipped++;
-                    result.Errors.Add($"Row {rowNum}: Duplicate email '{email}' — skipped.");
-                    continue;
-                }
-
-                if (existingStudentIds.Contains(universityStId.ToLower()) || batchStudentIds.Contains(universityStId))
-                {
-                    result.Skipped++;
-                    result.Errors.Add($"Row {rowNum}: Duplicate UniversityStudentId '{universityStId}' — skipped.");
-                    continue;
-                }
-
-                // ── 7. Derive required FKs from Batch navigation chain ────
-                //   Batch.DepartmentId  → Department.CollegeId → College.UniversityId
-                var department = batch.Department;
-                var college = department.College;
-                var university = college.University;
-
                 try
                 {
-                    // Build SystemUser — personal email from Excel, university email generated
+                    string fullName    = GetCell(row, fullNameCol);
+                    string batchCode   = GetCell(row, batchCodeCol);
+                    string groupCode   = GetCell(row, groupCodeCol);
+                    string nationalId  = GetCell(row, nationalIdCol);
+                    string rawPhone    = GetCell(row, phoneCol);
+                    string email       = GetCell(row, emailCol);
+                    string uniStId     = GetCell(row, uniStudentIdCol);
+
+                    // ── 6a. Required field check ──────────────────────────
+                    if (string.IsNullOrWhiteSpace(fullName))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: FullName is empty — skipped.");
+                        continue;
+                    }
+                    if (string.IsNullOrWhiteSpace(batchCode))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: BatchCode is empty — skipped.");
+                        continue;
+                    }
+                    if (string.IsNullOrWhiteSpace(groupCode))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: GroupCode is empty — skipped.");
+                        continue;
+                    }
+
+                    // ── 6b. Resolve Batch ─────────────────────────────────
+                    if (!batchesByCode.TryGetValue(batchCode, out var batch))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: Batch '{batchCode}' not found — skipped.");
+                        continue;
+                    }
+
+                    // ── 6c. Resolve Group ─────────────────────────────────
+                    if (!groupsByCode.TryGetValue(groupCode, out var group))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: Group '{groupCode}' not found — skipped.");
+                        continue;
+                    }
+                    if (group.BatchId != batch.Id)
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: Group '{groupCode}' does not belong to batch '{batchCode}' — skipped.");
+                        continue;
+                    }
+
+                    // ── 6d. NationalId dedup (optional field) ─────────────
+                    if (!string.IsNullOrEmpty(nationalId))
+                    {
+                        if (existingNationalIds.Contains(nationalId.ToLower()) || batchNationalIds.Contains(nationalId))
+                        {
+                            result.Skipped++;
+                            result.Errors.Add($"Row {rowNum}: NationalId '{nationalId}' already exists — skipped.");
+                            continue;
+                        }
+                    }
+
+                    // ── 6e. UniversityStudentId — auto-generate if missing ─
+                    if (string.IsNullOrEmpty(uniStId))
+                    {
+                        var year = DateTime.UtcNow.Year;
+                        do { uniStId = $"STU{year}{autoIdCounter++:D4}"; }
+                        while (existingUniStudentIds.Contains(uniStId.ToLower()) || batchUniStudentIds.Contains(uniStId));
+                        result.Warnings.Add($"Row {rowNum}: UniversityStudentId auto-generated as '{uniStId}'.");
+                    }
+                    else if (existingUniStudentIds.Contains(uniStId.ToLower()) || batchUniStudentIds.Contains(uniStId))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: UniversityStudentId '{uniStId}' already exists — skipped.");
+                        continue;
+                    }
+
+                    // ── 6f. Phone normalization ───────────────────────────
+                    string phone = "01000000000"; // default placeholder
+                    if (!string.IsNullOrEmpty(rawPhone))
+                    {
+                        // Normalize +20 / 0020 prefix
+                        var normalized = rawPhone.Replace(" ", "").Replace("-", "");
+                        if (normalized.StartsWith("+20")) normalized = "0" + normalized[3..];
+                        else if (normalized.StartsWith("0020")) normalized = "0" + normalized[4..];
+
+                        if (System.Text.RegularExpressions.Regex.IsMatch(normalized, @"^01[0125][0-9]{8}$"))
+                            phone = normalized;
+                        else
+                            result.Warnings.Add($"Row {rowNum}: Phone '{rawPhone}' is invalid — using placeholder '01000000000'.");
+                    }
+
+                    // ── 6g. Email — auto-generate if missing ──────────────
+                    var department = batch.Department;
+                    var college    = department.College;
+                    var university = college.University;
+
+                    string uniEmail = string.IsNullOrEmpty(email)
+                        ? $"{uniStId.ToLower()}@university.edu"
+                        : email;
+
+                    // ── 6h. Build entities ────────────────────────────────
                     var systemUser = new SystemUser
                     {
-                        Id = Ulid.NewUlid(),
-                        FullName = fullName,
-                        Email = email,
-                        UniversityEmail = $"{universityStId.ToLower()}@university.edu",
-                        NationalId = string.Empty,          // not provided in this Excel format
+                        Id           = Ulid.NewUlid(),
+                        FullName     = fullName,
+                        Email        = uniEmail,
+                        UniversityEmail = uniEmail,
+                        NationalId   = nationalId ?? "",
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword("TempPass@123"),
-                        Role = UserRole.Student,
-                        IsActive = true
+                        Role         = UserRole.Student,
+                        IsActive     = true
                     };
 
-                    // Build Student — Phone not in Excel, set placeholder (update after import)
                     var student = new Student
                     {
-                        Id = Ulid.NewUlid(),
-                        FullName = fullName,
-                        Email = email,
-                        UniversityStudentId = universityStId,
-                        Phone = "01000000000",     // placeholder: ^01[0125][0-9]{8}$ ✓
-                        UniversityId = university.Id,
-                        CollegeId = college.Id,
-                        DepartmentId = department.Id,
-                        BatchId = batch.Id,
-                        GroupId = group.Id,
-                        IsActive = true,
-                        SystemUser = systemUser         // EF inserts SystemUser first, then Student
+                        Id                  = Ulid.NewUlid(),
+                        FullName            = fullName,
+                        Email               = uniEmail,
+                        UniversityStudentId = uniStId,
+                        Phone               = phone,
+                        UniversityId        = university.Id,
+                        CollegeId           = college.Id,
+                        DepartmentId        = department.Id,
+                        BatchId             = batch.Id,
+                        GroupId             = group.Id,
+                        IsActive            = true,
+                        RegulationId        = batch.RegulationId,  // inherit regulation from batch
+                        SystemUser          = systemUser
                     };
 
                     newStudents.Add(student);
 
-                    // Update in-batch dedup sets so the next row detects dupes within the file
-                    batchEmails.Add(email);
-                    batchStudentIds.Add(universityStId);
+                    // Track for in-file dedup
+                    if (!string.IsNullOrEmpty(nationalId)) batchNationalIds.Add(nationalId);
+                    batchUniStudentIds.Add(uniStId);
+                    existingUniStudentIds.Add(uniStId.ToLower());
+                    if (!string.IsNullOrEmpty(nationalId)) existingNationalIds.Add(nationalId.ToLower());
 
                     result.Imported++;
                 }
                 catch (Core.Exceptions.DomainException dex)
                 {
-                    // Entity setter validation (e.g. FullName regex, Phone regex)
                     result.Skipped++;
                     result.Errors.Add($"Row {rowNum}: Validation error — {dex.Message} — skipped.");
                 }
@@ -318,9 +403,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 }
             }
 
-            // ── 8. Single bulk insert (one SaveChangesAsync for all valid rows) ──
-            // EF Core automatically inserts referenced SystemUser objects first,
-            // satisfying the FK constraint before inserting Student rows.
+            // ── 7. Single bulk insert ──────────────────────────────────────
             if (newStudents.Count > 0)
             {
                 _context.Students.AddRange(newStudents);
