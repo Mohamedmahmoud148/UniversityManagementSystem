@@ -54,7 +54,7 @@ namespace UniversityManagementSystem.Api.Controllers
         };
         private const long MaxFileSizeBytes = 50 * 1024 * 1024; // 50 MB
 
-        // ── Helper: build RegulationDto with signed URL ───────────────────────
+        // ── Helper: build RegulationDto with public URL ───────────────────────
         private async Task<RegulationDto> ToDto(Regulation r)
         {
             string? fileUrl = null;
@@ -63,8 +63,8 @@ namespace UniversityManagementSystem.Api.Controllers
                 var file = await _context.UploadedFiles.FindAsync(r.FileId.Value);
                 if (file != null)
                 {
-                    var key = file.StorageKey;
-                    fileUrl = await _storageService.GenerateSignedUrlAsync(key, expiryMinutes: 60);
+                    // Use the public R2 URL (pub-xxx.r2.dev) — no auth needed, no SigV2/V4 issues
+                    fileUrl = _storageService.BuildUrl(file.StorageKey);
                 }
             }
 
