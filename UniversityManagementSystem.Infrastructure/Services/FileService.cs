@@ -41,8 +41,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             _context.UploadedFiles.Add(uploadedFile);
             await _context.SaveChangesAsync();
 
-            // Return a 60-minute signed URL immediately so the caller can use the file
-            var signedUrl = await _storage.GenerateSignedUrlAsync(storageKey, expiryMinutes: 60);
+            // Return a public URL immediately so the caller can use the file
+            var publicUrl = _storage.BuildUrl(storageKey);
 
             return new FileUploadResponseDto
             {
@@ -50,7 +50,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 FileName = uploadedFile.FileName,
                 ContentType = uploadedFile.ContentType,
                 Size = uploadedFile.FileSizeBytes,
-                Url = signedUrl
+                Url = publicUrl
             };
         }
 

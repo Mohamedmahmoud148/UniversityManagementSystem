@@ -258,12 +258,11 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(await ToDto(result));
         }
 
-        // ── PUT /api/Regulations/{id}  [LEGACY — keep for backward compat] ────
+        // ── PUT /api/Regulations/{id} ─────────────────────────────────────────
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(52_428_800)]
-        [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> Update(string id, [FromForm] UpdateRegulationDto dto)
         {
             if (!Ulid.TryParse(id, out var regId))
@@ -290,10 +289,9 @@ namespace UniversityManagementSystem.Api.Controllers
             return await UpdateRegulationCore(regulation.Id, dto);
         }
 
-        // ── DELETE /api/Regulations/{id}  [LEGACY — keep for backward compat] ──
+        // ── DELETE /api/Regulations/{id} ──────────────────────────────────────
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!Ulid.TryParse(id, out var regId))

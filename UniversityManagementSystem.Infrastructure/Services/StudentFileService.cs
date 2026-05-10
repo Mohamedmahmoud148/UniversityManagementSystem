@@ -104,9 +104,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (!string.IsNullOrEmpty(file.ExtractedText))
                 return (file.ExtractedText, true);
 
-            // Otherwise return a 60-min signed URL so the AI service can fetch the raw file
-            var signedUrl = await _storage.GenerateSignedUrlAsync(file.StorageKey, expiryMinutes: 60);
-            return (signedUrl, false);
+            // Otherwise return the public R2 URL so the AI service can fetch the raw file
+            var publicUrl = _storage.BuildUrl(file.StorageKey);
+            return (publicUrl, false);
         }
     }
 }
