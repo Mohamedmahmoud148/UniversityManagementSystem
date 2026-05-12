@@ -233,9 +233,12 @@ builder.Services.AddControllers(options =>
 })
 .AddJsonOptions(options =>
 {
-    // Fix ULID deserialization: allows clients to send ULIDs as plain strings
-    // e.g. "universityId": "01KMXCAWPP16MDYJKA7W7GKH8J"
-    options.JsonSerializerOptions.Converters.Add(new UniversityManagementSystem.Api.Converters.UlidJsonConverter());
+    // Factory handles both Ulid (non-nullable) and Ulid? (nullable) fields.
+    // A factory is required because System.Text.Json does NOT automatically
+    // wrap a JsonConverter<T> to also cover T? — without this, nullable ULID
+    // fields and any Ulid stored behind `object` emit {Time, Random} objects
+    // instead of plain "01JTNQ..." strings.
+    options.JsonSerializerOptions.Converters.Add(new UniversityManagementSystem.Api.Converters.UlidJsonConverterFactory());
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
