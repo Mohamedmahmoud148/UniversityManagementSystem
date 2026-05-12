@@ -62,6 +62,8 @@ namespace UniversityManagementSystem.Api.Controllers
 
         private static SubjectDto MapToDto(Subject s)
         {
+            // Pick the first assigned doctor's name (if any)
+            var doctorName = s.SubjectDoctors?.FirstOrDefault()?.Doctor?.FullName;
             return new SubjectDto(
                 s.Id,
                 s.Name,
@@ -72,7 +74,8 @@ namespace UniversityManagementSystem.Api.Controllers
                 s.DepartmentId,
                 s.Department?.Name ?? string.Empty,
                 s.BatchId,
-                s.Batch?.Name
+                s.Batch?.Name,
+                doctorName
             );
         }
 
@@ -129,14 +132,13 @@ namespace UniversityManagementSystem.Api.Controllers
             // Resolve if Doctor or Student
             if (User.IsInRole("Doctor"))
             {
-                var claim = User.Claims.FirstOrDefault(c => c.Type == "nameid");
-                if (claim == null) return Unauthorized("User ID claim not found.");
-                if (!Ulid.TryParse(claim.Value, out var userId)) return Unauthorized("Invalid user ID.");
+                // ProfileId = Doctor entity ULID (set in JWT at login)
+                // Using ProfileId avoids the incorrect SystemUser-ID → Doctor-ID mismatch
+                var profileIdClaim = User.FindFirst("ProfileId");
+                if (profileIdClaim == null) return Unauthorized("Doctor profile not found.");
+                if (!Ulid.TryParse(profileIdClaim.Value, out var doctorId)) return Unauthorized("Invalid doctor ID.");
 
-                var doctor = await _doctorService.GetDoctorByIdAsync(userId);
-                if (doctor == null) return NotFound("Doctor profile not found.");
-
-                var subjects = await _service.GetDoctorSubjectsAsync(doctor.Id);
+                var subjects = await _service.GetDoctorSubjectsAsync(doctorId);
                 return Ok(subjects.Select(MapToDto));
             }
             else if (User.IsInRole("Student"))

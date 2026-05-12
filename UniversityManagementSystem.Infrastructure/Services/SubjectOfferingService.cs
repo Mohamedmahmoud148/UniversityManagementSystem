@@ -152,6 +152,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 SubjectId = entity.SubjectId,
                 SubjectCode = entity.Subject?.Code ?? string.Empty,
                 SubjectName = entity.Subject?.Name ?? string.Empty,
+                CreditHours = entity.Subject?.CreditHours ?? 0,
                 SemesterId = entity.SemesterId,
                 SemesterName = entity.Semester?.Name ?? string.Empty,
                 DoctorId = entity.DoctorId,

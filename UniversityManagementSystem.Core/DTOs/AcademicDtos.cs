@@ -72,7 +72,8 @@ namespace UniversityManagementSystem.Core.DTOs
         Ulid DepartmentId,
         string DepartmentName,
         Ulid? BatchId,
-        string? BatchName
+        string? BatchName,
+        string? DoctorName = null
     );
 
     public record CreateSubjectDto(

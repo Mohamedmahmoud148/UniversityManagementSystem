@@ -166,6 +166,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Include(s => s.Department)
                 .Include(s => s.College)
                 .Include(s => s.Batch)
+                .Include(s => s.SubjectDoctors)
+                    .ThenInclude(sd => sd.Doctor)
                 .Where(s => s.BatchId == batchId)
                 .ToListAsync();
         }
@@ -176,6 +178,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Include(s => s.Department)
                 .Include(s => s.College)
                 .Include(s => s.Batch)
+                .Include(s => s.SubjectDoctors)
+                    .ThenInclude(sd => sd.Doctor)
                 .Where(s => s.DepartmentId == departmentId)
                 .ToListAsync();
         }
@@ -186,39 +190,50 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Include(s => s.Department)
                 .Include(s => s.College)
                 .Include(s => s.Batch)
+                .Include(s => s.SubjectDoctors)
+                    .ThenInclude(sd => sd.Doctor)
                 .Where(s => s.CollegeId == collegeId)
                 .ToListAsync();
         }
 
         public async Task<IReadOnlyList<Subject>> GetDoctorSubjectsAsync(Ulid doctorId)
         {
-            return await _context.SubjectDoctors
-                .Include(sd => sd.Subject)
-                    .ThenInclude(s => s.Department)
-                .Include(sd => sd.Subject)
-                    .ThenInclude(s => s.College)
-                .Include(sd => sd.Subject)
-                    .ThenInclude(s => s.Batch)
+            // Two-step: first collect subject IDs, then load subjects with all needed includes
+            var subjectIds = await _context.SubjectDoctors
                 .Where(sd => sd.DoctorId == doctorId)
-                .Select(sd => sd.Subject)
+                .Select(sd => sd.SubjectId)
+                .ToListAsync();
+
+            if (subjectIds.Count == 0) return Array.Empty<Subject>();
+
+            return await _context.Subjects
+                .Include(s => s.Department)
+                .Include(s => s.College)
+                .Include(s => s.Batch)
+                .Include(s => s.SubjectDoctors)
+                    .ThenInclude(sd => sd.Doctor)
+                .Where(s => subjectIds.Contains(s.Id))
                 .ToListAsync();
         }
 
         public async Task<IReadOnlyList<Subject>> GetStudentSubjectsAsync(Ulid studentId)
         {
-            return await _context.Enrollments
-                .Include(e => e.SubjectOffering)
-                    .ThenInclude(so => so.Subject)
-                        .ThenInclude(s => s.Department)
-                .Include(e => e.SubjectOffering)
-                    .ThenInclude(so => so.Subject)
-                        .ThenInclude(s => s.College)
-                .Include(e => e.SubjectOffering)
-                    .ThenInclude(so => so.Subject)
-                        .ThenInclude(s => s.Batch)
-                .Where(e => e.StudentId == studentId && e.IsActive)
-                .Select(e => e.SubjectOffering.Subject)
-                .Distinct()
+            // Load the student to get their BatchId and DepartmentId
+            var student = await _context.Students
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == studentId);
+
+            if (student == null) return Array.Empty<Subject>();
+
+            // Return all subjects for the student's batch + department
+            // No manual enrollment needed — students see their full curriculum automatically
+            return await _context.Subjects
+                .Include(s => s.Department)
+                .Include(s => s.College)
+                .Include(s => s.Batch)
+                .Include(s => s.SubjectDoctors)
+                    .ThenInclude(sd => sd.Doctor)
+                .Where(s => s.BatchId == student.BatchId && s.DepartmentId == student.DepartmentId)
                 .ToListAsync();
         }
 
@@ -240,6 +255,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Include(s => s.Department)
                 .Include(s => s.College)
                 .Include(s => s.Batch)
+                .Include(s => s.SubjectDoctors)
+                    .ThenInclude(sd => sd.Doctor)
                 .FirstOrDefaultAsync(s => s.Code.ToLower() == normalizedCode);
         }
 

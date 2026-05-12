@@ -10,6 +10,7 @@ namespace UniversityManagementSystem.Core.DTOs
         public Ulid SubjectId { get; set; }
         public string SubjectCode { get; set; } = string.Empty;
         public string SubjectName { get; set; } = string.Empty;
+        public int CreditHours { get; set; }
 
         public Ulid SemesterId { get; set; }
         public string SemesterName { get; set; } = string.Empty;
