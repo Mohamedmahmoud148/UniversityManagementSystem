@@ -444,6 +444,19 @@ using (var scope = app.Services.CreateScope())
             // Ignore errors if column already exists
         }
 
+        // 1c. Ensure MustChangePassword column exists (guards against migration history mismatch)
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+    ALTER TABLE ""SystemUsers""
+    ADD COLUMN IF NOT EXISTS ""MustChangePassword"" boolean NOT NULL DEFAULT false;
+    ");
+        }
+        catch (Exception)
+        {
+            // Column already exists — safe to ignore
+        }
+
         // 2. Seed initial data (SuperAdmin, lookup tables, etc.)
         await DbInitializer.SeedAsync(services);
     }
