@@ -8,7 +8,6 @@ using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using Hangfire;
 using Microsoft.Extensions.Caching.Distributed;
-using System.Text.Json;
 using System;
 using Microsoft.AspNetCore.Http;
 using NUlid;
@@ -20,14 +19,18 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
-    public class DoctorsController(IDoctorService service, IAuthService authService, IDepartmentService departmentService, AppDbContext context) : ControllerBase
+    public class DoctorsController(
+        IDoctorService service,
+        IAuthService authService,
+        IDepartmentService departmentService,
+        AppDbContext context) : ControllerBase
     {
         private readonly IDoctorService _service = service;
         private readonly IAuthService _authService = authService;
         private readonly IDepartmentService _departmentService = departmentService;
         private readonly AppDbContext _context = context;
 
-        // ── GET /api/Doctors/search?q= ─────────────────────────────────────
+        // ── GET /api/doctors/search?q= ────────────────────────────────────────
         [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string? q)
         {
@@ -43,38 +46,102 @@ namespace UniversityManagementSystem.Api.Controllers
                     EF.Functions.ILike(d.Email, pattern))
                 .OrderBy(d => d.FullName)
                 .Take(20)
-                .Select(d => new
-                {
-                    d.Id,
-                    d.Code,
-                    d.FullName,
-                    d.Email,
-                    d.Phone,
-                    d.UniversityStaffId,
-                    d.DepartmentId
-                })
+                .Select(d => new { d.Id, d.Code, d.FullName, d.Email, d.Phone, d.UniversityStaffId, d.DepartmentId })
                 .ToListAsync();
 
             return Ok(results);
         }
 
+        // ── GET /api/doctors/filter ───────────────────────────────────────────
+        /// <summary>
+        /// Filtered, paginated list of doctors with enriched department/college info.
+        /// All query params are optional and composable.
+        /// Example: GET /api/doctors/filter?departmentId=X&isActive=true&page=1&size=20
+        /// </summary>
+        [HttpGet("filter")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Filter([FromQuery] DoctorFilterDto f)
+        {
+            var page = Math.Max(1, f.Page);
+            var size = Math.Clamp(f.Size, 1, 100);
+
+            var query = _context.Doctors
+                .AsNoTracking()
+                .Include(d => d.SystemUser)
+                .Include(d => d.Department)
+                    .ThenInclude(dep => dep.College)
+                .AsQueryable();
+
+            if (f.DepartmentId.HasValue)
+                query = query.Where(d => d.DepartmentId == f.DepartmentId.Value);
+
+            if (f.CollegeId.HasValue)
+                query = query.Where(d => d.Department.CollegeId == f.CollegeId.Value);
+
+            if (f.IsActive.HasValue)
+                query = query.Where(d => d.SystemUser.IsActive == f.IsActive.Value);
+
+            if (!string.IsNullOrWhiteSpace(f.Search))
+            {
+                var pattern = $"%{f.Search.Trim()}%";
+                query = query.Where(d =>
+                    EF.Functions.ILike(d.FullName, pattern) ||
+                    EF.Functions.ILike(d.UniversityStaffId, pattern) ||
+                    EF.Functions.ILike(d.Email, pattern) ||
+                    EF.Functions.ILike(d.Code, pattern));
+            }
+
+            var total = await query.CountAsync();
+
+            var data = await query
+                .OrderBy(d => d.FullName)
+                .Skip((page - 1) * size)
+                .Take(size)
+                .Select(d => new DoctorDetailDto
+                {
+                    Id                = d.Id,
+                    Code              = d.Code,
+                    FullName          = d.FullName,
+                    Email             = d.Email,
+                    UniversityEmail   = d.SystemUser != null ? d.SystemUser.UniversityEmail : "",
+                    Phone             = d.Phone,
+                    UniversityStaffId = d.UniversityStaffId,
+                    DepartmentId      = d.DepartmentId,
+                    DepartmentName    = d.Department != null ? d.Department.Name : "",
+                    CollegeId         = d.Department != null ? d.Department.CollegeId : Ulid.Empty,
+                    CollegeName       = d.Department != null && d.Department.College != null
+                                            ? d.Department.College.Name : ""
+                })
+                .ToListAsync();
+
+            return Ok(new PagedResult<DoctorDetailDto>
+            {
+                Data       = data,
+                TotalCount = total,
+                Page       = page,
+                Size       = size
+            });
+        }
+
+        // ── GET /api/doctors ──────────────────────────────────────────────────
         [HttpGet]
         public async Task<ActionResult<IEnumerable<DoctorDto>>> GetAll([FromQuery] int page = 1, [FromQuery] int size = 10)
         {
             var list = await _service.GetPagedDoctorsAsync(page, size);
             return Ok(list.Select(d => new DoctorDto
             {
-                Id = d.Id,
-                Code = d.Code,
-                FullName = d.FullName,
-                Email = d.Email,
-                Phone = d.Phone,
+                Id                = d.Id,
+                Code              = d.Code,
+                FullName          = d.FullName,
+                Email             = d.Email,
+                Phone             = d.Phone,
                 UniversityStaffId = d.UniversityStaffId,
-                UniversityEmail = d.SystemUser?.UniversityEmail ?? "N/A",
-                DepartmentId = d.DepartmentId
+                UniversityEmail   = d.SystemUser?.UniversityEmail ?? "N/A",
+                DepartmentId      = d.DepartmentId
             }));
         }
 
+        // ── GET /api/doctors/{code} ───────────────────────────────────────────
         [HttpGet("{code}")]
         public async Task<ActionResult<DoctorDto>> GetByCode(string code)
         {
@@ -83,22 +150,52 @@ namespace UniversityManagementSystem.Api.Controllers
 
             return Ok(new DoctorDto
             {
-                Id = d.Id,
-                Code = d.Code,
-                FullName = d.FullName,
-                Email = d.Email,
-                Phone = d.Phone,
+                Id                = d.Id,
+                Code              = d.Code,
+                FullName          = d.FullName,
+                Email             = d.Email,
+                Phone             = d.Phone,
                 UniversityStaffId = d.UniversityStaffId,
-                UniversityEmail = d.SystemUser?.UniversityEmail ?? "N/A",
-                DepartmentId = d.DepartmentId
+                UniversityEmail   = d.SystemUser?.UniversityEmail ?? "N/A",
+                DepartmentId      = d.DepartmentId
             });
         }
 
+        // ── PATCH /api/doctors/{id} ───────────────────────────────────────────
+        /// <summary>
+        /// Partial update — only the non-null fields you send will be changed.
+        /// </summary>
+        [HttpPatch("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Patch(string id, [FromBody] PatchDoctorDto dto)
+        {
+            if (!Ulid.TryParse(id, out var doctorId))
+                return BadRequest("Invalid doctor ID format.");
+
+            var doctor = await _context.Doctors
+                .FirstOrDefaultAsync(d => d.Id == doctorId);
+
+            if (doctor == null) return NotFound($"Doctor with ID '{id}' not found.");
+
+            if (dto.FullName  != null) doctor.FullName = dto.FullName;
+            if (dto.Phone     != null) doctor.Phone    = dto.Phone;
+
+            if (dto.DepartmentCode != null)
+            {
+                var dept = await _context.Departments.FirstOrDefaultAsync(d => d.Code == dto.DepartmentCode);
+                if (dept == null) return NotFound($"Department with code '{dto.DepartmentCode}' not found.");
+                doctor.DepartmentId = dept.Id;
+            }
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // ── POST /api/doctors ─────────────────────────────────────────────────
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<DoctorDto>> Create(CreateDoctorDto dto)
         {
-            // Resolve DepartmentCode → Id
             if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
                 return BadRequest("DepartmentCode is required.");
             var department = await _departmentService.GetDepartmentByCodeAsync(dto.DepartmentCode);
@@ -107,9 +204,9 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var registerDto = new RegisterDoctorDto
             {
-                FullName = dto.FullName,
-                Phone = dto.Phone,
-                NationalId = dto.NationalId,
+                FullName       = dto.FullName,
+                Phone          = dto.Phone,
+                NationalId     = dto.NationalId,
                 DepartmentCode = department.Code
             };
 
@@ -117,21 +214,22 @@ namespace UniversityManagementSystem.Api.Controllers
             var authResponse = await _authService.RegisterDoctorAsync(registerDto, creatorId);
 
             var doctor = await _service.GetDoctorByUniversityEmailAsync(authResponse.UniversityEmail!);
-            if (doctor == null) return BadRequest("Failed");
+            if (doctor == null) return BadRequest("Failed to retrieve created doctor.");
 
             return Ok(new DoctorDto
             {
-                Id = doctor.Id,
-                Code = doctor.Code,
-                FullName = doctor.FullName,
-                Email = doctor.Email,
-                Phone = doctor.Phone,
+                Id                = doctor.Id,
+                Code              = doctor.Code,
+                FullName          = doctor.FullName,
+                Email             = doctor.Email,
+                Phone             = doctor.Phone,
                 UniversityStaffId = doctor.UniversityStaffId,
-                UniversityEmail = doctor.SystemUser?.UniversityEmail ?? "N/A",
-                DepartmentId = doctor.DepartmentId
+                UniversityEmail   = doctor.SystemUser?.UniversityEmail ?? "N/A",
+                DepartmentId      = doctor.DepartmentId
             });
         }
 
+        // ── PUT /api/doctors/{code} ───────────────────────────────────────────
         [HttpPut("{code}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(string code, UpdateDoctorDto dto)
@@ -143,12 +241,10 @@ namespace UniversityManagementSystem.Api.Controllers
                 await _service.UpdateDoctorDetailsAsync(entity.Id, dto);
                 return NoContent();
             }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
         }
 
+        // ── DELETE /api/doctors/{code} ────────────────────────────────────────
         [HttpDelete("{code}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(string code)
@@ -160,12 +256,10 @@ namespace UniversityManagementSystem.Api.Controllers
                 await _service.DeleteDoctorAsync(entity.Id);
                 return NoContent();
             }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
         }
 
+        // ── GET /api/doctors/{code}/subjects ──────────────────────────────────
         [HttpGet("{code}/subjects")]
         public async Task<ActionResult<IEnumerable<SubjectDto>>> GetSubjects(string code)
         {
@@ -173,43 +267,26 @@ namespace UniversityManagementSystem.Api.Controllers
             if (entity == null) return NotFound($"Doctor with code '{code}' not found.");
             var list = await _service.GetDoctorSubjectsAsync(entity.Id);
             return Ok(list.Select(s => new SubjectDto(
-                s.Id,
-                s.Name,
-                s.Code,
-                s.CreditHours,
-                s.CollegeId,
-                s.College?.Name,
-                s.DepartmentId,
-                s.Department?.Name ?? string.Empty,
-                s.BatchId,
-                s.Batch?.Name
-            )));
+                s.Id, s.Name, s.Code, s.CreditHours,
+                s.CollegeId, s.College?.Name,
+                s.DepartmentId, s.Department?.Name ?? string.Empty,
+                s.BatchId, s.Batch?.Name)));
         }
 
+        // ── POST /api/doctors/bulk-upload ─────────────────────────────────────
         [HttpPost("bulk-upload")]
         [Authorize(Roles = "Admin")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> BulkUpload(IFormFile file, [FromServices] IFileService fileService, [FromServices] IBackgroundJobClient jobClient)
         {
-            try
-            {
-                if (file == null || file.Length == 0) return BadRequest("File is empty");
-
-                var userIdClaim = User.FindFirst("nameid");
-                if (userIdClaim == null) return Unauthorized("Invalid token claims");
-
-                var userId = Ulid.Parse(userIdClaim.Value);
-                using var stream = file.OpenReadStream();
-                var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
-
-                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessDoctorUpload(fileId, userId));
-                return Accepted(new { JobId = fileId, Message = "File accepted for processing" });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Doctors BulkUpload Error: {ex.Message}");
-                return StatusCode(500, "An unexpected error occurred during bulk upload.");
-            }
+            if (file == null || file.Length == 0) return BadRequest("File is empty");
+            var userIdClaim = User.FindFirst("nameid");
+            if (userIdClaim == null) return Unauthorized("Invalid token claims");
+            var userId = Ulid.Parse(userIdClaim.Value);
+            using var stream = file.OpenReadStream();
+            var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
+            jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessDoctorUpload(fileId, userId));
+            return Accepted(new { JobId = fileId, Message = "File accepted for processing" });
         }
     }
 }

@@ -45,7 +45,7 @@ namespace UniversityManagementSystem.Api.Controllers
         private readonly IDistributedCache _cache = cache;
         private readonly IUserContextService _userContext = userContext;
 
-        // ── GET /api/Students/search?q= ──────────────────────────────────────
+        // ── GET /api/students/search?q= ──────────────────────────────────────
         [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string? q)
         {
@@ -62,21 +62,90 @@ namespace UniversityManagementSystem.Api.Controllers
                     EF.Functions.ILike(s.UniversityStudentId, pattern))
                 .OrderBy(s => s.FullName)
                 .Take(20)
-                .Select(s => new
-                {
-                    s.Id,
-                    s.Code,
-                    s.FullName,
-                    s.Email,
-                    s.UniversityStudentId,
-                    s.BatchId,
-                    s.IsActive
-                })
+                .Select(s => new { s.Id, s.Code, s.FullName, s.Email, s.UniversityStudentId, s.BatchId, s.IsActive })
                 .ToListAsync();
 
             return Ok(results);
         }
 
+        // ── GET /api/students/filter ─────────────────────────────────────────
+        /// <summary>
+        /// Filtered, paginated list of students with full enriched info.
+        /// All query params are optional and composable.
+        /// Example: GET /api/students/filter?departmentId=X&batchId=Y&page=1&size=25
+        /// </summary>
+        [HttpGet("filter")]
+        [Authorize(Roles = "Admin,Doctor,TeachingAssistant")]
+        public async Task<IActionResult> Filter([FromQuery] StudentFilterDto f)
+        {
+            var page = Math.Max(1, f.Page);
+            var size = Math.Clamp(f.Size, 1, 100);
+
+            var query = _context.Students
+                .AsNoTracking()
+                .Include(s => s.SystemUser)
+                .Include(s => s.College)
+                .Include(s => s.Department)
+                .Include(s => s.Batch)
+                .Include(s => s.Group)
+                .AsQueryable();
+
+            if (f.UniversityId.HasValue)  query = query.Where(s => s.UniversityId  == f.UniversityId.Value);
+            if (f.CollegeId.HasValue)     query = query.Where(s => s.CollegeId     == f.CollegeId.Value);
+            if (f.DepartmentId.HasValue)  query = query.Where(s => s.DepartmentId  == f.DepartmentId.Value);
+            if (f.BatchId.HasValue)       query = query.Where(s => s.BatchId       == f.BatchId.Value);
+            if (f.GroupId.HasValue)       query = query.Where(s => s.GroupId       == f.GroupId.Value);
+            if (f.IsActive.HasValue)      query = query.Where(s => s.IsActive      == f.IsActive.Value);
+
+            if (!string.IsNullOrWhiteSpace(f.Search))
+            {
+                var pattern = $"%{f.Search.Trim()}%";
+                query = query.Where(s =>
+                    EF.Functions.ILike(s.FullName, pattern) ||
+                    EF.Functions.ILike(s.UniversityStudentId, pattern) ||
+                    EF.Functions.ILike(s.Email, pattern) ||
+                    EF.Functions.ILike(s.Code, pattern));
+            }
+
+            var total = await query.CountAsync();
+
+            var data = await query
+                .OrderBy(s => s.FullName)
+                .Skip((page - 1) * size)
+                .Take(size)
+                .Select(s => new StudentDetailDto
+                {
+                    Id                  = s.Id,
+                    Code                = s.Code,
+                    FullName            = s.FullName,
+                    Email               = s.Email,
+                    UniversityEmail     = s.SystemUser != null ? s.SystemUser.UniversityEmail : "",
+                    Phone               = s.Phone,
+                    NationalId          = s.SystemUser != null ? s.SystemUser.NationalId : "",
+                    UniversityStudentId = s.UniversityStudentId,
+                    IsActive            = s.IsActive,
+                    UniversityId        = s.UniversityId,
+                    CollegeId           = s.CollegeId,
+                    CollegeName         = s.College != null ? s.College.Name : "",
+                    DepartmentId        = s.DepartmentId,
+                    DepartmentName      = s.Department != null ? s.Department.Name : "",
+                    BatchId             = s.BatchId,
+                    BatchName           = s.Batch != null ? s.Batch.Name : "",
+                    GroupId             = s.GroupId,
+                    GroupName           = s.Group != null ? s.Group.Name : ""
+                })
+                .ToListAsync();
+
+            return Ok(new PagedResult<StudentDetailDto>
+            {
+                Data       = data,
+                TotalCount = total,
+                Page       = page,
+                Size       = size
+            });
+        }
+
+        // ── GET /api/students ────────────────────────────────────────────────
         [HttpGet]
         public async Task<ActionResult<IEnumerable<StudentDto>>> GetAll([FromQuery] int page = 1, [FromQuery] int size = 10)
         {
@@ -104,10 +173,10 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var json = JsonSerializer.Serialize(dtos);
             await _cache.SetStringAsync(cacheKey, json, _studentListCacheOpts);
-
             return Content(json, "application/json");
         }
 
+        // ── GET /api/students/{code} ─────────────────────────────────────────
         [HttpGet("{code}")]
         public async Task<ActionResult<StudentDto>> GetStudent(string code)
         {
@@ -131,6 +200,48 @@ namespace UniversityManagementSystem.Api.Controllers
             });
         }
 
+        // ── PATCH /api/students/{id} ─────────────────────────────────────────
+        /// <summary>
+        /// Partial update — only the non-null fields you send will be changed.
+        /// Example: send only { "isActive": false } to deactivate without touching other fields.
+        /// </summary>
+        [HttpPatch("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Patch(string id, [FromBody] PatchStudentDto dto)
+        {
+            if (!Ulid.TryParse(id, out var studentId))
+                return BadRequest("Invalid student ID format.");
+
+            var student = await _context.Students
+                .Include(s => s.SystemUser)
+                .FirstOrDefaultAsync(s => s.Id == studentId);
+
+            if (student == null) return NotFound($"Student with ID '{id}' not found.");
+
+            if (dto.FullName  != null) student.FullName = dto.FullName;
+            if (dto.Phone     != null) student.Phone    = dto.Phone;
+            if (dto.Email     != null) student.Email    = dto.Email;
+            if (dto.IsActive.HasValue) student.IsActive = dto.IsActive.Value;
+
+            if (dto.BatchCode != null)
+            {
+                var batch = await _context.Batches.FirstOrDefaultAsync(b => b.Code == dto.BatchCode);
+                if (batch == null) return NotFound($"Batch with code '{dto.BatchCode}' not found.");
+                student.BatchId = batch.Id;
+            }
+
+            if (dto.GroupCode != null)
+            {
+                var group = await _context.Groups.FirstOrDefaultAsync(g => g.Code == dto.GroupCode);
+                if (group == null) return NotFound($"Group with code '{dto.GroupCode}' not found.");
+                student.GroupId = group.Id;
+            }
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // ── GET /api/students/by-batch/{batchId} ─────────────────────────────
         [HttpGet("by-batch/{batchId}")]
         [Authorize(Roles = "Admin,Doctor,TeachingAssistant")]
         public async Task<ActionResult<IEnumerable<StudentDto>>> GetByBatch(Ulid batchId)
@@ -153,64 +264,60 @@ namespace UniversityManagementSystem.Api.Controllers
             }));
         }
 
+        // ── POST /api/students ───────────────────────────────────────────────
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<StudentDto>> Create(CreateStudentDto dto)
         {
-            // Resolve BatchCode → Id
             if (string.IsNullOrWhiteSpace(dto.BatchCode))
                 return BadRequest("BatchCode is required.");
             var batch = await _batchService.GetBatchByCodeAsync(dto.BatchCode);
-            if (batch == null)
-                return NotFound($"Batch with code '{dto.BatchCode}' not found.");
+            if (batch == null) return NotFound($"Batch with code '{dto.BatchCode}' not found.");
 
-            // Resolve GroupCode → Id
             if (string.IsNullOrWhiteSpace(dto.GroupCode))
                 return BadRequest("GroupCode is required.");
             var group = await _groupService.GetGroupByCodeAsync(dto.GroupCode);
-            if (group == null)
-                return NotFound($"Group with code '{dto.GroupCode}' not found.");
+            if (group == null) return NotFound($"Group with code '{dto.GroupCode}' not found.");
 
             var department = await _context.Departments.FindAsync(batch.DepartmentId);
-            var college = await _context.Colleges.FindAsync(department!.CollegeId);
+            var college    = await _context.Colleges.FindAsync(department!.CollegeId);
 
-            // Use AuthService to ensure consistent creation (SystemUser + Student)
             var registerDto = new RegisterStudentDto
             {
-                FullName = dto.FullName,
-                Phone = dto.Phone,
-                NationalId = dto.NationalId,
-                BatchCode = batch.Code,
-                GroupCode = group.Code,
-                DepartmentCode = department.Code,
-                CollegeCode = college!.Code,
+                FullName            = dto.FullName,
+                Phone               = dto.Phone,
+                NationalId          = dto.NationalId,
+                BatchCode           = batch.Code,
+                GroupCode           = group.Code,
+                DepartmentCode      = department.Code,
+                CollegeCode         = college!.Code,
                 UniversityStudentId = dto.UniversityStudentId
             };
 
             var creatorId = _userContext.GetUserId();
             var authResponse = await _authService.RegisterStudentAsync(registerDto, creatorId);
 
-            // Fetch the created student to return full DTO
             var student = await _studentService.GetStudentByUniversityEmailAsync(authResponse.UniversityEmail!);
             if (student == null) return BadRequest("Failed to retrieve created student");
 
             return Ok(new StudentDto
             {
-                Id = student.Id,
-                Code = student.Code,
-                FullName = student.FullName,
-                Email = student.Email,
-                Phone = student.Phone,
-                NationalId = registerDto.NationalId,
+                Id                  = student.Id,
+                Code                = student.Code,
+                FullName            = student.FullName,
+                Email               = student.Email,
+                Phone               = student.Phone,
+                NationalId          = registerDto.NationalId,
                 UniversityStudentId = student.UniversityStudentId,
-                UniversityEmail = authResponse.UniversityEmail ?? "N/A",
-                UniversityId = student.UniversityId,
-                BatchId = student.BatchId,
-                GroupId = student.GroupId,
-                IsActive = student.IsActive
+                UniversityEmail     = authResponse.UniversityEmail ?? "N/A",
+                UniversityId        = student.UniversityId,
+                BatchId             = student.BatchId,
+                GroupId             = student.GroupId,
+                IsActive            = student.IsActive
             });
         }
 
+        // ── PUT /api/students/{code} ─────────────────────────────────────────
         [HttpPut("{code}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Update(string code, UpdateStudentDto dto)
@@ -222,12 +329,10 @@ namespace UniversityManagementSystem.Api.Controllers
                 await _studentService.UpdateStudentDetailsAsync(entity.Id, dto);
                 return NoContent();
             }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
         }
 
+        // ── DELETE /api/students/{code} ──────────────────────────────────────
         [HttpDelete("{code}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(string code)
@@ -239,10 +344,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 await _studentService.DeleteStudentAsync(entity.Id);
                 return NoContent();
             }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
         }
 
         [HttpPost("bulk-upload-direct")]
@@ -250,22 +352,12 @@ namespace UniversityManagementSystem.Api.Controllers
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> BulkUploadDirect(IFormFile file, [FromServices] IFileService fileService, [FromServices] IBackgroundJobClient jobClient)
         {
-            try
-            {
-                if (file == null || file.Length == 0) return BadRequest("File is empty");
-
-                var userId = _userContext.GetUserId();
-                using var stream = file.OpenReadStream();
-                var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
-
-                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentDirectUpload(fileId, userId));
-                return Accepted(new { JobId = fileId, Message = "File accepted for direct processing" });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"BulkUploadDirect Error: {ex.Message}");
-                return StatusCode(500, "An unexpected error occurred during direct bulk upload.");
-            }
+            if (file == null || file.Length == 0) return BadRequest("File is empty");
+            var userId = _userContext.GetUserId();
+            using var stream = file.OpenReadStream();
+            var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
+            jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentDirectUpload(fileId, userId));
+            return Accepted(new { JobId = fileId, Message = "File accepted for direct processing" });
         }
 
         [HttpPost("bulk-upload-ai")]
@@ -273,44 +365,24 @@ namespace UniversityManagementSystem.Api.Controllers
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> BulkUploadAi(IFormFile file, [FromServices] IFileService fileService, [FromServices] IBackgroundJobClient jobClient)
         {
-            try
-            {
-                if (file == null || file.Length == 0) return BadRequest("File is empty");
-
-                var userId = _userContext.GetUserId();
-                using var stream = file.OpenReadStream();
-                var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
-
-                jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentAiUpload(fileId, userId));
-                return Accepted(new { JobId = fileId, Message = "File accepted for AI processing" });
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"BulkUploadAi Error: {ex.Message}");
-                return StatusCode(500, "An unexpected error occurred during AI bulk upload.");
-            }
+            if (file == null || file.Length == 0) return BadRequest("File is empty");
+            var userId = _userContext.GetUserId();
+            using var stream = file.OpenReadStream();
+            var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
+            jobClient.Enqueue<IBulkUploadJob>(x => x.ProcessStudentAiUpload(fileId, userId));
+            return Accepted(new { JobId = fileId, Message = "File accepted for AI processing" });
         }
 
-        // ── POST /api/students/import-excel ──────────────────────────────────
-        /// <summary>
-        /// Bulk-imports students from an Excel file.
-        /// Excel columns: FullName | Email | UniversityStudentId | BatchCode | GroupCode
-        /// Invalid/duplicate rows are skipped and reported in the Errors list.
-        /// </summary>
         [HttpPost("import-excel")]
         [Authorize(Roles = "Admin")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> ImportFromExcel(IFormFile file)
         {
-            // Guard: file must be provided
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded. Please attach an .xlsx file.");
-
-            // Guard: extension check (service also validates, but fail fast here)
             var ext = System.IO.Path.GetExtension(file.FileName);
             if (!ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
                 return BadRequest($"Invalid file type '{ext}'. Only .xlsx files are accepted.");
-
             var result = await _excelImportService.ImportStudentsFromExcelAsync(file);
             return Ok(result);
         }

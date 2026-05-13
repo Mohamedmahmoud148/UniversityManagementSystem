@@ -38,6 +38,53 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required] string GroupCode      // replaces GroupId
     );
 
+    /// <summary>PATCH DTO — every field is optional. Only non-null fields are applied.</summary>
+    public record PatchStudentDto(
+        string? FullName,
+        string? Phone,
+        string? Email,
+        string? BatchCode,
+        string? GroupCode,
+        bool? IsActive
+    );
+
+    /// <summary>Query-param filter object for GET /api/students/filter</summary>
+    public record StudentFilterDto
+    {
+        public Ulid? UniversityId   { get; init; }
+        public Ulid? CollegeId      { get; init; }
+        public Ulid? DepartmentId   { get; init; }
+        public Ulid? BatchId        { get; init; }
+        public Ulid? GroupId        { get; init; }
+        public bool? IsActive       { get; init; }
+        public string? Search       { get; init; }  // name / email / studentId
+        public int Page             { get; init; } = 1;
+        public int Size             { get; init; } = 20;
+    };
+
+    /// <summary>Enriched student DTO returned by the filter endpoint.</summary>
+    public record StudentDetailDto
+    {
+        public Ulid Id { get; init; }
+        public string Code { get; init; } = string.Empty;
+        public string FullName { get; init; } = string.Empty;
+        public string Email { get; init; } = string.Empty;
+        public string UniversityEmail { get; init; } = string.Empty;
+        public string Phone { get; init; } = string.Empty;
+        public string NationalId { get; init; } = string.Empty;
+        public string UniversityStudentId { get; init; } = string.Empty;
+        public bool IsActive { get; init; }
+        public Ulid UniversityId { get; init; }
+        public Ulid CollegeId { get; init; }
+        public string CollegeName { get; init; } = string.Empty;
+        public Ulid DepartmentId { get; init; }
+        public string DepartmentName { get; init; } = string.Empty;
+        public Ulid BatchId { get; init; }
+        public string BatchName { get; init; } = string.Empty;
+        public Ulid GroupId { get; init; }
+        public string GroupName { get; init; } = string.Empty;
+    }
+
     public record DoctorDto
     {
         public Ulid Id { get; init; }
@@ -61,6 +108,52 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required] string FullName,
         [Required][Phone] string Phone
     );
+
+    /// <summary>PATCH DTO — every field is optional. Only non-null fields are applied.</summary>
+    public record PatchDoctorDto(
+        string? FullName,
+        string? Phone,
+        string? DepartmentCode
+    );
+
+    /// <summary>Query-param filter object for GET /api/doctors/filter</summary>
+    public record DoctorFilterDto
+    {
+        public Ulid? CollegeId    { get; init; }
+        public Ulid? DepartmentId { get; init; }
+        public bool? IsActive     { get; init; }  // filters on SystemUser.IsActive
+        public string? Search     { get; init; }  // name / email / staffId
+        public int Page           { get; init; } = 1;
+        public int Size           { get; init; } = 20;
+    };
+
+    /// <summary>Enriched doctor DTO returned by the filter endpoint.</summary>
+    public record DoctorDetailDto
+    {
+        public Ulid Id { get; init; }
+        public string Code { get; init; } = string.Empty;
+        public string FullName { get; init; } = string.Empty;
+        public string Email { get; init; } = string.Empty;
+        public string UniversityEmail { get; init; } = string.Empty;
+        public string Phone { get; init; } = string.Empty;
+        public string UniversityStaffId { get; init; } = string.Empty;
+        public Ulid DepartmentId { get; init; }
+        public string DepartmentName { get; init; } = string.Empty;
+        public Ulid CollegeId { get; init; }
+        public string CollegeName { get; init; } = string.Empty;
+    }
+
+    /// <summary>Generic paginated response wrapper.</summary>
+    public record PagedResult<T>
+    {
+        public IReadOnlyList<T> Data   { get; init; } = [];
+        public int TotalCount          { get; init; }
+        public int Page                { get; init; }
+        public int Size                { get; init; }
+        public int TotalPages          => (int)Math.Ceiling((double)TotalCount / Size);
+        public bool HasNext            => Page < TotalPages;
+        public bool HasPrev            => Page > 1;
+    }
 
     public record SubjectDto(
         Ulid Id,
