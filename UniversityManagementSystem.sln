@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UniversityManagementSystem.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UniversityManagementSystem.Api", "UniversityManagementSystem.Api\UniversityManagementSystem.Api.csproj", "{75FAA298-A07B-49B0-94A6-3113E1519100}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UniversityManagementSystem.Tests", "UniversityManagementSystem.Tests\UniversityManagementSystem.Tests.csproj", "{6DFB47A3-E575-48E9-8101-977000E5A302}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,18 @@ Global
 		{75FAA298-A07B-49B0-94A6-3113E1519100}.Release|x64.Build.0 = Release|Any CPU
 		{75FAA298-A07B-49B0-94A6-3113E1519100}.Release|x86.ActiveCfg = Release|Any CPU
 		{75FAA298-A07B-49B0-94A6-3113E1519100}.Release|x86.Build.0 = Release|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Debug|x64.Build.0 = Debug|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Debug|x86.Build.0 = Debug|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Release|x64.ActiveCfg = Release|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Release|x64.Build.0 = Release|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Release|x86.ActiveCfg = Release|Any CPU
+		{6DFB47A3-E575-48E9-8101-977000E5A302}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

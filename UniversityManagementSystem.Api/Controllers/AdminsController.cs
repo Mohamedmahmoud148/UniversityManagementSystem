@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
-using System.Security.Claims;
 using System.Threading.Tasks;
 using NUlid;
 using UniversityManagementSystem.Core.DTOs;
@@ -15,10 +13,12 @@ namespace UniversityManagementSystem.Api.Controllers
     public class AdminsController : ControllerBase
     {
         private readonly IAdminService _service;
+        private readonly IUserContextService _userContext;
 
-        public AdminsController(IAdminService service)
+        public AdminsController(IAdminService service, IUserContextService userContext)
         {
             _service = service;
+            _userContext = userContext;
         }
 
         [HttpGet]
@@ -33,8 +33,8 @@ namespace UniversityManagementSystem.Api.Controllers
             }
             else
             {
-                var profileIdClaim = User.FindFirstValue("ProfileId");
-                if (!Ulid.TryParse(profileIdClaim, out var profileId))
+                var raw = _userContext.TryGetProfileId();
+                if (!Ulid.TryParse(raw ?? string.Empty, out var profileId))
                     return Forbid();
 
                 var admin = await _service.GetAdminByIdAsync(profileId);
@@ -52,8 +52,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
             if (!User.IsInRole("SuperAdmin"))
             {
-                var profileIdClaim = User.FindFirstValue("ProfileId");
-                if (profileIdClaim != id) return Forbid();
+                if (_userContext.TryGetProfileId() != id) return Forbid();
             }
 
             var admin = await _service.GetAdminByIdAsync(adminId);
@@ -70,8 +69,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
             if (!User.IsInRole("SuperAdmin"))
             {
-                var profileIdClaim = User.FindFirstValue("ProfileId");
-                if (profileIdClaim != id) return Forbid();
+                if (_userContext.TryGetProfileId() != id) return Forbid();
             }
 
             try

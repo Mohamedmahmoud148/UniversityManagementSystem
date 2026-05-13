@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -9,15 +10,17 @@ using System.Threading.Tasks;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Core.Settings;
 using UniversityManagementSystem.Infrastructure.Data;
 using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class ExcelImportService(AppDbContext context, IIdentityProvisioningService provisioningService) : IExcelImportService
+    public class ExcelImportService(AppDbContext context, IIdentityProvisioningService provisioningService, IOptions<UniversitySettings> uniOptions) : IExcelImportService
     {
         private readonly AppDbContext _context = context;
         private readonly IIdentityProvisioningService _provisioningService = provisioningService;
+        private readonly UniversitySettings _uniSettings = uniOptions.Value;
 
         // ── Existing method (kept intact) ─────────────────────────────────────
         public async Task<ExcelImportResultDto> ImportStudentsAsync(IFormFile file)
@@ -80,8 +83,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         continue;
                     }
 
-                    string password = "TempPassword123!";
-                    string universityEmail = $"student.{nationalId[8..]}@university.edu";
+                    string password = _uniSettings.DefaultPassword;
+                    string universityEmail = $"student.{nationalId[8..]}@{_uniSettings.StudentEmailDomain}";
 
                     var user = new SystemUser
                     {
@@ -92,7 +95,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         UniversityEmail = universityEmail,
                         PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                         Role = UserRole.Student,
-                        IsActive = true
+                        IsActive = true,
+                        MustChangePassword = true
                     };
 
                     var student = new Student
@@ -352,20 +356,21 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     var university = college.University;
 
                     string uniEmail = string.IsNullOrEmpty(email)
-                        ? $"{uniStId.ToLower()}@university.edu"
+                        ? $"{uniStId.ToLower()}@{_uniSettings.StudentEmailDomain}"
                         : email;
 
                     // ── 6h. Build entities ────────────────────────────────
                     var systemUser = new SystemUser
                     {
-                        Id           = Ulid.NewUlid(),
-                        FullName     = fullName,
-                        Email        = uniEmail,
+                        Id              = Ulid.NewUlid(),
+                        FullName        = fullName,
+                        Email           = uniEmail,
                         UniversityEmail = uniEmail,
-                        NationalId   = nationalId ?? "",
-                        PasswordHash = BCrypt.Net.BCrypt.HashPassword("TempPass@123"),
-                        Role         = UserRole.Student,
-                        IsActive     = true
+                        NationalId      = nationalId ?? "",
+                        PasswordHash    = BCrypt.Net.BCrypt.HashPassword(_uniSettings.DefaultPassword),
+                        Role            = UserRole.Student,
+                        IsActive        = true,
+                        MustChangePassword = true
                     };
 
                     var student = new Student

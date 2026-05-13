@@ -1,28 +1,31 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using UniversityManagementSystem.Infrastructure.Data;
-using Microsoft.AspNetCore.Authorization;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public class DevController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IHostEnvironment _env;
 
-        public DevController(AppDbContext context)
+        public DevController(AppDbContext context, IHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
         [HttpGet("migrate-debug")]
-        [AllowAnonymous]
         public async Task<IActionResult> DebugMigrations()
         {
+            if (!_env.IsDevelopment())
+                return Forbid();
+
             try
             {
                 var pending = await _context.Database.GetPendingMigrationsAsync();
@@ -47,15 +50,13 @@ namespace UniversityManagementSystem.Api.Controllers
                         Message = "Migration failed.",
                         PendingMigrations = pending,
                         ExceptionMessage = ex.Message,
-                        StackTrace = ex.StackTrace,
-                        InnerException = ex.InnerException?.Message,
-                        FullDetails = ex.ToString()
+                        InnerException = ex.InnerException?.Message
                     });
                 }
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { Error = "Failed to even get pending migrations", Details = ex.ToString() });
+                return StatusCode(500, new { Error = "Failed to get pending migrations", Details = ex.Message });
             }
         }
     }

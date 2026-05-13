@@ -30,5 +30,8 @@ namespace UniversityManagementSystem.Core.Entities
         // Lockout Logic
         public int AccessFailedCount { get; set; }
         public DateTime? LockoutEnd { get; set; }
+
+        // First-login password change enforcement
+        public bool MustChangePassword { get; set; } = false;
     }
 }

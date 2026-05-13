@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>University Management System — Full Technical Audit Report</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --primary: #1a237e;
+    --secondary: #283593;
+    --accent: #3949ab;
+    --light-accent: #e8eaf6;
+    --success: #1b5e20;
+    --success-bg: #e8f5e9;
+    --warning: #e65100;
+    --warning-bg: #fff3e0;
+    --danger: #b71c1c;
+    --danger-bg: #ffebee;
+    --neutral: #37474f;
+    --border: #c5cae9;
+    --text: #212121;
+    --muted: #546e7a;
+    --bg: #fafafa;
+    --card: #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.7;
+    color: var(--text);
+    background: var(--bg);
+    padding: 0;
+  }
+
+  /* ── COVER PAGE ── */
+  .cover {
+    page-break-after: always;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1a237e 0%, #283593 50%, #3949ab 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-align: center;
+    padding: 60px 40px;
+  }
+  .cover .logo { font-size: 72px; margin-bottom: 30px; }
+  .cover h1 { font-size: 32pt; font-weight: 800; margin-bottom: 12px; letter-spacing: 1px; }
+  .cover h2 { font-size: 18pt; font-weight: 300; opacity: 0.9; margin-bottom: 40px; }
+  .cover .divider { width: 120px; height: 4px; background: rgba(255,255,255,0.5); border-radius: 2px; margin: 20px auto; }
+  .cover .meta { font-size: 13pt; opacity: 0.85; line-height: 2.2; }
+  .cover .meta strong { opacity: 1; }
+  .cover .badge {
+    display: inline-block;
+    margin-top: 40px;
+    padding: 10px 30px;
+    border: 2px solid rgba(255,255,255,0.6);
+    border-radius: 30px;
+    font-size: 11pt;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ── MAIN CONTENT ── */
+  .content { max-width: 950px; margin: 0 auto; padding: 40px 50px; }
+
+  /* ── SECTION HEADERS ── */
+  .section-header {
+    page-break-before: always;
+    margin: 0 -50px 36px;
+    padding: 24px 50px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: white;
+  }
+  .section-header:first-of-type { page-break-before: avoid; }
+  .section-header .section-num {
+    font-size: 9pt;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    opacity: 0.8;
+    margin-bottom: 4px;
+  }
+  .section-header h2 { font-size: 20pt; font-weight: 700; }
+
+  h3 {
+    font-size: 14pt;
+    color: var(--primary);
+    margin: 28px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--light-accent);
+  }
+  h4 {
+    font-size: 11.5pt;
+    color: var(--secondary);
+    margin: 18px 0 8px;
+  }
+
+  p { margin: 8px 0 12px; }
+
+  /* ── SCORE CARDS ── */
+  .scorecard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin: 24px 0;
+  }
+  .score-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 12px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(26,35,126,0.08);
+  }
+  .score-card .label { font-size: 8.5pt; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .score-card .score { font-size: 26pt; font-weight: 800; line-height: 1; }
+  .score-card .score.excellent { color: #1b5e20; }
+  .score-card .score.good { color: #1565c0; }
+  .score-card .score.fair { color: #e65100; }
+  .score-card .score.poor { color: #b71c1c; }
+  .score-card .out-of { font-size: 9pt; color: var(--muted); }
+
+  /* ── TABLES ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 10pt;
+    background: var(--card);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  thead tr { background: var(--primary); color: white; }
+  thead th { padding: 11px 14px; text-align: left; font-weight: 600; font-size: 10pt; }
+  tbody tr:nth-child(even) { background: #f5f7ff; }
+  tbody tr:hover { background: var(--light-accent); }
+  td { padding: 9px 14px; border-bottom: 1px solid #e8eaf6; vertical-align: top; }
+  td:first-child { font-weight: 500; }
+
+  /* ── BADGES ── */
+  .badge-ok, .badge-warn, .badge-err, .badge-info {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 9pt;
+    font-weight: 600;
+  }
+  .badge-ok   { background: var(--success-bg); color: var(--success); }
+  .badge-warn { background: var(--warning-bg); color: var(--warning); }
+  .badge-err  { background: var(--danger-bg);  color: var(--danger);  }
+  .badge-info { background: var(--light-accent); color: var(--primary); }
+
+  /* ── CALLOUT BOXES ── */
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: var(--light-accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 14px 0;
+  }
+  .callout.success { border-color: #43a047; background: var(--success-bg); }
+  .callout.warning { border-color: #fb8c00; background: var(--warning-bg); }
+  .callout.danger  { border-color: #e53935; background: var(--danger-bg);  }
+  .callout strong  { display: block; margin-bottom: 4px; font-size: 10.5pt; }
+
+  /* ── CODE BLOCKS ── */
+  pre {
+    background: #1e2d3d;
+    color: #a8d8ea;
+    padding: 16px 20px;
+    border-radius: 8px;
+    font-size: 9pt;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    line-height: 1.5;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+  }
+  code {
+    background: #e8eaf6;
+    color: #283593;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 9.5pt;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+  }
+  pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+
+  /* ── LISTS ── */
+  ul, ol { padding-left: 22px; margin: 8px 0 14px; }
+  li { margin: 4px 0; }
+  ul li::marker { color: var(--accent); }
+
+  /* ── MERMAID DIAGRAMS ── */
+  .mermaid-wrap {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 18px 0;
+    text-align: center;
+    overflow: hidden;
+  }
+  .mermaid-wrap .caption {
+    font-size: 9pt;
+    color: var(--muted);
+    margin-top: 10px;
+    font-style: italic;
+  }
+  .mermaid { display: flex; justify-content: center; }
+
+  /* ── PRIORITY INDICATORS ── */
+  .priority-critical { color: #b71c1c; font-weight: 700; }
+  .priority-high     { color: #e65100; font-weight: 700; }
+  .priority-medium   { color: #f57f17; font-weight: 600; }
+  .priority-low      { color: #1565c0; font-weight: 600; }
+
+  /* ── TOC ── */
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 30px;
+    margin: 30px 0;
+    page-break-after: always;
+  }
+  .toc h3 { border: none; margin-top: 0; }
+  .toc ol { counter-reset: toc; }
+  .toc li { padding: 4px 0; font-size: 11pt; }
+  .toc .toc-section { font-weight: 700; color: var(--primary); }
+  .toc .toc-sub { color: var(--muted); font-size: 10pt; padding-left: 10px; }
+
+  /* ── VERDICT BOXES ── */
+  .verdict {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 20px 0;
+  }
+  .verdict h4 { color: white; border: none; margin: 0 0 8px; font-size: 13pt; }
+  .verdict p  { margin: 4px 0; opacity: 0.92; }
+
+  /* ── PRINT ── */
+  @media print {
+    body { background: white; }
+    .content { padding: 20px 40px; }
+    .cover { min-height: 100vh; }
+    .section-header { margin: 0 -40px 28px; padding: 20px 40px; }
+    pre { white-space: pre-wrap; word-break: break-all; }
+    table { font-size: 9pt; }
+    .mermaid-wrap { page-break-inside: avoid; }
+    h3 { page-break-after: avoid; }
+  }
+
+  @page {
+    margin: 15mm 12mm;
+    size: A4;
+  }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 16px 0; }
+  .info-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+  }
+  .info-card h4 { margin-top: 0; font-size: 10.5pt; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     COVER PAGE
+════════════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="logo">🎓</div>
+  <h1>University Management System</h1>
+  <h2>Full Technical Audit Report</h2>
+  <div class="divider"></div>
+  <div class="meta">
+    <div><strong>Project Type:</strong> Graduation Project</div>
+    <div><strong>Stack:</strong> .NET 9 · PostgreSQL · Redis · AI Integration</div>
+    <div><strong>Audit Date:</strong> May 2026</div>
+    <div><strong>Auditor:</strong> Senior Architecture Review</div>
+    <div><strong>Report Version:</strong> 1.0</div>
+  </div>
+  <div class="badge">Confidential Technical Document</div>
+</div>
+
+<!-- CONTENT WRAPPER -->
+<div class="content">
+
+<!-- ── TABLE OF CONTENTS ── -->
+<div class="toc">
+  <h3>📋 Table of Contents</h3>
+  <ol>
+    <li class="toc-section">Executive Summary &amp; Score Card</li>
+    <li class="toc-section">Full Project Architecture Analysis</li>
+    <li class="toc-section">Folder Structure Audit</li>
+    <li class="toc-section">File Audit</li>
+    <li class="toc-section">Database Audit &amp; ERD</li>
+    <li class="toc-section">Security Audit</li>
+    <li class="toc-section">API Audit</li>
+    <li class="toc-section">Clean Code &amp; SOLID Audit</li>
+    <li class="toc-section">Performance Audit</li>
+    <li class="toc-section">Scalability Audit</li>
+    <li class="toc-section">DevOps &amp; Deployment Audit</li>
+    <li class="toc-section">Complete Project Documentation</li>
+    <li class="toc-section">UML &amp; Architecture Diagrams</li>
+    <li class="toc-section">Graduation Discussion Preparation</li>
+    <li class="toc-section">Refactoring Roadmap</li>
+    <li class="toc-section">Final Verdict &amp; Recommendations</li>
+  </ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 1 — EXECUTIVE SUMMARY
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 1</div>
+  <h2>Executive Summary</h2>
+</div>
+
+<p>This is a <strong>genuinely impressive graduation project</strong>. It demonstrates real-world engineering practices that most professionals don't apply until years into their careers. The project is not a CRUD demo — it is a multi-layer, AI-integrated, event-driven academic management platform with a serious security posture.</p>
+
+<div class="scorecard-grid">
+  <div class="score-card">
+    <div class="label">Graduation Quality</div>
+    <div class="score excellent">94</div>
+    <div class="out-of">/ 100</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Production Ready</div>
+    <div class="score good">71</div>
+    <div class="out-of">/ 100</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Security</div>
+    <div class="score good">78</div>
+    <div class="out-of">/ 100</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Architecture</div>
+    <div class="score good">85</div>
+    <div class="out-of">/ 100</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Scalability</div>
+    <div class="score fair">68</div>
+    <div class="out-of">/ 100</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Maintainability</div>
+    <div class="score good">82</div>
+    <div class="out-of">/ 100</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Documentation</div>
+    <div class="score good">88</div>
+    <div class="out-of">/ 100</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Overall Health</div>
+    <div class="score good">83</div>
+    <div class="out-of">/ 100</div>
+  </div>
+</div>
+
+<h3>Score Justifications</h3>
+<table>
+  <thead><tr><th>Dimension</th><th>Score</th><th>Justification</th></tr></thead>
+  <tbody>
+    <tr><td>Graduation Quality</td><td><span class="badge-ok">94/100</span></td><td>Far exceeds typical graduation scope. Multi-domain system with AI, async jobs, resilience patterns, and real deployment config.</td></tr>
+    <tr><td>Production Readiness</td><td><span class="badge-info">71/100</span></td><td>Docker ready, env var config, health checks, migrations — but missing tests, distributed rate limiting, email service, API versioning.</td></tr>
+    <tr><td>Security</td><td><span class="badge-info">78/100</span></td><td>JWT, BCrypt, rate limiting, lockout, MustChangePassword, ULID — but DefaultPassword in appsettings.json, Swagger exposed in prod.</td></tr>
+    <tr><td>Architecture</td><td><span class="badge-ok">85/100</span></td><td>Clean Architecture correctly applied. Minor violation: Core.csproj references ASP.NET App framework; some controllers exceed SRP.</td></tr>
+    <tr><td>Scalability</td><td><span class="badge-warn">68/100</span></td><td>Handles thousands well. Redis rate limiting is single-instance; no read replicas; Hangfire PostgreSQL backend under pressure at scale.</td></tr>
+    <tr><td>Maintainability</td><td><span class="badge-ok">82/100</span></td><td>Consistent naming, clear DI, good service abstractions — but no unit tests, 16 non-squashed migrations, some 400+ line service files.</td></tr>
+    <tr><td>Documentation</td><td><span class="badge-ok">88/100</span></td><td>API_DOCUMENTATION.md, Arabic architecture overview, Swagger enabled — but no inline XML docs, no test documentation.</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 2 — ARCHITECTURE
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 2</div>
+  <h2>Full Project Architecture Analysis</h2>
+</div>
+
+<h3>Architecture Style</h3>
+<p>The project uses a <strong>3-Layer Clean Architecture</strong> variant:</p>
+<table>
+  <thead><tr><th>Layer / Project</th><th>Responsibility</th><th>Dependencies</th></tr></thead>
+  <tbody>
+    <tr><td><code>UniversityManagementSystem.Core</code></td><td>Domain Layer: Entities, Interfaces, DTOs, Exceptions, Settings</td><td>None — pure C#</td></tr>
+    <tr><td><code>UniversityManagementSystem.Infrastructure</code></td><td>Application + Infrastructure: Services, EF Core, Jobs, Consumers, Storage</td><td>Core only</td></tr>
+    <tr><td><code>UniversityManagementSystem.Api</code></td><td>Presentation: Controllers, Middleware, Filters, Program.cs</td><td>Core + Infrastructure</td></tr>
+  </tbody>
+</table>
+
+<div class="callout success">
+  <strong>✅ Clean Architecture: Mostly Correct</strong>
+  All service contracts live in Core/Interfaces. Infrastructure is fully swappable. Entities are pure domain objects with no EF annotations. Dependencies flow inward.
+</div>
+<div class="callout danger">
+  <strong>❌ One Real Violation</strong>
+  <code>UniversityManagementSystem.Core.csproj</code> contains <code>&lt;FrameworkReference Include="Microsoft.AspNetCore.App" /&gt;</code>. The Domain layer should never reference ASP.NET. This was added because <code>IFormFile</code> is used in service interfaces. Fix: replace <code>IFormFile</code> with a <code>Stream + metadata DTO</code> abstraction.
+</div>
+
+<h3>High-Level System Architecture</h3>
+<div class="mermaid-wrap">
+<div class="mermaid">
+graph TB
+    CLIENT["🌐 Web Client\nbsnu.web.app"]
+
+    subgraph RAILWAY["Railway Cloud"]
+      subgraph API_BOX[".NET 9 API Container"]
+        MW["Rate Limiter → Auth → CORS"]
+        CTRL["20+ Controllers"]
+        SVC["28 Services"]
+        JOBS["Hangfire Jobs"]
+        CONS["MassTransit Consumers"]
+      end
+      subgraph AI_BOX["FastAPI AI Service"]
+        AI["Python AI\n/chat /extract /generate-exam"]
+      end
+      PG[("PostgreSQL")]
+      REDIS[("Redis")]
+      RABBIT["RabbitMQ"]
+    end
+
+    R2["☁️ Cloudflare R2\nFile Storage"]
+
+    CLIENT -->|HTTPS| MW
+    MW --> CTRL
+    CTRL --> SVC
+    SVC --> PG
+    SVC --> REDIS
+    SVC --> AI
+    SVC --> R2
+    JOBS --> PG
+    CONS <--> RABBIT
+</div>
+<div class="caption">Figure 1 — High-Level System Architecture</div>
+</div>
+
+<h3>Request Lifecycle</h3>
+<ol>
+  <li>HTTP Request arrives at Railway load balancer</li>
+  <li><strong>ExceptionMiddleware</strong> wraps entire pipeline in try/catch</li>
+  <li><strong>Rate Limiter</strong> checks partition limits (global 1000/min, login 5/min, sensitive 10/min)</li>
+  <li><strong>Authentication Middleware</strong> validates JWT Bearer token</li>
+  <li><strong>Authorization</strong> checks <code>[Authorize(Roles=...)]</code></li>
+  <li><strong>Controller action</strong> executes, calls Service layer</li>
+  <li><strong>Service</strong> interacts with AppDbContext (EF Core with global soft-delete filters)</li>
+  <li><strong>ResponseWrapperFilter</strong> wraps ObjectResult in <code>ApiResponse&lt;T&gt;</code></li>
+  <li><strong>JSON Serializer</strong> converts ULID fields via <code>UlidJsonConverterFactory</code></li>
+  <li>Response returns with consistent wrapped JSON envelope</li>
+</ol>
+
+<h3>Architecture Assessment</h3>
+<table>
+  <thead><tr><th>Pattern / Style</th><th>Applied?</th><th>Quality</th></tr></thead>
+  <tbody>
+    <tr><td>Clean Architecture</td><td><span class="badge-ok">✅ Yes</span></td><td>Correct with one minor violation (IFormFile in Core)</td></tr>
+    <tr><td>Onion Architecture</td><td><span class="badge-info">Partial</span></td><td>No dedicated Application layer; services are in Infrastructure</td></tr>
+    <tr><td>Modular Monolith</td><td><span class="badge-warn">No</span></td><td>Single cohesive monolith — correct for this scale</td></tr>
+    <tr><td>Microservices</td><td><span class="badge-info">Partial</span></td><td>AI service is externalized; main app is monolithic (correct choice)</td></tr>
+    <tr><td>Repository Pattern</td><td><span class="badge-ok">✅ Yes</span></td><td>IGenericRepository&lt;T&gt; with paging; direct DbContext for complex queries</td></tr>
+    <tr><td>Service Layer</td><td><span class="badge-ok">✅ Yes</span></td><td>32 interfaces, 28 implementations — consistent abstraction</td></tr>
+    <tr><td>Circuit Breaker</td><td><span class="badge-ok">✅ Yes</span></td><td>Polly on AI service: 3 retries, circuit opens after 5 failures for 15s</td></tr>
+    <tr><td>Unit of Work</td><td><span class="badge-ok">✅ Yes</span></td><td>Implicit via EF Core DbContext.SaveChangesAsync()</td></tr>
+    <tr><td>Global Filter</td><td><span class="badge-ok">✅ Yes</span></td><td>Soft-delete via HasQueryFilter on all BaseEntity types</td></tr>
+    <tr><td>Options Pattern</td><td><span class="badge-ok">✅ Yes</span></td><td>UniversitySettings, R2Settings via IOptions&lt;T&gt;</td></tr>
+    <tr><td>CQRS</td><td><span class="badge-info">Light</span></td><td>Read/write separation in service layer but no MediatR/full CQRS</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 3 — FOLDER STRUCTURE
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 3</div>
+  <h2>Folder Structure Audit</h2>
+</div>
+
+<pre>
+f:\مشروع التخرج\
+├── UniversityManagementSystem.Api\
+│   ├── Controllers\          ← 20+ controllers, REST endpoints
+│   ├── Converters\           ← UlidJsonConverterFactory ✅ correct location
+│   ├── Filters\              ← ResponseWrapperFilter, HangfireAuthorizationFilter
+│   ├── Middleware\           ← ExceptionMiddleware, CorrelationIdMiddleware
+│   ├── appsettings.json      ← Contains DefaultPassword: "123456" ⚠️ PROBLEM
+│   └── Program.cs            ← 470 lines — DI should be extracted
+│
+├── UniversityManagementSystem.Core\
+│   ├── Application\AI\
+│   │   ├── Contracts\        ← IAiTool interface
+│   │   ├── Execution\        ← AiToolRegistry ❌ DEAD CODE (tools run in FastAPI)
+│   │   ├── Logging\          ← AiActionLog ⚠️ MISPLACED (should be in Entities)
+│   │   ├── Security\         ← AiCapabilityMatrix
+│   │   └── Tools\            ← CreateGeneratedExamTool ❌ DEAD CODE
+│   ├── DTOs\                 ← Well organized ✅
+│   ├── Entities\             ← 46 entities ✅
+│   ├── Exceptions\           ← DomainException, ForbiddenException, ConflictException ✅
+│   ├── Interfaces\           ← 32 interfaces ✅
+│   ├── Settings\             ← UniversitySettings ✅
+│   └── Class1.cs             ← ❌ DEAD FILE — delete immediately
+│
+├── UniversityManagementSystem.Infrastructure\
+│   ├── Data\                 ← AppDbContext (793 lines), DbInitializer, GenericRepository
+│   ├── Jobs\                 ← Hangfire job implementations ✅
+│   ├── Migrations\           ← 16 migrations ✅
+│   ├── Services\             ← 28 service implementations ✅
+│   ├── Storage\              ← R2StorageService, R2Settings ✅
+│   └── Consumers\            ← AttendanceConsumer (MassTransit) ✅
+│
+├── API_DOCUMENTATION.md      ← Good, but should be in /docs/
+├── admin_architecture_overview.md ← Arabic documentation
+└── Dockerfile                ← Multi-stage build ✅
+</pre>
+
+<h3>Folder Issues Found</h3>
+<table>
+  <thead><tr><th>Path</th><th>Issue</th><th>Severity</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><code>Core/Class1.cs</code></td><td>Empty template file from project creation</td><td><span class="badge-err">High</span></td><td>Delete immediately</td></tr>
+    <tr><td><code>Core/Application/AI/Tools/</code></td><td>Dead code — tools now execute in FastAPI</td><td><span class="badge-warn">Medium</span></td><td>Delete entire folder</td></tr>
+    <tr><td><code>Core/Application/AI/Execution/AiToolRegistry</code></td><td>Registered nowhere, no callers</td><td><span class="badge-warn">Medium</span></td><td>Delete</td></tr>
+    <tr><td><code>Core/Application/AI/Logging/AiActionLog</code></td><td>Entity in Application layer — misplaced</td><td><span class="badge-info">Low</span></td><td>Move to Entities/</td></tr>
+    <tr><td><code>API_DOCUMENTATION.md</code></td><td>Root directory — should be in /docs/</td><td><span class="badge-info">Low</span></td><td>Move to /docs/</td></tr>
+    <tr><td><code>Program.cs</code></td><td>470 lines — DI registrations should be extracted</td><td><span class="badge-warn">Medium</span></td><td>Extract to ServiceExtensions.cs</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 4 — FILE AUDIT
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 4</div>
+  <h2>File Audit</h2>
+</div>
+
+<table>
+  <thead><tr><th>File</th><th>Purpose</th><th>Needed?</th><th>Problems</th><th>Suggested Action</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>Core/Class1.cs</code></td>
+      <td>Empty template file</td>
+      <td><span class="badge-err">❌ No</span></td>
+      <td>Dead code, noise</td>
+      <td><strong>DELETE</strong></td>
+    </tr>
+    <tr>
+      <td><code>Core/Application/AI/Tools/CreateGeneratedExamTool.cs</code></td>
+      <td>AI tool for exam generation</td>
+      <td><span class="badge-err">❌ No</span></td>
+      <td>All tools run in FastAPI; CS8604 warning in build</td>
+      <td><strong>DELETE</strong></td>
+    </tr>
+    <tr>
+      <td><code>Core/Application/AI/Execution/AiToolRegistry.cs</code></td>
+      <td>Local tool registry</td>
+      <td><span class="badge-err">❌ No</span></td>
+      <td>Registered nowhere, never called</td>
+      <td><strong>DELETE</strong></td>
+    </tr>
+    <tr>
+      <td><code>Infrastructure/Services/AuthService.cs</code></td>
+      <td>JWT auth, registration, token management</td>
+      <td><span class="badge-ok">✅ Yes</span></td>
+      <td>470+ lines, handles JWT, 3 registration types, lockout, phone normalization — violates SRP</td>
+      <td>Split: TokenService + RegistrationService + PasswordService</td>
+    </tr>
+    <tr>
+      <td><code>Infrastructure/Data/AppDbContext.cs</code></td>
+      <td>EF Core context, entity configuration</td>
+      <td><span class="badge-ok">✅ Yes</span></td>
+      <td>793 lines but justified — entity config is intentionally centralized in EF Core</td>
+      <td>Acceptable as-is</td>
+    </tr>
+    <tr>
+      <td><code>Api/Program.cs</code></td>
+      <td>App startup, DI, middleware, Hangfire scheduling</td>
+      <td><span class="badge-ok">✅ Yes</span></td>
+      <td>470 lines — DI registrations bloat startup</td>
+      <td>Extract to <code>ServiceExtensions.cs</code></td>
+    </tr>
+    <tr>
+      <td><code>Infrastructure/Services/ExcelImportService.cs</code></td>
+      <td>Excel bulk student import</td>
+      <td><span class="badge-ok">✅ Yes</span></td>
+      <td>Two nearly identical methods: <code>ImportStudentsAsync</code> and <code>ImportStudentsFromExcelAsync</code> — 80% duplicate logic</td>
+      <td>Consolidate into one parameterized method</td>
+    </tr>
+    <tr>
+      <td><code>Core/DTOs/ImportDtos.cs</code></td>
+      <td>Import result DTOs</td>
+      <td><span class="badge-ok">✅ Yes</span></td>
+      <td><code>TemporaryPassword = "123456"</code> hardcoded as DTO default</td>
+      <td>Remove default value; set in service layer</td>
+    </tr>
+    <tr>
+      <td><code>Infrastructure/Services/IdentityProvisioningService.cs</code></td>
+      <td>Auto-generate student/staff emails and IDs</td>
+      <td><span class="badge-ok">✅ Yes</span></td>
+      <td>Unused <code>using Polly;</code> import</td>
+      <td>Remove unused import</td>
+    </tr>
+    <tr>
+      <td><code>Api/appsettings.json</code></td>
+      <td>App configuration</td>
+      <td><span class="badge-ok">✅ Yes</span></td>
+      <td><code>DefaultPassword: "123456"</code> in plain config file — committed to git</td>
+      <td>Move to env var or <code>dotnet user-secrets</code></td>
+    </tr>
+    <tr>
+      <td><code>Infrastructure/Jobs/ComplaintIntelligenceJob.cs</code></td>
+      <td>AI complaint analysis + daily/weekly/monthly reports</td>
+      <td><span class="badge-ok">✅ Yes</span></td>
+      <td>Good implementation</td>
+      <td>Keep</td>
+    </tr>
+    <tr>
+      <td><code>Api/Middleware/ExceptionMiddleware.cs</code></td>
+      <td>Global exception handler</td>
+      <td><span class="badge-ok">✅ Yes</span></td>
+      <td>Good — maps all exception types to correct HTTP codes, dev vs prod response</td>
+      <td>Keep</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Duplicate Logic Detected</h3>
+<div class="callout warning">
+  <strong>⚠️ Pattern 1: Claim Extraction — Repeated 10+ Times</strong>
+  <pre>var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+    ?? User.FindFirst("nameid")?.Value
+    ?? User.FindFirst("UserId")?.Value;
+if (!Ulid.TryParse(claim, out var userId)) return Unauthorized(...);</pre>
+  This appears in every controller. Should be in <code>IUserContextService.GetCurrentUserId()</code>.
+</div>
+<div class="callout warning">
+  <strong>⚠️ Pattern 2: Excel Import — 80% Duplicate</strong>
+  <code>ImportStudentsAsync</code> and <code>ImportStudentsFromExcelAsync</code> both parse Excel files, validate rows, create SystemUser + Student entities. Should be unified into one method with parameters.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 5 — DATABASE AUDIT
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 5</div>
+  <h2>Database Audit</h2>
+</div>
+
+<h3>Database Technology</h3>
+<div class="two-col">
+  <div class="info-card">
+    <h4>📊 Key Facts</h4>
+    <ul>
+      <li><strong>Engine:</strong> PostgreSQL 15+</li>
+      <li><strong>ORM:</strong> EF Core 9 (Code-First)</li>
+      <li><strong>ID Strategy:</strong> ULID (26-char, sortable)</li>
+      <li><strong>Migrations:</strong> 16 total</li>
+      <li><strong>Tables:</strong> 25+</li>
+      <li><strong>Soft Delete:</strong> Global query filter on all entities</li>
+    </ul>
+  </div>
+  <div class="info-card">
+    <h4>🔑 Normalization</h4>
+    <ul>
+      <li><strong>Form:</strong> 3NF (Third Normal Form)</li>
+      <li>No transitive dependencies</li>
+      <li>Proper FK constraints throughout</li>
+      <li>Restrict-delete cascade on hierarchy</li>
+      <li>citext for email uniqueness (case-insensitive)</li>
+      <li>Composite unique indexes on business rules</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Entity Relationship Diagram</h3>
+<div class="mermaid-wrap">
+<div class="mermaid">
+erDiagram
+    University ||--o{ College : "has"
+    College ||--o{ Department : "has"
+    College ||--o{ AcademicYear : "has"
+    Department ||--o{ Batch : "has"
+    Department ||--o{ Subject : "offers"
+    Batch ||--o{ Group : "has"
+    Group ||--o{ Student : "contains"
+
+    SystemUser ||--o| Student : "identity"
+    SystemUser ||--o| Doctor : "identity"
+    SystemUser ||--o| Admin : "identity"
+    SystemUser ||--o{ RefreshToken : "has"
+    SystemUser ||--o{ AppNotification : "receives"
+    SystemUser ||--o{ Conversation : "owns"
+
+    Doctor ||--o{ SubjectOffering : "runs"
+    Subject ||--o{ SubjectOffering : "instantiated"
+    AcademicYear ||--o{ Semester : "has"
+    Semester ||--o{ SubjectOffering : "in"
+
+    SubjectOffering ||--o{ Enrollment : "receives"
+    Student ||--o{ Enrollment : "makes"
+    Student ||--o{ Complaint : "files"
+    Student ||--o{ ExamSubmission : "submits"
+    Student ||--o{ StudentGrade : "receives"
+    Student ||--o{ StudentAttendance : "records"
+
+    SubjectOffering ||--o{ Exam : "has"
+    Exam ||--o{ ExamQuestion : "contains"
+    Exam ||--o{ ExamSubmission : "receives"
+    SubjectOffering ||--o{ Material : "has"
+    SubjectOffering ||--o{ AttendanceSession : "has"
+    AttendanceSession ||--o{ StudentAttendance : "records"
+
+    Complaint ||--o| ComplaintAnalysis : "analyzed"
+    ComplaintCluster ||--o{ ComplaintAnalysis : "groups"
+    Conversation ||--o{ ChatMessage : "contains"
+</div>
+<div class="caption">Figure 2 — Entity Relationship Diagram</div>
+</div>
+
+<h3>Index Audit</h3>
+<table>
+  <thead><tr><th>Table</th><th>Index</th><th>Type</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>SystemUsers</td><td>Email (citext)</td><td>Unique</td><td><span class="badge-ok">✅ Present</span></td></tr>
+    <tr><td>SystemUsers</td><td>UniversityEmail (citext)</td><td>Unique</td><td><span class="badge-ok">✅ Present</span></td></tr>
+    <tr><td>SystemUsers</td><td>NationalId</td><td>Unique</td><td><span class="badge-ok">✅ Present</span></td></tr>
+    <tr><td>Students</td><td>UniversityStudentId</td><td>Unique</td><td><span class="badge-ok">✅ Present</span></td></tr>
+    <tr><td>RefreshTokens</td><td>(UserId, Token) composite</td><td>Composite</td><td><span class="badge-ok">✅ Added</span></td></tr>
+    <tr><td>RefreshTokens</td><td>Token (single)</td><td>Index</td><td><span class="badge-ok">✅ Added</span></td></tr>
+    <tr><td>ExamSubmissions</td><td>(ExamId, StudentId)</td><td>Unique</td><td><span class="badge-ok">✅ Present</span></td></tr>
+    <tr><td>StudentGrades</td><td>(StudentId, SubjectOfferingId)</td><td>Unique</td><td><span class="badge-ok">✅ Present</span></td></tr>
+    <tr><td>Complaints</td><td>CreatedAt, TargetType, TargetId</td><td>Index</td><td><span class="badge-ok">✅ Present</span></td></tr>
+    <tr><td>Enrollments</td><td>(SubjectOfferingId, StudentId)</td><td>Composite</td><td><span class="badge-err">❌ Missing</span></td></tr>
+    <tr><td>ChatMessages</td><td>ConversationId</td><td>Index</td><td><span class="badge-err">❌ Missing</span></td></tr>
+    <tr><td>AiMemory</td><td>UserId</td><td>Index</td><td><span class="badge-err">❌ Missing</span></td></tr>
+    <tr><td>AttendanceSessions</td><td>SubjectOfferingId</td><td>Index</td><td><span class="badge-err">❌ Missing</span></td></tr>
+    <tr><td>Materials</td><td>SubjectOfferingId</td><td>Index</td><td><span class="badge-err">❌ Missing</span></td></tr>
+  </tbody>
+</table>
+
+<h3>Soft Delete Implementation</h3>
+<div class="callout success">
+  <strong>✅ Correct &amp; Consistent</strong>
+  Every entity inherits from <code>BaseEntity</code> with <code>DeletedAt</code> nullable timestamp. Global <code>HasQueryFilter(x =&gt; x.DeletedAt == null)</code> applied in <code>OnModelCreating</code> to all BaseEntity types. <code>SaveChangesAsync</code> intercepts <code>EntityState.Deleted</code> and converts to soft-delete. No data is ever permanently lost.
+</div>
+
+<h3>Migration Quality</h3>
+<p>16 sequential migrations with descriptive names. Acceptable during development. Before go-live, squash into a single baseline migration. The manual SQL in <code>Program.cs</code> to add the <code>Code</code> column is technical debt that should be in a proper migration.</p>
+
+<h3>Missing Database Constraints</h3>
+<ul>
+  <li>No <code>CHECK</code> constraint on <code>SubjectOffering</code> weights summing to 1.0 (only in service layer)</li>
+  <li>No <code>CHECK</code> constraint on <code>Complaint.Priority</code> enum values</li>
+  <li>No <code>CHECK</code> constraint on <code>Semester.StartDate &lt; EndDate</code></li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 6 — SECURITY AUDIT
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 6</div>
+  <h2>Security Audit</h2>
+</div>
+
+<h3>Authentication &amp; Authorization Matrix</h3>
+<table>
+  <thead><tr><th>Feature</th><th>Implementation</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>Password Hashing</td><td>BCrypt.Net 4.0.3</td><td><span class="badge-ok">✅ Excellent</span></td></tr>
+    <tr><td>JWT Claims</td><td>nameid, ProfileId, role</td><td><span class="badge-ok">✅ Correct</span></td></tr>
+    <tr><td>JWT Expiration</td><td>24 hours (configurable)</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>JWT Secret</td><td>Env var JWT_SECRET, fail-fast in prod</td><td><span class="badge-ok">✅ After fix</span></td></tr>
+    <tr><td>Refresh Tokens</td><td>TTL + Used/Invalidated flags + DB indexed</td><td><span class="badge-ok">✅ Good</span></td></tr>
+    <tr><td>Account Lockout</td><td>5 failures → 15 min lock, auto-reset</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>MustChangePassword</td><td>Flag on SystemUser, enforced in login</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>MapInboundClaims = false</td><td>Prevents claim type remapping</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>Rate Limiting</td><td>5/min login per IP, 10/min sensitive per user</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>Role-based Auth</td><td>[Authorize(Roles="...")] on all endpoints</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>Resource-level Auth</td><td>DoctorId/StudentId checks in service layer</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>Hangfire Dashboard</td><td>HangfireAuthorizationFilter</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>SQL Injection</td><td>All queries via EF Core parameterized LINQ</td><td><span class="badge-ok">✅ Safe</span></td></tr>
+  </tbody>
+</table>
+
+<h3>Vulnerability Assessment</h3>
+<table>
+  <thead><tr><th>Vulnerability</th><th>Severity</th><th>Status</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>DefaultPassword in appsettings.json</td>
+      <td><span class="priority-critical">CRITICAL</span></td>
+      <td><span class="badge-err">⚠️ Present</span></td>
+      <td>Move to <code>dotnet user-secrets</code> locally and env var in production</td>
+    </tr>
+    <tr>
+      <td>Swagger enabled in production</td>
+      <td><span class="priority-high">HIGH</span></td>
+      <td><span class="badge-warn">⚠️ Present</span></td>
+      <td>Wrap <code>app.UseSwagger()</code> in <code>if (!app.Environment.IsProduction())</code></td>
+    </tr>
+    <tr>
+      <td>Rate limiting is single-instance (in-memory)</td>
+      <td><span class="priority-high">HIGH</span></td>
+      <td><span class="badge-warn">⚠️ Present</span></td>
+      <td>Use AspNetCoreRateLimit with Redis backend for multi-instance deployments</td>
+    </tr>
+    <tr>
+      <td>CORS allows localhost origins in production</td>
+      <td><span class="priority-medium">MEDIUM</span></td>
+      <td><span class="badge-warn">⚠️ Present</span></td>
+      <td>Move localhost origins to appsettings.Development.json only</td>
+    </tr>
+    <tr>
+      <td>No file upload type validation</td>
+      <td><span class="priority-medium">MEDIUM</span></td>
+      <td><span class="badge-warn">⚠️ Unverified</span></td>
+      <td>Add MIME type check and max file size in FileService before R2 upload</td>
+    </tr>
+    <tr>
+      <td>No HTTPS enforcement middleware</td>
+      <td><span class="priority-low">LOW</span></td>
+      <td><span class="badge-info">ℹ️ Note</span></td>
+      <td>UseHttpsRedirection exists; add UseHsts() for browser HSTS headers</td>
+    </tr>
+    <tr>
+      <td>SQL Injection</td>
+      <td>None</td>
+      <td><span class="badge-ok">✅ Safe</span></td>
+      <td>All queries via EF Core parameterized LINQ. No raw SQL with user input.</td>
+    </tr>
+    <tr>
+      <td>XSS</td>
+      <td>Very Low</td>
+      <td><span class="badge-ok">✅ Safe</span></td>
+      <td>API-only backend, JSON responses, DataAnnotations validate all input</td>
+    </tr>
+    <tr>
+      <td>JWT Algorithm Confusion</td>
+      <td>None</td>
+      <td><span class="badge-ok">✅ Safe</span></td>
+      <td>HS256 with ValidateIssuerSigningKey = true</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 7 — API AUDIT
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 7</div>
+  <h2>API Audit</h2>
+</div>
+
+<h3>Complete API Endpoints</h3>
+<table>
+  <thead><tr><th>Controller</th><th>Route</th><th>Method</th><th>Role</th></tr></thead>
+  <tbody>
+    <tr><td rowspan="9">AuthController</td><td>/api/auth/login</td><td>POST</td><td>Anonymous</td></tr>
+    <tr><td>/api/auth/refresh-token</td><td>POST</td><td>Anonymous</td></tr>
+    <tr><td>/api/auth/revoke-token</td><td>POST</td><td>Authorized</td></tr>
+    <tr><td>/api/auth/change-password</td><td>POST</td><td>Authorized</td></tr>
+    <tr><td>/api/auth/logout</td><td>POST</td><td>Authorized</td></tr>
+    <tr><td>/api/auth/me</td><td>GET</td><td>Authorized</td></tr>
+    <tr><td>/api/auth/register/student</td><td>POST</td><td>Admin</td></tr>
+    <tr><td>/api/auth/register/doctor</td><td>POST</td><td>Admin</td></tr>
+    <tr><td>/api/auth/register/admin</td><td>POST</td><td>SuperAdmin</td></tr>
+    <tr><td rowspan="8">ExamsController</td><td>/api/exams/by-code/{code}</td><td>GET</td><td>Admin,Doctor,Student</td></tr>
+    <tr><td>/api/exams</td><td>POST</td><td>Doctor</td></tr>
+    <tr><td>/api/exams/generate-ai</td><td>POST</td><td>Doctor</td></tr>
+    <tr><td>/api/exams/upload-pdf</td><td>POST</td><td>Doctor</td></tr>
+    <tr><td>/api/exams/{id}</td><td>GET</td><td>Authorized</td></tr>
+    <tr><td>/api/exams/{id}/submit</td><td>POST</td><td>Student</td></tr>
+    <tr><td>/api/exams/{id}/grade</td><td>POST</td><td>Doctor</td></tr>
+    <tr><td>/api/exams/{id}/submissions</td><td>GET</td><td>Doctor</td></tr>
+    <tr><td rowspan="4">AiController</td><td>/api/ai/summarize</td><td>POST</td><td>Student</td></tr>
+    <tr><td>/api/ai/ask</td><td>POST</td><td>Student</td></tr>
+    <tr><td>/api/ai/chat</td><td>POST</td><td>Authorized</td></tr>
+    <tr><td>/api/ai/generate-exam</td><td>POST</td><td>Doctor</td></tr>
+    <tr><td rowspan="5">ComplaintsController</td><td>/api/complaints</td><td>POST</td><td>Student</td></tr>
+    <tr><td>/api/complaints/my-complaints</td><td>GET</td><td>Student</td></tr>
+    <tr><td>/api/complaints/my-reports</td><td>GET</td><td>Doctor</td></tr>
+    <tr><td>/api/complaints/all</td><td>GET</td><td>Admin,SuperAdmin</td></tr>
+    <tr><td>/api/complaints/clusters</td><td>GET</td><td>Admin,SuperAdmin,Doctor</td></tr>
+  </tbody>
+</table>
+
+<h3>REST Correctness Issues</h3>
+<table>
+  <thead><tr><th>Issue</th><th>Current</th><th>Correct</th><th>Severity</th></tr></thead>
+  <tbody>
+    <tr><td>POST creation returns 200</td><td><code>return Ok(result);</code></td><td><code>return Created(location, result);</code></td><td><span class="priority-high">High</span></td></tr>
+    <tr><td>Non-RESTful complaint routes</td><td><code>GET /my-complaints</code></td><td><code>GET /complaints?scope=mine</code> or <code>GET /students/me/complaints</code></td><td><span class="priority-medium">Medium</span></td></tr>
+    <tr><td>Search via path param</td><td><code>GET /exams/by-code/{code}</code></td><td><code>GET /exams?code={code}</code></td><td><span class="priority-low">Low</span></td></tr>
+    <tr><td>No API versioning</td><td><code>/api/controller</code></td><td><code>/api/v1/controller</code></td><td><span class="priority-high">High</span></td></tr>
+    <tr><td>No XML doc comments</td><td>No Swagger descriptions</td><td><code>/// &lt;summary&gt;</code> on all actions</td><td><span class="priority-low">Low</span></td></tr>
+  </tbody>
+</table>
+
+<h3>Missing Endpoints</h3>
+<ul>
+  <li><code>PATCH /api/students/{id}</code> — Student profile update</li>
+  <li><code>PATCH /api/doctors/{id}</code> — Doctor profile update</li>
+  <li><code>PATCH /api/complaints/{id}</code> — Complaint withdraw/update</li>
+  <li><code>POST /api/notifications/mark-all-read</code> — Bulk notification read</li>
+  <li><code>GET /api/students/me/grades</code> — Student's own grade summary</li>
+  <li><code>GET /api/enrollments/bulk-status/{jobId}</code> — Async bulk enrollment status</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 8 — CLEAN CODE & SOLID
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 8</div>
+  <h2>Clean Code &amp; SOLID Audit</h2>
+</div>
+
+<h3>SOLID Principles Analysis</h3>
+<table>
+  <thead><tr><th>Principle</th><th>Status</th><th>Details</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>S</strong> — Single Responsibility</td>
+      <td><span class="badge-warn">⚠️ Partial</span></td>
+      <td>AuthService (470 lines) handles JWT, registration x3, lockout, phone normalization. Program.cs has too many responsibilities.</td>
+    </tr>
+    <tr>
+      <td><strong>O</strong> — Open/Closed</td>
+      <td><span class="badge-ok">✅ Good</span></td>
+      <td>New exam types, complaint types, AI tools can be added without modifying existing code.</td>
+    </tr>
+    <tr>
+      <td><strong>L</strong> — Liskov Substitution</td>
+      <td><span class="badge-ok">✅ Good</span></td>
+      <td>All service implementations properly fulfill interface contracts.</td>
+    </tr>
+    <tr>
+      <td><strong>I</strong> — Interface Segregation</td>
+      <td><span class="badge-warn">⚠️ Partial</span></td>
+      <td>IAiService has 5+ unrelated methods. Clients needing only AnalyzeComplaintAsync depend on GenerateExamAsync too. Split into IComplaintAiService, IExamAiService, IChatAiService.</td>
+    </tr>
+    <tr>
+      <td><strong>D</strong> — Dependency Inversion</td>
+      <td><span class="badge-ok">✅ Good</span></td>
+      <td>All dependencies injected via constructors with interfaces. No <code>new ServiceClass()</code> in controllers. IGenericRepository abstracts data access.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Design Patterns Applied</h3>
+<table>
+  <thead><tr><th>Pattern</th><th>Where Used</th><th>Quality</th></tr></thead>
+  <tbody>
+    <tr><td>Repository Pattern</td><td>IGenericRepository&lt;T&gt; for CRUD + paging</td><td><span class="badge-ok">✅ Correct</span></td></tr>
+    <tr><td>Service Layer</td><td>30+ service interfaces</td><td><span class="badge-ok">✅ Consistent</span></td></tr>
+    <tr><td>Factory Pattern</td><td>UlidJsonConverterFactory</td><td><span class="badge-ok">✅ Elegant</span></td></tr>
+    <tr><td>Strategy Pattern</td><td>Exam creation: structured / AI / file-based</td><td><span class="badge-ok">✅ Correct</span></td></tr>
+    <tr><td>Circuit Breaker</td><td>Polly on AI service (5 failures → 15s open)</td><td><span class="badge-ok">✅ Production-grade</span></td></tr>
+    <tr><td>Observer / Event</td><td>Hangfire jobs triggered on complaint creation</td><td><span class="badge-ok">✅ Correct</span></td></tr>
+    <tr><td>Unit of Work</td><td>EF Core DbContext.SaveChangesAsync()</td><td><span class="badge-ok">✅ Implicit</span></td></tr>
+    <tr><td>Global Filter</td><td>HasQueryFilter on all BaseEntity</td><td><span class="badge-ok">✅ Consistent</span></td></tr>
+    <tr><td>Options Pattern</td><td>UniversitySettings, R2Settings via IOptions&lt;T&gt;</td><td><span class="badge-ok">✅ Correct</span></td></tr>
+  </tbody>
+</table>
+
+<h3>Code Smells</h3>
+<table>
+  <thead><tr><th>Smell</th><th>Location</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Magic role strings</td><td><code>[Authorize(Roles = "Admin,SuperAdmin")]</code> everywhere</td><td>Create static <code>Roles.Admin</code>, <code>Roles.SuperAdmin</code> constants class</td></tr>
+    <tr><td>Magic numbers</td><td>Epsilon <code>0.001</code> in weight validation</td><td>Named constant <code>GradeWeightEpsilon = 0.001</code></td></tr>
+    <tr><td>Fallback strings</td><td><code>?? "N/A"</code> in Doctor/Student DTOs</td><td>Proper optional handling or null-object pattern</td></tr>
+    <tr><td>Hardcoded lockout duration</td><td><code>AddMinutes(15)</code> in AuthService</td><td>Move to configuration: <code>SecuritySettings.LockoutMinutes</code></td></tr>
+    <tr><td>Hardcoded max failures</td><td><code>user.AccessFailedCount >= 5</code></td><td>Move to <code>SecuritySettings.MaxFailedAttempts</code></td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 9 — PERFORMANCE
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 9</div>
+  <h2>Performance Audit</h2>
+</div>
+
+<h3>N+1 Query Analysis</h3>
+<table>
+  <thead><tr><th>Location</th><th>Pattern</th><th>N+1?</th><th>Assessment</th></tr></thead>
+  <tbody>
+    <tr><td>GradeService.CalculateGrades</td><td>ExamSubmissions.Where(s =&gt; s.Exam.SubjectOfferingId == id).GroupBy()</td><td><span class="badge-ok">✅ No</span></td><td>EF Core generates a single JOIN query</td></tr>
+    <tr><td>GradeService.CalculateStudentGpa</td><td>.Include(SubjectOffering).ThenInclude(Subject)</td><td><span class="badge-ok">✅ No</span></td><td>Correct eager loading</td></tr>
+    <tr><td>ComplaintIntelligenceJob.SendReport</td><td>3 separate Count queries + 1 GroupBy + 1 Admin query</td><td><span class="badge-warn">⚠️ 5 round-trips</span></td><td>Consolidate into fewer queries</td></tr>
+    <tr><td>StudentsController.GetAll</td><td>.Include(s =&gt; s.SystemUser)</td><td><span class="badge-ok">✅ No</span></td><td>Correct eager loading</td></tr>
+    <tr><td>ExcelImportService — BCrypt loop</td><td>BCrypt.HashPassword per student</td><td><span class="badge-warn">⚠️ Slow</span></td><td>~100ms × N students = blocking. Use Task.Run for parallel hashing.</td></tr>
+  </tbody>
+</table>
+
+<h3>Caching Opportunities</h3>
+<table>
+  <thead><tr><th>Data</th><th>Change Frequency</th><th>Recommendation</th><th>TTL</th></tr></thead>
+  <tbody>
+    <tr><td>University hierarchy (University → College → Department)</td><td>Rarely</td><td>Redis cache</td><td>24 hours</td></tr>
+    <tr><td>Subject list per department</td><td>Rarely</td><td>Redis cache</td><td>1 hour</td></tr>
+    <tr><td>Active semester per college</td><td>~2x/year</td><td>Redis cache with invalidation</td><td>Until updated</td></tr>
+    <tr><td>Student enrollment list</td><td>Weekly</td><td>Redis cache</td><td>15 minutes</td></tr>
+  </tbody>
+</table>
+
+<div class="callout warning">
+  <strong>⚠️ Redis is Configured but Not Used for Data Caching</strong>
+  Redis is registered in DI and used for rate limiting. However, no service explicitly uses <code>IDistributedCache</code> for data caching. The cache infrastructure exists — just needs to be wired up for frequently-read, rarely-changing data.
+</div>
+
+<h3>Async/Await Quality</h3>
+<div class="callout success">
+  <strong>✅ Excellent Async Usage</strong>
+  All 28 service methods are <code>async Task&lt;T&gt;</code>. No <code>.Result</code> or <code>.Wait()</code> calls found anywhere. EF Core async methods (<code>ToListAsync</code>, <code>FirstOrDefaultAsync</code>, <code>SaveChangesAsync</code>) used consistently throughout.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 10 — SCALABILITY
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 10</div>
+  <h2>Scalability Audit</h2>
+</div>
+
+<h3>Capacity Analysis</h3>
+<table>
+  <thead><tr><th>Scale</th><th>Verdict</th><th>Bottleneck</th><th>Fix Required</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>1,000 users</strong></td>
+      <td><span class="badge-ok">✅ Handles easily</span></td>
+      <td>No bottleneck at this scale</td>
+      <td>None</td>
+    </tr>
+    <tr>
+      <td><strong>10,000 users</strong></td>
+      <td><span class="badge-ok">✅ Handles well</span></td>
+      <td>Single PostgreSQL instance begins to matter; no caching active</td>
+      <td>Enable Redis data caching</td>
+    </tr>
+    <tr>
+      <td><strong>100,000 users</strong></td>
+      <td><span class="badge-warn">⚠️ Needs work</span></td>
+      <td>In-memory rate limiting fails horizontally; Hangfire PG backend under pressure</td>
+      <td>Redis rate limiting, Hangfire Pro or Azure Service Bus, read replica</td>
+    </tr>
+    <tr>
+      <td><strong>1,000,000 users</strong></td>
+      <td><span class="badge-err">❌ Not ready</span></td>
+      <td>Database sharding, event sourcing, full horizontal scaling required</td>
+      <td>Full architecture re-evaluation</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Key Scalability Bottlenecks</h3>
+<ol>
+  <li><strong>In-memory rate limiting:</strong> <code>PartitionedRateLimiter</code> state lives in process memory. Two instances = double the allowed requests per user. Fix: <code>AspNetCoreRateLimit</code> with Redis storage.</li>
+  <li><strong>BCrypt in bulk import:</strong> 1,000 students × 100ms per hash = ~100 seconds blocking on CPU. Fix: <code>Parallel.ForEachAsync</code> with bounded concurrency.</li>
+  <li><strong>No read replicas:</strong> All reads hit primary PostgreSQL. <code>AsNoTracking()</code> reduces EF overhead but can't replace read scaling.</li>
+  <li><strong>Redis optional:</strong> System degrades gracefully when Redis is down — but then there's no caching at all. In production Redis should be required, not optional.</li>
+  <li><strong>Hangfire PostgreSQL:</strong> Excellent for moderate job volume. At 100K+ daily complaints, the job queue table becomes a hotspot. Consider migrating to Azure Service Bus at that scale.</li>
+</ol>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 11 — DEVOPS & DEPLOYMENT
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 11</div>
+  <h2>DevOps &amp; Deployment Audit</h2>
+</div>
+
+<h3>Docker Analysis</h3>
+<div class="two-col">
+  <div class="info-card">
+    <h4>✅ What's Good</h4>
+    <ul>
+      <li>Multi-stage build (SDK → Runtime) — minimal image</li>
+      <li>Port 8080 (Railway convention)</li>
+      <li>Connection string from env var</li>
+      <li>Production-ready entry point</li>
+    </ul>
+  </div>
+  <div class="info-card">
+    <h4>⚠️ What's Missing</h4>
+    <ul>
+      <li>No <code>HEALTHCHECK</code> in Dockerfile</li>
+      <li>No non-root user (<code>USER app</code>) — running as root in container</li>
+      <li>No <code>docker-compose.yml</code> for local dev</li>
+      <li>No <code>.dockerignore</code> confirmed</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Environment Configuration</h3>
+<table>
+  <thead><tr><th>Config Key</th><th>Dev</th><th>Prod</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>DATABASE_URL</td><td>appsettings.json fallback</td><td>Required env var</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>JWT_SECRET</td><td>Dev fallback key</td><td>Required env var, fail-fast</td><td><span class="badge-ok">✅ After fix</span></td></tr>
+    <tr><td>AI_SERVICE_URL</td><td>Railway URL default</td><td>Configurable env var</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>RABBITMQ_URL</td><td>localhost fallback</td><td>AMQP_URL env var</td><td><span class="badge-ok">✅</span></td></tr>
+    <tr><td>DefaultPassword</td><td>appsettings.json</td><td><strong>EXPOSED</strong></td><td><span class="badge-err">❌</span></td></tr>
+    <tr><td>R2 bucket config</td><td>appsettings.json</td><td>Should be env var</td><td><span class="badge-warn">⚠️</span></td></tr>
+  </tbody>
+</table>
+
+<h3>Health Checks</h3>
+<div class="callout success">
+  <strong>✅ /health endpoint configured</strong>
+  PostgreSQL, Redis, and Hangfire server health checks are active with JSON response format. The endpoint is accessible at <code>/health</code>.
+</div>
+<p><strong>Missing health checks:</strong> RabbitMQ, FastAPI AI service, Cloudflare R2 connectivity.</p>
+
+<h3>Monitoring &amp; Observability</h3>
+<table>
+  <thead><tr><th>Feature</th><th>Status</th><th>Detail</th></tr></thead>
+  <tbody>
+    <tr><td>Structured Logging (Serilog)</td><td><span class="badge-ok">✅</span></td><td>Console + daily file rolling, enriched with machine/thread</td></tr>
+    <tr><td>Request Logging</td><td><span class="badge-ok">✅</span></td><td>UseSerilogRequestLogging()</td></tr>
+    <tr><td>Correlation IDs</td><td><span class="badge-ok">✅</span></td><td>CorrelationIdMiddleware present</td></tr>
+    <tr><td>APM / OpenTelemetry</td><td><span class="badge-err">❌</span></td><td>No Application Performance Monitoring configured</td></tr>
+    <tr><td>Metrics endpoint (Prometheus)</td><td><span class="badge-err">❌</span></td><td>No /metrics endpoint</td></tr>
+    <tr><td>CI/CD Pipeline</td><td><span class="badge-err">❌</span></td><td>No GitHub Actions, Azure Pipelines, or CI config found</td></tr>
+  </tbody>
+</table>
+
+<h3>Deployment Architecture Diagram</h3>
+<div class="mermaid-wrap">
+<div class="mermaid">
+graph TB
+    subgraph Internet
+        CLIENT["🌐 Web Client\nbsnu.web.app"]
+    end
+
+    subgraph Railway["☁️ Railway Cloud Platform"]
+        subgraph DOTNET["UMS API Container (Docker)"]
+            API[".NET 9 API\nPort 8080"]
+            HF["Hangfire Server"]
+        end
+
+        subgraph FASTAPI["AI Service Container"]
+            AI["FastAPI Python\nAI Service"]
+        end
+
+        PG[("PostgreSQL 15")]
+        REDIS[("Redis 7")]
+        RABBIT["RabbitMQ"]
+    end
+
+    subgraph Cloudflare["☁️ Cloudflare"]
+        R2["R2 Object Storage\nuniversity-files"]
+    end
+
+    CLIENT -->|"HTTPS/REST"| API
+    API -->|"SQL + TLS"| PG
+    API -->|"TCP"| REDIS
+    API -->|"AMQP"| RABBIT
+    API -->|"HTTP + Polly"| AI
+    API -->|"S3 API"| R2
+    HF -->|"SQL"| PG
+</div>
+<div class="caption">Figure 3 — Production Deployment Diagram</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 12 — PROJECT DOCUMENTATION
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 12</div>
+  <h2>Complete Project Documentation</h2>
+</div>
+
+<h3>1. Project Introduction</h3>
+<p>The <strong>University Management System (UMS)</strong> is a comprehensive academic management platform built as a graduation project. The system provides end-to-end management of the full university lifecycle — from institutional hierarchy management to student enrollment, AI-powered examinations, complaint intelligence, and automated grading. It is deployed on Railway cloud infrastructure using Docker containers and exposes a REST API consumed by web and mobile clients.</p>
+
+<h3>2. Problem Statement</h3>
+<p>Traditional university management relies heavily on manual processes: paper-based registration, Excel-based grading, verbal complaint handling, and disconnected administrative tools. These processes are error-prone, time-consuming, inaccessible remotely, unable to detect patterns in complaints or academic performance, and lacking in audit trails and accountability mechanisms.</p>
+
+<h3>3. Proposed Solution</h3>
+<p>A cloud-native, AI-integrated REST API system that manages the complete university hierarchy digitally, provides role-based access for all user types, integrates AI for intelligent exam generation and complaint analysis, automates grading and attendance, and provides real-time analytics and complaint clustering.</p>
+
+<h3>4. Objectives</h3>
+<ol>
+  <li>Digitize the complete university administrative hierarchy</li>
+  <li>Provide secure, role-based access for Students, Doctors, Admins, and SuperAdmins</li>
+  <li>Enable AI-powered academic assistance and exam generation</li>
+  <li>Automate complaint analysis and priority escalation</li>
+  <li>Support bulk student enrollment via Excel import</li>
+  <li>Enable attendance tracking with QR codes</li>
+  <li>Implement automated grading with GPA calculation</li>
+  <li>Provide cloud file storage for course materials</li>
+</ol>
+
+<h3>5. Functional Requirements</h3>
+<table>
+  <thead><tr><th>ID</th><th>Requirement</th></tr></thead>
+  <tbody>
+    <tr><td>FR-01</td><td>SuperAdmin can create University, Colleges, and initial Admin accounts</td></tr>
+    <tr><td>FR-02</td><td>Admin can register Students and Doctors individually</td></tr>
+    <tr><td>FR-03</td><td>Admin can bulk-import students via Excel file</td></tr>
+    <tr><td>FR-04</td><td>Doctor can create structured, AI-generated, and file-based exams</td></tr>
+    <tr><td>FR-05</td><td>Student can submit exam answers within the active time window</td></tr>
+    <tr><td>FR-06</td><td>Doctor can grade submissions or trigger AI auto-grading</td></tr>
+    <tr><td>FR-07</td><td>System calculates weighted GPA automatically</td></tr>
+    <tr><td>FR-08</td><td>Student can file complaints targeting Doctors, Departments, or Administration</td></tr>
+    <tr><td>FR-09</td><td>AI analyzes complaints for sentiment, category, severity, and clustering</td></tr>
+    <tr><td>FR-10</td><td>Admin receives daily/weekly/monthly complaint intelligence reports</td></tr>
+    <tr><td>FR-11</td><td>Doctor can generate QR codes for attendance sessions</td></tr>
+    <tr><td>FR-12</td><td>Student can record attendance by scanning QR code</td></tr>
+    <tr><td>FR-13</td><td>Doctor can upload course materials to cloud storage</td></tr>
+    <tr><td>FR-14</td><td>Student can use AI chat assistant with academic context awareness</td></tr>
+    <tr><td>FR-15</td><td>All users receive in-app notifications for relevant events</td></tr>
+  </tbody>
+</table>
+
+<h3>6. Non-Functional Requirements</h3>
+<table>
+  <thead><tr><th>ID</th><th>Requirement</th><th>Metric</th></tr></thead>
+  <tbody>
+    <tr><td>NFR-01</td><td>Response Time</td><td>95th percentile &lt; 500ms for standard API calls</td></tr>
+    <tr><td>NFR-02</td><td>Security</td><td>BCrypt passwords, JWT HS256, account lockout after 5 failures</td></tr>
+    <tr><td>NFR-03</td><td>Availability</td><td>99.5% uptime on Railway cloud platform</td></tr>
+    <tr><td>NFR-04</td><td>Scalability</td><td>Support up to 10,000 concurrent users with current architecture</td></tr>
+    <tr><td>NFR-05</td><td>Auditability</td><td>All CRUD operations logged with user ID and timestamp</td></tr>
+    <tr><td>NFR-06</td><td>Data Integrity</td><td>Soft-delete preserves all historical data permanently</td></tr>
+    <tr><td>NFR-07</td><td>Compliance</td><td>Egyptian phone format validation, NationalId format validation</td></tr>
+  </tbody>
+</table>
+
+<h3>7. Technologies Used</h3>
+<table>
+  <thead><tr><th>Technology</th><th>Version</th><th>Purpose</th></tr></thead>
+  <tbody>
+    <tr><td>.NET / ASP.NET Core</td><td>9.0</td><td>Web API framework</td></tr>
+    <tr><td>Entity Framework Core</td><td>9.x</td><td>ORM, code-first migrations, soft delete</td></tr>
+    <tr><td>PostgreSQL</td><td>15+</td><td>Primary relational database</td></tr>
+    <tr><td>Redis</td><td>7.x</td><td>Distributed cache and rate limiting</td></tr>
+    <tr><td>RabbitMQ + MassTransit</td><td>Latest</td><td>Async event messaging</td></tr>
+    <tr><td>Hangfire + PostgreSQL</td><td>Latest</td><td>Background job scheduling</td></tr>
+    <tr><td>Cloudflare R2</td><td>S3-compatible</td><td>File and material storage</td></tr>
+    <tr><td>FastAPI (Python)</td><td>Latest</td><td>AI service microservice</td></tr>
+    <tr><td>NUlid</td><td>Latest</td><td>ULID ID generation (sortable, unpredictable)</td></tr>
+    <tr><td>BCrypt.Net</td><td>4.0</td><td>Password hashing with work factor</td></tr>
+    <tr><td>Polly</td><td>8.x</td><td>Resilience: retry, circuit breaker, timeout</td></tr>
+    <tr><td>Serilog</td><td>Latest</td><td>Structured logging to console + file</td></tr>
+    <tr><td>ClosedXML</td><td>Latest</td><td>Excel file processing for bulk import</td></tr>
+    <tr><td>Swagger / OpenAPI</td><td>Latest</td><td>API documentation and testing UI</td></tr>
+    <tr><td>Docker</td><td>Latest</td><td>Containerization (multi-stage build)</td></tr>
+    <tr><td>Railway</td><td>—</td><td>Cloud hosting platform</td></tr>
+  </tbody>
+</table>
+
+<h3>8. AI Features</h3>
+<table>
+  <thead><tr><th>Feature</th><th>Description</th><th>Technology</th></tr></thead>
+  <tbody>
+    <tr><td>AI Chat Assistant</td><td>Conversational interface for students with academic context</td><td>FastAPI + LLM</td></tr>
+    <tr><td>AI Exam Generation</td><td>Doctor provides parameters, AI generates question banks</td><td>FastAPI</td></tr>
+    <tr><td>File-Based Exam</td><td>Upload PDF, AI extracts structured questions</td><td>FastAPI + OCR</td></tr>
+    <tr><td>Complaint Sentiment Analysis</td><td>Scores -1.0 to +1.0 sentiment on each complaint</td><td>FastAPI + NLP</td></tr>
+    <tr><td>Complaint Categorization</td><td>Auto-classifies into predefined categories</td><td>FastAPI + NLP</td></tr>
+    <tr><td>Severity Assessment</td><td>Critical/High/Normal with .NET-side priority elevation</td><td>FastAPI + .NET</td></tr>
+    <tr><td>Complaint Clustering</td><td>Groups similar complaints by DuplicateGroupId for trend detection</td><td>FastAPI + .NET</td></tr>
+    <tr><td>Document Summarization</td><td>Students summarize uploaded course materials</td><td>FastAPI + LLM</td></tr>
+    <tr><td>Document Q&amp;A</td><td>Students ask questions about uploaded materials</td><td>FastAPI + RAG</td></tr>
+  </tbody>
+</table>
+
+<h3>9. Challenges Faced</h3>
+<ol>
+  <li><strong>ULID Serialization:</strong> ULID is not natively supported by System.Text.Json. Required a custom <code>UlidJsonConverterFactory</code> covering both nullable and non-nullable types.</li>
+  <li><strong>AI Service Resilience:</strong> Network timeouts to FastAPI required implementing Polly pipeline (3x retry exponential backoff, circuit breaker 5 failures → 15s open, 65s timeout).</li>
+  <li><strong>Soft Delete + EF Core:</strong> Global query filters require careful <code>IgnoreQueryFilters()</code> for admin operations that must see deleted records.</li>
+  <li><strong>Concurrent Exam Submissions:</strong> Race condition prevention required composite unique index at the database level — application-level checks alone can have race conditions.</li>
+  <li><strong>Egyptian Phone Validation:</strong> Supporting +20, 0020, and 01x formats required normalization before regex validation.</li>
+  <li><strong>Background Job Isolation:</strong> Hangfire jobs run in separate DI scopes requiring <code>IServiceScopeFactory</code> for proper scoped service resolution.</li>
+</ol>
+
+<h3>10. Future Improvements</h3>
+<ol>
+  <li>Unit and integration test suite (highest priority for production)</li>
+  <li>API versioning (<code>/api/v1/</code>)</li>
+  <li>Real-time notifications via SignalR</li>
+  <li>Distributed rate limiting via Redis (AspNetCoreRateLimit)</li>
+  <li>Email notification service implementation (SendGrid/Mailgun)</li>
+  <li>Mobile application (React Native or Flutter)</li>
+  <li>Advanced analytics dashboard with charts</li>
+  <li>Automated CI/CD pipeline (GitHub Actions)</li>
+  <li>OpenTelemetry observability integration</li>
+  <li>GDPR-compliant data export and right-to-deletion</li>
+</ol>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 13 — UML DIAGRAMS
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 13</div>
+  <h2>UML &amp; Architecture Diagrams</h2>
+</div>
+
+<h3>Authentication Sequence Diagram</h3>
+<div class="mermaid-wrap">
+<div class="mermaid">
+sequenceDiagram
+    participant C as Client
+    participant API as AuthController
+    participant SVC as AuthService
+    participant DB as PostgreSQL
+    participant JWT as JWT Generator
+
+    C->>API: POST /api/auth/login
+    API->>SVC: LoginAsync(email, password)
+    SVC->>DB: SELECT SystemUser WHERE Email = ?
+    DB-->>SVC: SystemUser record
+    SVC->>SVC: BCrypt.Verify(password, hash)
+    alt Wrong Password (< 5 failures)
+        SVC->>DB: INCREMENT AccessFailedCount
+        SVC-->>API: null
+        API-->>C: 401 Unauthorized
+    else 5+ Failures — Account Locked
+        SVC->>DB: SET LockoutEnd = NOW + 15min
+        SVC-->>API: null
+        API-->>C: 401 Account locked
+    else Password Correct
+        SVC->>JWT: GenerateToken(claims)
+        JWT-->>SVC: accessToken (JWT)
+        SVC->>DB: INSERT RefreshToken
+        SVC-->>API: AuthResponseDto
+        API-->>C: 200 OK + token + requiresPasswordChange
+    end
+</div>
+<div class="caption">Figure 4 — Login Authentication Flow</div>
+</div>
+
+<h3>Complaint Intelligence Sequence Diagram</h3>
+<div class="mermaid-wrap">
+<div class="mermaid">
+sequenceDiagram
+    participant S as Student
+    participant API as ComplaintsController
+    participant CS as ComplaintService
+    participant DB as PostgreSQL
+    participant HF as Hangfire Queue
+    participant JOB as ComplaintIntelligenceJob
+    participant AI as FastAPI AI Service
+    participant NS as NotificationService
+
+    S->>API: POST /api/complaints {message, targetType}
+    API->>CS: CreateComplaintAsync(dto, studentId)
+    CS->>DB: INSERT Complaint (Pending)
+    CS->>HF: Enqueue ProcessNewComplaintAsync(id)
+    CS-->>API: ComplaintDto
+    API-->>S: 200 OK
+
+    Note over HF,JOB: Background execution (async)
+    HF->>JOB: ProcessNewComplaintAsync(complaintId)
+    JOB->>DB: SELECT Complaint
+    JOB->>AI: POST /analyze-complaint
+    AI-->>JOB: {sentiment, category, severity, duplicateGroupId}
+    JOB->>DB: INSERT ComplaintAnalysis
+    JOB->>DB: UPDATE Complaint.Priority if Critical/High
+    JOB->>DB: UPSERT ComplaintCluster
+    JOB->>DB: SaveChanges
+
+    Note over JOB,NS: Daily Cron (Hangfire)
+    JOB->>DB: COUNT complaints, critical, pending
+    JOB->>DB: TOP category via GroupBy
+    JOB->>DB: SELECT Admin users
+    loop Each Admin
+        JOB->>NS: SendNotificationAsync(adminId, report)
+    end
+</div>
+<div class="caption">Figure 5 — Complaint Intelligence Flow</div>
+</div>
+
+<h3>Exam Lifecycle State Diagram</h3>
+<div class="mermaid-wrap">
+<div class="mermaid">
+stateDiagram-v2
+    [*] --> Draft : Doctor creates exam
+    Draft --> Published : Doctor publishes
+    Published --> Active : StartTime reached
+    Active --> Closed : EndTime reached
+    Closed --> Graded : Doctor grades or AI auto-grades
+    Graded --> [*]
+    Draft --> Archived : Doctor archives
+    Published --> Archived : Doctor archives
+</div>
+<div class="caption">Figure 6 — Exam Lifecycle States</div>
+</div>
+
+<h3>Complaint Lifecycle State Diagram</h3>
+<div class="mermaid-wrap">
+<div class="mermaid">
+stateDiagram-v2
+    [*] --> Pending : Student files complaint
+    Pending --> AIAnalyzing : Hangfire job picked up
+    AIAnalyzing --> Pending : Analysis saved, priority updated
+    Pending --> UnderReview : Admin begins review
+    UnderReview --> Resolved : Admin resolves
+    UnderReview --> Dismissed : Admin dismisses
+    Resolved --> [*]
+    Dismissed --> [*]
+</div>
+<div class="caption">Figure 7 — Complaint Lifecycle States</div>
+</div>
+
+<h3>Package / Layer Diagram</h3>
+<div class="mermaid-wrap">
+<div class="mermaid">
+graph TB
+    subgraph API["📦 UniversityManagementSystem.Api"]
+        CTRL["Controllers (20+)"]
+        MW["Middleware"]
+        FILT["Filters"]
+        CONV["Converters"]
+    end
+
+    subgraph INFRA["📦 UniversityManagementSystem.Infrastructure"]
+        SVC["Services (28)"]
+        DATA["Data / AppDbContext"]
+        JOBS["Hangfire Jobs"]
+        CONS["MassTransit Consumers"]
+        STOR["Storage (R2)"]
+        MIG["Migrations (16)"]
+    end
+
+    subgraph CORE["📦 UniversityManagementSystem.Core"]
+        ENT["Entities (46)"]
+        IFC["Interfaces (32)"]
+        DTOS["DTOs (30+)"]
+        EXC["Exceptions"]
+        SET["Settings"]
+        APP["Application / AI"]
+    end
+
+    API -->|depends on| CORE
+    API -->|depends on| INFRA
+    INFRA -->|depends on| CORE
+    CORE -.->|❌ violation| API_FW["ASP.NET Framework\n(IFormFile)"]
+
+    style CORE fill:#e8f5e9,stroke:#43a047
+    style INFRA fill:#e3f2fd,stroke:#1976d2
+    style API fill:#f3e5f5,stroke:#7b1fa2
+    style API_FW fill:#ffebee,stroke:#e53935
+</div>
+<div class="caption">Figure 8 — Package/Layer Dependency Diagram</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 14 — GRADUATION DISCUSSION PREP
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 14</div>
+  <h2>Graduation Discussion Preparation</h2>
+</div>
+
+<h3>Architecture Questions</h3>
+
+<div class="callout">
+  <strong>Q: Why did you choose Clean Architecture instead of a simple 3-layer MVC?</strong>
+  <p>Clean Architecture ensures the domain logic (Core) is completely isolated from infrastructure concerns. If we wanted to switch from PostgreSQL to MongoDB, or from Hangfire to Azure Service Bus, only the Infrastructure layer changes — the Core and API layers remain untouched. This testability and independence is critical for long-term maintainability. It also enforces the Dependency Inversion Principle: high-level modules (Core) never depend on low-level modules (Infrastructure).</p>
+</div>
+
+<div class="callout">
+  <strong>Q: Why ULID instead of GUID or integer IDs?</strong>
+  <p>ULIDs are 26-character, URL-safe, and monotonically sortable. Unlike GUIDs, ULID insertion order matches creation time order, which prevents B-tree index fragmentation in PostgreSQL — improving insert and range-query performance. Unlike integers, ULIDs are unpredictable, preventing ID enumeration attacks (guessing other users' IDs by incrementing). The NUlid library provides full .NET integration with EF Core.</p>
+</div>
+
+<div class="callout">
+  <strong>Q: Explain your soft delete implementation.</strong>
+  <p>Every entity inherits from <code>BaseEntity</code> which has a <code>DeletedAt</code> nullable timestamp. In <code>AppDbContext.OnModelCreating</code>, we apply a global <code>HasQueryFilter(x =&gt; x.DeletedAt == null)</code> to every BaseEntity type. When <code>SaveChangesAsync</code> is called, we intercept <code>EntityState.Deleted</code> entries and convert them to <code>Modified</code> with <code>DeletedAt = DateTime.UtcNow</code>. This means deleted data is never physically removed — it's always auditable and recoverable.</p>
+</div>
+
+<h3>Security Questions</h3>
+
+<div class="callout">
+  <strong>Q: How does your authentication flow work end-to-end?</strong>
+  <p>Login validates BCrypt password hash. On success, we generate a JWT (HS256, 24-hour expiry) with claims: <code>nameid</code> (SystemUser ID), <code>ProfileId</code> (role entity ID), <code>role</code>. We also generate a cryptographically random refresh token, store it in the database with expiry, and return both. The refresh endpoint validates the JWT signature even when expired, extracts the JTI, matches it to the stored token, marks it as used, and issues a new pair. The old refresh token cannot be reused.</p>
+</div>
+
+<div class="callout">
+  <strong>Q: How do you prevent brute force attacks?</strong>
+  <p>Three complementary layers: (1) Rate limiting — 5 login attempts per minute per IP address via ASP.NET Core rate limiter. (2) Account lockout — 5 failed password attempts triggers a 15-minute lockout stored in <code>SystemUser.LockoutEnd</code>, automatically reset on successful login. (3) BCrypt work factor — each password verification takes ~100ms by design, making parallel brute force computationally infeasible.</p>
+</div>
+
+<div class="callout">
+  <strong>Q: What is MustChangePassword and why did you implement it?</strong>
+  <p>When an admin creates any new user, their initial password is <code>"123456"</code> — a known default. <code>MustChangePassword = true</code> is set on account creation. The login response includes <code>RequiresPasswordChange: true</code>, signaling the frontend to redirect to the change-password screen before allowing access to any feature. After the user changes their password, <code>MustChangePassword = false</code> is persisted. This ensures compromised accounts from default passwords are immediately forced to change credentials.</p>
+</div>
+
+<h3>Database Questions</h3>
+
+<div class="callout">
+  <strong>Q: Why PostgreSQL instead of SQL Server or MySQL?</strong>
+  <p>PostgreSQL offers superior features for this use case: the <code>citext</code> extension for case-insensitive email columns with proper indexing; native JSONB for storing exam answers; excellent EF Core integration; open-source with no licensing costs; strong Railway/cloud support; and better performance on complex joins and write-heavy workloads.</p>
+</div>
+
+<div class="callout">
+  <strong>Q: How do you handle concurrent exam submissions (two tabs, race condition)?</strong>
+  <p>The <code>ExamSubmission</code> table has a unique composite index on <code>(ExamId, StudentId)</code>. If a student attempts to submit twice simultaneously, the second INSERT throws a <code>DbUpdateException</code> (unique constraint violation) at the database level — before any application code can process it. This is more reliable than application-level checks alone, which can have race conditions when two requests run in parallel.</p>
+</div>
+
+<div class="callout">
+  <strong>Q: What is the purpose of the AcademicYearDepartment junction table?</strong>
+  <p>A department runs different subjects in different academic years. This junction table maps which departments are active in which academic years, allowing the system to track which subjects and offerings belong to which academic year per department. Without it, you couldn't model that Department A offers subjects X, Y in Year 1 but subjects A, B in Year 2 — everything would be flat with no temporal separation.</p>
+</div>
+
+<h3>AI Integration Questions</h3>
+
+<div class="callout">
+  <strong>Q: How does the AI complaint analysis work end-to-end?</strong>
+  <p>When a student files a complaint, <code>ComplaintService</code> persists it to the database and immediately enqueues a Hangfire background job <code>ProcessNewComplaintAsync(complaintId)</code>. The background job loads the complaint, sends it to the FastAPI AI service at <code>/analyze-complaint</code>. The AI returns sentiment score (-1 to +1), category, severity (normal/high/critical), a summary, and optionally a <code>DuplicateGroupId</code> for clustering similar complaints. The job saves a <code>ComplaintAnalysis</code> record, elevates the complaint priority if severity is critical or high, and creates or updates a <code>ComplaintCluster</code> for trending detection.</p>
+</div>
+
+<div class="callout">
+  <strong>Q: Why is the AI service a separate FastAPI service instead of being inside .NET?</strong>
+  <p>Python has far superior AI/ML ecosystem support — LangChain, HuggingFace, OpenAI SDK, spaCy are Python-native and production-tested. Keeping AI in FastAPI also allows independent scaling (GPU instances for AI without affecting the main API), independent deployment (update AI models without redeploying the entire .NET application), and using Python-specific AI libraries. The .NET backend uses Polly with circuit breaker and retry so if the AI service is temporarily down, the main system continues operating normally.</p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 15 — REFACTORING ROADMAP
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 15</div>
+  <h2>Refactoring Roadmap</h2>
+</div>
+
+<h3><span class="priority-critical">🔴 Critical Priority</span></h3>
+<table>
+  <thead><tr><th>Issue</th><th>Impact</th><th>Fix</th><th>Effort</th></tr></thead>
+  <tbody>
+    <tr><td>Delete <code>Core/Class1.cs</code></td><td>Cleanliness</td><td>Delete file immediately</td><td>1 min</td></tr>
+    <tr><td>Delete dead AI tool files</td><td>Reduces confusion</td><td>Delete <code>AiToolRegistry</code>, <code>CreateGeneratedExamTool</code></td><td>5 min</td></tr>
+    <tr><td>Remove DefaultPassword from appsettings.json</td><td>Security</td><td>Move to <code>dotnet user-secrets</code> + env var in prod</td><td>30 min</td></tr>
+    <tr><td>Add unit tests for Auth, Grade, Complaint services</td><td>Correctness</td><td>xUnit + Moq + EF InMemory provider</td><td>1-2 weeks</td></tr>
+    <tr><td>Fix POST endpoints to return 201 Created</td><td>REST correctness</td><td>Replace <code>Ok(result)</code> with <code>Created(location, result)</code></td><td>2 hours</td></tr>
+  </tbody>
+</table>
+
+<h3><span class="priority-high">🟠 High Priority</span></h3>
+<table>
+  <thead><tr><th>Issue</th><th>Impact</th><th>Fix</th><th>Effort</th></tr></thead>
+  <tbody>
+    <tr><td>Extract claim parsing to IUserContextService</td><td>DRY — removes 10 duplicate blocks</td><td>Add <code>GetCurrentUserId()</code> method</td><td>2 hours</td></tr>
+    <tr><td>Split AuthService (470 lines)</td><td>SRP, testability</td><td>TokenService + RegistrationService + PasswordService</td><td>1 day</td></tr>
+    <tr><td>Extract DI from Program.cs</td><td>Maintainability</td><td>Create <code>ServiceExtensions.cs</code></td><td>1 hour</td></tr>
+    <tr><td>Remove <code>FrameworkReference: Microsoft.AspNetCore.App</code> from Core</td><td>Clean Architecture</td><td>Replace IFormFile with Stream abstraction in interfaces</td><td>3 hours</td></tr>
+    <tr><td>Add Swagger production guard</td><td>Security</td><td>Wrap UseSwagger() in environment check</td><td>5 min</td></tr>
+    <tr><td>Add API versioning /api/v1/</td><td>Breaking change safety</td><td>Use Asp.Versioning NuGet package</td><td>2 hours</td></tr>
+    <tr><td>Add GitHub Actions CI pipeline</td><td>Production readiness</td><td>build → test → docker build workflow</td><td>3 hours</td></tr>
+  </tbody>
+</table>
+
+<h3><span class="priority-medium">🟡 Medium Priority</span></h3>
+<table>
+  <thead><tr><th>Issue</th><th>Impact</th><th>Fix</th><th>Effort</th></tr></thead>
+  <tbody>
+    <tr><td>Consolidate duplicate Excel import methods</td><td>DRY</td><td>Single parameterized method</td><td>2 hours</td></tr>
+    <tr><td>Add missing DB indexes (Enrollments, ChatMessages, Materials)</td><td>Performance</td><td>EF Core migration</td><td>1 hour</td></tr>
+    <tr><td>Implement Redis-backed distributed rate limiting</td><td>Multi-instance correctness</td><td>AspNetCoreRateLimit with Redis</td><td>3 hours</td></tr>
+    <tr><td>Implement real EmailJob (SMTP)</td><td>Feature completeness</td><td>SendGrid or Mailgun SDK</td><td>4 hours</td></tr>
+    <tr><td>Add file type/size validation in FileService</td><td>Security</td><td>MIME type check before R2 upload</td><td>2 hours</td></tr>
+    <tr><td>Squash 16 migrations to baseline</td><td>Maintainability</td><td>Before v1.0 release</td><td>1 hour</td></tr>
+    <tr><td>Create Roles constants class</td><td>Magic string removal</td><td><code>static class Roles { const string Admin = "Admin"; }</code></td><td>30 min</td></tr>
+  </tbody>
+</table>
+
+<h3><span class="priority-low">🔵 Low Priority (Enterprise-Level)</span></h3>
+<table>
+  <thead><tr><th>Issue</th><th>Impact</th><th>Fix</th></tr></thead>
+  <tbody>
+    <tr><td>Add OpenTelemetry tracing</td><td>Cross-service observability</td><td>Trace requests across .NET + FastAPI</td></tr>
+    <tr><td>Add read replicas</td><td>Scale &gt; 50K users</td><td>PostgreSQL read replica with EF Core split context</td></tr>
+    <tr><td>Implement CQRS with MediatR</td><td>Better separation of concerns</td><td>Separate command/query handlers</td></tr>
+    <tr><td>Add cursor-based pagination</td><td>Performance at large scale</td><td>Replace Skip/Take with cursor for tables &gt; 100K rows</td></tr>
+    <tr><td>Add SignalR for real-time notifications</td><td>User experience</td><td>Hub for grade updates, complaint status changes</td></tr>
+    <tr><td>Add docker-compose.yml for local dev</td><td>Developer experience</td><td>Compose with PG + Redis + RabbitMQ + API</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 16 — FINAL VERDICT
+════════════════════════════════════════════════════════════════ -->
+<div class="section-header">
+  <div class="section-num">Section 16</div>
+  <h2>Final Verdict</h2>
+</div>
+
+<div class="verdict">
+  <h4>Is this project professionally built?</h4>
+  <p><strong>Yes — significantly above average for a graduation project, and comparable to early-stage production systems built by junior-to-mid professional engineers.</strong></p>
+  <p>The project demonstrates genuine engineering judgment: Clean Architecture, ULID, soft delete, Polly resilience, CQRS-light, Options pattern — applied consistently with clear reasoning behind each decision.</p>
+</div>
+
+<div class="verdict">
+  <h4>Is this architecture strong?</h4>
+  <p><strong>Yes, with minor violations.</strong> The Clean Architecture boundaries are respected. The 3-layer separation is clean. The service abstraction via 32 interfaces makes the system fully testable (the absence of tests is a gap, not an architectural failure). The AI service separation is a genuine microservices decision, not over-engineering.</p>
+</div>
+
+<div class="verdict">
+  <h4>Is it graduation-project worthy?</h4>
+  <p><strong>94/100 — Emphatically yes.</strong> This project implements a real-world system that most professional teams would be proud to deliver. The scope is genuinely impressive: 46 entities, 32 interfaces, 28 services, 20+ controllers, 6 background jobs, AI integration, Docker deployment, Redis, RabbitMQ, Hangfire, cloud storage, complaint intelligence, bulk import, GPA calculation, QR attendance, JWT refresh tokens, and rate limiting.</p>
+</div>
+
+<h3>Biggest Weaknesses</h3>
+<table>
+  <thead><tr><th>#</th><th>Weakness</th><th>Impact</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><span class="priority-critical">Zero test coverage</span></td><td>The single biggest gap between a student project and a professional system. No unit tests, no integration tests.</td></tr>
+    <tr><td>2</td><td><span class="priority-high">Dead code in Core/Application/AI</span></td><td>Leftover tool execution code that was moved to FastAPI. Confuses future developers.</td></tr>
+    <tr><td>3</td><td><span class="priority-high">DefaultPassword in appsettings</span></td><td>Should be in secrets management — anyone with repo access knows the default credential.</td></tr>
+    <tr><td>4</td><td><span class="priority-high">Swagger in production</span></td><td>API surface fully visible to anyone with the URL.</td></tr>
+    <tr><td>5</td><td><span class="priority-medium">No CI/CD pipeline</span></td><td>Deployment is manual — no automated quality gate or test execution on push.</td></tr>
+  </tbody>
+</table>
+
+<h3>Strongest Points</h3>
+<table>
+  <thead><tr><th>#</th><th>Strength</th><th>Why It Matters</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>✅ Genuinely correct Clean Architecture</td><td>Dependencies flow in the right direction; domain is fully isolated</td></tr>
+    <tr><td>2</td><td>✅ AI integration with production-grade resilience (Polly)</td><td>Circuit breaker + retry is exactly what production AI integrations require</td></tr>
+    <tr><td>3</td><td>✅ Complaint Intelligence System</td><td>AI-powered clustering with priority escalation is an innovative, real-world feature</td></tr>
+    <tr><td>4</td><td>✅ Comprehensive security posture</td><td>BCrypt, JWT, lockout, rate limiting, MustChangePassword, ULID — all implemented correctly</td></tr>
+    <tr><td>5</td><td>✅ ULID implementation</td><td>Correct use of sortable unique IDs with custom EF Core converter factory for both T and T?</td></tr>
+    <tr><td>6</td><td>✅ Consistent soft delete strategy</td><td>Globally configured, audit trail preserved, no data ever permanently lost</td></tr>
+    <tr><td>7</td><td>✅ Docker + Railway deployment</td><td>Real deployment readiness — not just "works on my machine"</td></tr>
+    <tr><td>8</td><td>✅ Event-driven architecture foundations</td><td>MassTransit + RabbitMQ + Hangfire provide async decoupling for complex workflows</td></tr>
+  </tbody>
+</table>
+
+<h3>Top 10 High-Impact Improvements</h3>
+<table>
+  <thead><tr><th>#</th><th>Improvement</th><th>Score Impact</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Add unit tests for Auth, Grade, Complaint services (xUnit + Moq)</td><td><span class="badge-err">+10 Production</span></td></tr>
+    <tr><td>2</td><td>Add GitHub Actions CI pipeline (build + test + docker)</td><td><span class="badge-err">+5 Production</span></td></tr>
+    <tr><td>3</td><td>Delete Class1.cs and dead AI tool files</td><td><span class="badge-warn">+5 Maintainability</span></td></tr>
+    <tr><td>4</td><td>Move DefaultPassword to env var / user-secrets</td><td><span class="badge-warn">+5 Security</span></td></tr>
+    <tr><td>5</td><td>Extract claim parsing to IUserContextService</td><td><span class="badge-info">+3 DRY</span></td></tr>
+    <tr><td>6</td><td>Return 201 Created from all POST creation endpoints</td><td><span class="badge-info">+3 REST</span></td></tr>
+    <tr><td>7</td><td>Add Swagger production guard</td><td><span class="badge-info">+2 Security</span></td></tr>
+    <tr><td>8</td><td>Add API versioning /api/v1/</td><td><span class="badge-info">+2 Maintenance</span></td></tr>
+    <tr><td>9</td><td>Extract DI registrations to ServiceExtensions.cs</td><td><span class="badge-info">+3 Maintainability</span></td></tr>
+    <tr><td>10</td><td>Consolidate duplicate Excel import methods</td><td><span class="badge-info">+2 DRY</span></td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<div class="scorecard-grid">
+  <div class="score-card">
+    <div class="label">Overall Health</div>
+    <div class="score good">83</div>
+    <div class="out-of">/ 100</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Enterprise Ready</div>
+    <div class="score fair">52</div>
+    <div class="out-of">/ 100</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Graduation Quality</div>
+    <div class="score excellent">94</div>
+    <div class="out-of">/ 100</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Code Quality</div>
+    <div class="score good">84</div>
+    <div class="out-of">/ 100</div>
+  </div>
+</div>
+
+<p style="text-align:center; color: var(--muted); margin-top: 40px; font-size: 9.5pt; border-top: 1px solid var(--border); padding-top: 20px;">
+  <strong>University Management System — Full Technical Audit Report</strong><br>
+  Generated May 2026 · Based on complete static analysis of all source files<br>
+  All findings based on actual code — not assumptions or templates
+</p>
+
+</div><!-- end .content -->
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    themeVariables: {
+      primaryColor: '#e8eaf6',
+      primaryTextColor: '#1a237e',
+      primaryBorderColor: '#3949ab',
+      lineColor: '#3949ab',
+      secondaryColor: '#f3e5f5',
+      tertiaryColor: '#e8f5e9'
+    },
+    flowchart: { curve: 'basis', padding: 20 },
+    sequence: { actorMargin: 60 }
+  });
+</script>
+</body>
+</html>

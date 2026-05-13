@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -44,10 +45,8 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
                     TargetId = complaint.TargetId
                 };
 
-                // Call FastAPI AI logic
                 var aiResponse = await _aiService.AnalyzeComplaintAsync(request);
 
-                // Save analysis
                 var analysis = new ComplaintAnalysis
                 {
                     ComplaintId = complaint.Id,
@@ -61,26 +60,29 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
                 _context.ComplaintAnalyses.Add(analysis);
 
-                // Check severity and update priority
                 if (aiResponse.Severity.Equals("critical", StringComparison.OrdinalIgnoreCase))
-                {
                     complaint.Priority = "Critical";
-                }
                 else if (aiResponse.Severity.Equals("high", StringComparison.OrdinalIgnoreCase))
-                {
                     complaint.Priority = "High";
-                }
 
-                // Handle clustering (if assigned a group id)
                 if (!string.IsNullOrWhiteSpace(analysis.DuplicateGroupId))
                 {
-                    var cluster = await _context.ComplaintClusters.FirstOrDefaultAsync(c => c.Id.ToString() == analysis.DuplicateGroupId);
+                    var cluster = await _context.ComplaintClusters
+                        .FirstOrDefaultAsync(c => c.Id.ToString() == analysis.DuplicateGroupId);
+
                     if (cluster == null)
                     {
-                        // Create new cluster if FastApi assigned a new ID
+                        if (!Ulid.TryParse(analysis.DuplicateGroupId, out var clusterId))
+                        {
+                            clusterId = Ulid.NewUlid();
+                            _logger.LogWarning(
+                                "DuplicateGroupId '{Id}' is not a valid ULID — generated new cluster ID {NewId}",
+                                analysis.DuplicateGroupId, clusterId);
+                        }
+
                         cluster = new ComplaintCluster
                         {
-                            Id = Ulid.Parse(analysis.DuplicateGroupId), // Assuming FastApi uses ULID format or we map it
+                            Id = clusterId,
                             Topic = aiResponse.Category,
                             TargetType = complaint.TargetType,
                             TargetId = complaint.TargetId,
@@ -94,16 +96,14 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
                     {
                         cluster.ComplaintCount++;
                         cluster.LastUpdated = DateTime.UtcNow;
-                        cluster.AiSummary = "Updated summary based on latest complaint."; // In real scenario, AI might regenerate this
+                        cluster.AiSummary = "Updated summary based on latest complaint.";
                     }
 
-                    // Alert on trending cluster
                     if (cluster.ComplaintCount >= 3)
                     {
-                        // Escalation Notification to Admins
-                        // For simplicity, omitting exact admin lookup and assuming a broadcast or specific admin user
-                        _logger.LogWarning($"Cluster {cluster.Id} is trending! {cluster.ComplaintCount} complaints.");
-                        // _notificationService.SendAdminNotificationAsync(...)
+                        _logger.LogWarning(
+                            "Cluster {ClusterId} is trending with {Count} complaints",
+                            cluster.Id, cluster.ComplaintCount);
                     }
                 }
 
@@ -111,27 +111,90 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Failed to process complaint {complaintId}");
+                _logger.LogError(ex, "Failed to process complaint {ComplaintId}", complaintId);
             }
         }
 
         public async Task GenerateDailyReportAsync()
         {
-            _logger.LogInformation("Generating Daily Complaint Intelligence Report...");
-            // Aggregation logic here
-            await Task.CompletedTask;
+            _logger.LogInformation("Generating daily complaint intelligence report");
+            try
+            {
+                var since = DateTime.UtcNow.Date;
+                await SendComplaintReportNotificationAsync("Daily", since);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Daily complaint report failed");
+            }
         }
 
         public async Task GenerateWeeklyReportAsync()
         {
-            _logger.LogInformation("Generating Weekly Complaint Intelligence Report...");
-            await Task.CompletedTask;
+            _logger.LogInformation("Generating weekly complaint intelligence report");
+            try
+            {
+                var since = DateTime.UtcNow.Date.AddDays(-7);
+                await SendComplaintReportNotificationAsync("Weekly", since);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Weekly complaint report failed");
+            }
         }
 
         public async Task GenerateMonthlyReportAsync()
         {
-            _logger.LogInformation("Generating Monthly Complaint Intelligence Report...");
-            await Task.CompletedTask;
+            _logger.LogInformation("Generating monthly complaint intelligence report");
+            try
+            {
+                var since = DateTime.UtcNow.Date.AddDays(-30);
+                await SendComplaintReportNotificationAsync("Monthly", since);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Monthly complaint report failed");
+            }
+        }
+
+        private async Task SendComplaintReportNotificationAsync(string period, DateTime since)
+        {
+            var total = await _context.Complaints
+                .Where(c => c.CreatedAt >= since)
+                .CountAsync();
+
+            var critical = await _context.Complaints
+                .Where(c => c.CreatedAt >= since && c.Priority == "Critical")
+                .CountAsync();
+
+            var pending = await _context.Complaints
+                .Where(c => c.CreatedAt >= since && c.Status == "Pending")
+                .CountAsync();
+
+            var topCategory = await _context.ComplaintAnalyses
+                .Where(a => a.Complaint.CreatedAt >= since && a.Category != null)
+                .GroupBy(a => a.Category)
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .FirstOrDefaultAsync() ?? "N/A";
+
+            var summary = $"{period} Report: {total} complaints received, {critical} critical, {pending} pending. Top category: {topCategory}.";
+
+            var admins = await _context.SystemUsers
+                .Where(u => u.Role == UserRole.Admin || u.Role == UserRole.SuperAdmin)
+                .Select(u => u.Id)
+                .ToListAsync();
+
+            foreach (var adminId in admins)
+            {
+                await _notificationService.SendNotificationAsync(
+                    adminId,
+                    $"{period} Complaint Report",
+                    summary);
+            }
+
+            _logger.LogInformation("{Period} complaint report sent to {Count} admins: {Summary}",
+                period, admins.Count, summary);
         }
     }
 }

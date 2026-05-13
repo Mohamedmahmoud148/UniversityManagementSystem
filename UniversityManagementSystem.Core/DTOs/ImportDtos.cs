@@ -27,6 +27,11 @@ namespace UniversityManagementSystem.Core.DTOs
         public List<string> Errors { get; set; } = new();
         /// <summary>Non-fatal notices (missing optional columns, auto-generated IDs, invalid phone fallback).</summary>
         public List<string> Warnings { get; set; } = new();
+        /// <summary>
+        /// Temporary password assigned to all imported users during this import.
+        /// Only returned once — not retrievable after this response.
+        /// </summary>
+        public string TemporaryPassword { get; set; } = "123456";
     }
 
     public class ImportGradesResultDto

@@ -164,7 +164,7 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
-    // Task 2: Strict Login Rate Limiting (5 per min per IP)
+    // Strict Login Rate Limiting (5 per min per IP)
     options.AddPolicy("LoginPolicy", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
@@ -172,6 +172,19 @@ builder.Services.AddRateLimiter(options =>
             {
                 AutoReplenishment = true,
                 PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // Sensitive auth endpoints (refresh-token, change-password): 10 per min per user
+    options.AddPolicy("SensitiveAuthPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User?.Identity?.Name
+                          ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                          ?? "unknown",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 10,
                 Window = TimeSpan.FromMinutes(1)
             }));
 });
@@ -343,6 +356,16 @@ builder.Services.AddScoped<IEnrollmentUploadService, EnrollmentUploadService>();
 
 // Cloudflare R2 Storage
 builder.Services.Configure<R2Settings>(builder.Configuration.GetSection("R2"));
+builder.Services.Configure<UniversityManagementSystem.Core.Settings.UniversitySettings>(
+    builder.Configuration.GetSection("UniversitySettings"));
+
+// Allow DEFAULT_PASSWORD env var to override appsettings at runtime
+builder.Services.PostConfigure<UniversityManagementSystem.Core.Settings.UniversitySettings>(settings =>
+{
+    var envPassword = Environment.GetEnvironmentVariable("DEFAULT_PASSWORD");
+    if (!string.IsNullOrWhiteSpace(envPassword))
+        settings.DefaultPassword = envPassword;
+});
 builder.Services.AddSingleton<IStorageService, R2StorageService>();
 
 

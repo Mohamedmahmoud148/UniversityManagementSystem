@@ -43,12 +43,14 @@ namespace UniversityManagementSystem.Api.Middleware
 
             var statusCode = exception switch
             {
-                UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
-                KeyNotFoundException        => (int)HttpStatusCode.NotFound,
-                ArgumentException           => (int)HttpStatusCode.BadRequest,
-                InvalidOperationException   => (int)HttpStatusCode.BadRequest,
-                Core.Exceptions.DomainException => (int)HttpStatusCode.BadRequest,
-                _                           => (int)HttpStatusCode.InternalServerError
+                UnauthorizedAccessException           => (int)HttpStatusCode.Unauthorized,
+                Core.Exceptions.ForbiddenException    => (int)HttpStatusCode.Forbidden,
+                KeyNotFoundException                  => (int)HttpStatusCode.NotFound,
+                Core.Exceptions.ConflictException     => (int)HttpStatusCode.Conflict,
+                ArgumentException                     => (int)HttpStatusCode.BadRequest,
+                InvalidOperationException             => (int)HttpStatusCode.BadRequest,
+                Core.Exceptions.DomainException       => (int)HttpStatusCode.BadRequest,
+                _                                     => (int)HttpStatusCode.InternalServerError
             };
 
             context.Response.StatusCode = statusCode;
@@ -75,10 +77,12 @@ namespace UniversityManagementSystem.Api.Middleware
                 // Map status codes to safe user-facing messages
                 var safeMessage = statusCode switch
                 {
-                    (int)HttpStatusCode.Unauthorized    => "Authentication required.",
-                    (int)HttpStatusCode.NotFound        => "The requested resource was not found.",
-                    (int)HttpStatusCode.BadRequest      => exception.Message, // ArgumentException messages are safe
-                    _                                   => "An unexpected error occurred. Please try again later."
+                    (int)HttpStatusCode.Unauthorized => "Authentication required.",
+                    (int)HttpStatusCode.Forbidden    => "You do not have permission to perform this action.",
+                    (int)HttpStatusCode.NotFound     => "The requested resource was not found.",
+                    (int)HttpStatusCode.Conflict     => exception.Message,
+                    (int)HttpStatusCode.BadRequest   => exception.Message,
+                    _                                => "An unexpected error occurred. Please try again later."
                 };
 
                 response = new Core.DTOs.ApiResponse<object>

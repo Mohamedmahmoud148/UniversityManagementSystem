@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NUlid;
-using System.Security.Claims;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
 
@@ -10,15 +9,15 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class NotificationController(INotificationService notificationService) : ControllerBase
+    public class NotificationController(INotificationService notificationService, IUserContextService userContext) : ControllerBase
     {
         private readonly INotificationService _notificationService = notificationService;
+        private readonly IUserContextService _userContext = userContext;
 
         [HttpGet]
         public async Task<IActionResult> GetNotifications([FromQuery] bool unreadOnly = false)
         {
-            var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Ulid.TryParse(claim, out var userId)) return Unauthorized("Invalid user ID in token.");
+            var userId = _userContext.GetUserId();
             var notifications = await _notificationService.GetUserNotificationsAsync(userId, unreadOnly);
             return Ok(notifications);
         }

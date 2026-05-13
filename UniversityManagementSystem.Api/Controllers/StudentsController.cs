@@ -27,7 +27,8 @@ namespace UniversityManagementSystem.Api.Controllers
         IBatchService batchService,
         IGroupService groupService,
         AppDbContext context,
-        IDistributedCache cache) : ControllerBase
+        IDistributedCache cache,
+        IUserContextService userContext) : ControllerBase
     {
         private const string StudentListCachePrefix = "students:page:";
         private static readonly DistributedCacheEntryOptions _studentListCacheOpts = new()
@@ -42,6 +43,7 @@ namespace UniversityManagementSystem.Api.Controllers
         private readonly IGroupService _groupService = groupService;
         private readonly AppDbContext _context = context;
         private readonly IDistributedCache _cache = cache;
+        private readonly IUserContextService _userContext = userContext;
 
         // ── GET /api/Students/search?q= ──────────────────────────────────────
         [HttpGet("search")]
@@ -185,7 +187,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 UniversityStudentId = dto.UniversityStudentId
             };
 
-            var creatorId = Ulid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value);
+            var creatorId = _userContext.GetUserId();
             var authResponse = await _authService.RegisterStudentAsync(registerDto, creatorId);
 
             // Fetch the created student to return full DTO
@@ -252,10 +254,7 @@ namespace UniversityManagementSystem.Api.Controllers
             {
                 if (file == null || file.Length == 0) return BadRequest("File is empty");
 
-                var userIdClaim = User.FindFirst("nameid");
-                if (userIdClaim == null) return Unauthorized("Invalid token claims");
-
-                if (!Ulid.TryParse(userIdClaim.Value, out var userId)) return Unauthorized("Invalid user ID.");
+                var userId = _userContext.GetUserId();
                 using var stream = file.OpenReadStream();
                 var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
 
@@ -278,10 +277,7 @@ namespace UniversityManagementSystem.Api.Controllers
             {
                 if (file == null || file.Length == 0) return BadRequest("File is empty");
 
-                var userIdClaim = User.FindFirst("nameid");
-                if (userIdClaim == null) return Unauthorized("Invalid token claims");
-
-                if (!Ulid.TryParse(userIdClaim.Value, out var userId)) return Unauthorized("Invalid user ID.");
+                var userId = _userContext.GetUserId();
                 using var stream = file.OpenReadStream();
                 var fileId = await fileService.UploadFileStreamAsync(userId, stream, file.FileName, file.ContentType, file.Length);
 

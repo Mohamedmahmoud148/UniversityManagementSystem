@@ -1,19 +1,22 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Polly;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Core.Settings;
 using UniversityManagementSystem.Infrastructure.Data;
 using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class IdentityProvisioningService(AppDbContext context, ISmartStringGenerator smartString) : IIdentityProvisioningService
+    public class IdentityProvisioningService(AppDbContext context, ISmartStringGenerator smartString, IOptions<UniversitySettings> uniOptions) : IIdentityProvisioningService
     {
         private readonly AppDbContext _context = context;
         private readonly ISmartStringGenerator _smartString = smartString;
+        private readonly UniversitySettings _uniSettings = uniOptions.Value;
 
         public async Task<string> GenerateStudentIdAsync(Ulid batchId, Ulid departmentId)
         {
@@ -41,7 +44,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task<string> GenerateUniversityEmailAsync(string firstName, string lastName, UserRole role)
         {
             var baseEmail = $"{firstName.ToLower().Trim()}.{lastName.ToLower().Trim()}";
-            var domain = role == UserRole.Student ? "student.university.edu" : "university.edu";
+            var domain = role == UserRole.Student ? _uniSettings.StudentEmailDomain : _uniSettings.StaffEmailDomain;
             var email = $"{baseEmail}@{domain}";
 
             int counter = 1;

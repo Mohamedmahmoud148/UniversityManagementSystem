@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UniversityManagementSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using UniversityManagementSystem.Infrastructure.Data;
 namespace UniversityManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260513123100_AddMustChangePasswordAndRefreshTokenIndexes")]
+    partial class AddMustChangePasswordAndRefreshTokenIndexes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -215,8 +218,7 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("IX_AiMemories_UserId");
+                    b.HasIndex("UserId");
 
                     b.ToTable("AiMemories");
                 });
@@ -434,8 +436,7 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ConversationId")
-                        .HasDatabaseName("IX_ChatMessages_ConversationId");
+                    b.HasIndex("ConversationId");
 
                     b.ToTable("ChatMessages");
                 });
@@ -825,8 +826,7 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.HasIndex("SubjectId");
 
-                    b.HasIndex("SubjectOfferingId")
-                        .HasDatabaseName("IX_Enrollments_SubjectOfferingId");
+                    b.HasIndex("SubjectOfferingId");
 
                     b.HasIndex("StudentId", "SubjectOfferingId")
                         .IsUnique();
@@ -1030,8 +1030,7 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("StudentId")
-                        .HasDatabaseName("IX_ExamSubmissions_StudentId");
+                    b.HasIndex("StudentId");
 
                     b.HasIndex("ExamId", "StudentId")
                         .IsUnique();

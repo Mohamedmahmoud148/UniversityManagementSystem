@@ -28,7 +28,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             _configuration = configuration;
 
             _jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET")
-                         ?? "DevelopmentOnlyFallbackKey_ChangeInProduction!";
+                         ?? configuration["JwtSettings:SecretKey"]
+                         ?? throw new InvalidOperationException("JWT_SECRET environment variable is missing.");
 
             _jwtIssuer = _configuration["JwtSettings:Issuer"] ?? "UniversityApp";
             _jwtAudience = _configuration["JwtSettings:Audience"] ?? "UniversityAppUser";
@@ -68,7 +69,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             if (!user.IsActive) throw new Exception("Account is inactive.");
 
-            return await GenerateAuthResponseAsync(user);
+            var response = await GenerateAuthResponseAsync(user);
+            response.RequiresPasswordChange = user.MustChangePassword;
+            return response;
         }
 
         public async Task<AuthResponseDto> RefreshTokenAsync(string token, string refreshToken)
@@ -119,6 +122,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash)) return false;
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            user.MustChangePassword = false;
             await _context.SaveChangesAsync();
             return true;
         }
@@ -200,7 +204,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     NationalId = dto.NationalId,
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                     Role = UserRole.Student,
-                    CreatedByUserId = createdByUserId
+                    CreatedByUserId = createdByUserId,
+                    MustChangePassword = true
                 };
 
                 _context.SystemUsers.Add(user);
@@ -268,7 +273,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     NationalId = dto.NationalId,
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                     Role = UserRole.Doctor,
-                    CreatedByUserId = createdByUserId
+                    CreatedByUserId = createdByUserId,
+                    MustChangePassword = true
                 };
 
                 _context.SystemUsers.Add(user);
@@ -324,7 +330,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     NationalId = dto.NationalId,
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
                     Role = UserRole.Admin,
-                    CreatedByUserId = createdByUserId
+                    CreatedByUserId = createdByUserId,
+                    MustChangePassword = true
                 };
 
                 _context.SystemUsers.Add(user);

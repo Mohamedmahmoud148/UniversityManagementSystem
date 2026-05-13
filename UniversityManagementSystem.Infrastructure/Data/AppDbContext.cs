@@ -120,6 +120,14 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasForeignKey(rt => rt.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(rt => new { rt.UserId, rt.Token })
+                .HasDatabaseName("IX_RefreshTokens_UserId_Token");
+
+            modelBuilder.Entity<RefreshToken>()
+                .HasIndex(rt => rt.Token)
+                .HasDatabaseName("IX_RefreshTokens_Token");
+
             // --------------------------------------------------------
             // Many-to-Many: SubjectDoctor (composite PK)
             // --------------------------------------------------------
@@ -392,6 +400,10 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .IsUnique();
 
             modelBuilder.Entity<Enrollment>()
+                .HasIndex(e => e.SubjectOfferingId)
+                .HasDatabaseName("IX_Enrollments_SubjectOfferingId");
+
+            modelBuilder.Entity<Enrollment>()
                 .HasOne(e => e.SubjectOffering)
                 .WithMany()
                 .HasForeignKey(e => e.SubjectOfferingId)
@@ -470,11 +482,19 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasForeignKey(m => m.ConversationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<ChatMessage>()
+                .HasIndex(m => m.ConversationId)
+                .HasDatabaseName("IX_ChatMessages_ConversationId");
+
             modelBuilder.Entity<AiMemory>()
                 .HasOne(m => m.User)
                 .WithMany()
                 .HasForeignKey(m => m.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AiMemory>()
+                .HasIndex(m => m.UserId)
+                .HasDatabaseName("IX_AiMemories_UserId");
 
             // --------------------------------------------------------
             // File Upload
@@ -611,6 +631,10 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<ExamSubmission>()
                 .HasIndex(s => new { s.ExamId, s.StudentId })
                 .IsUnique();
+
+            modelBuilder.Entity<ExamSubmission>()
+                .HasIndex(s => s.StudentId)
+                .HasDatabaseName("IX_ExamSubmissions_StudentId");
 
             // --------------------------------------------------------
             // StudentGrade

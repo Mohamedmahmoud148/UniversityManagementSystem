@@ -133,7 +133,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
         }
 
         public async Task<IReadOnlyList<Doctor>> GetPagedDoctorsAsync(int page, int size)
-            => await _repo.GetPagedAsync(page, size);
+            => await _context.Doctors
+                .Include(d => d.SystemUser)
+                .Skip((page - 1) * size)
+                .Take(size)
+                .ToListAsync();
 
         public async Task AssignSubjectToDoctorAsync(Ulid doctorId, Ulid subjectId)
         {

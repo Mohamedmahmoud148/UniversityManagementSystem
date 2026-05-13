@@ -21,9 +21,31 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly IStorageService _storage = storage;
         private const string StorageFolder = "files";
 
+        private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "application/pdf",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "image/jpeg", "image/png", "image/gif", "image/webp",
+            "text/plain", "text/csv"
+        };
+
+        private const long MaxFileSizeBytes = 20 * 1024 * 1024; // 20 MB
+
+        private static void ValidateFile(string contentType, long length)
+        {
+            if (length == 0)
+                throw new ArgumentException("File is empty.");
+            if (length > MaxFileSizeBytes)
+                throw new ArgumentException($"File exceeds maximum allowed size of {MaxFileSizeBytes / 1024 / 1024} MB.");
+            if (!AllowedContentTypes.Contains(contentType))
+                throw new ArgumentException($"File type '{contentType}' is not allowed.");
+        }
+
         /// <inheritdoc/>
         public async Task<FileUploadResponseDto> UploadFormFileAsync(Ulid userId, IFormFile file)
         {
+            ValidateFile(file.ContentType, file.Length);
             using var stream = file.OpenReadStream();
             var storageKey = await _storage.UploadAsync(stream, file.FileName, file.ContentType, StorageFolder);
 
@@ -89,6 +111,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         {
             if (stream == null) throw new ArgumentNullException(nameof(stream));
             if (string.IsNullOrEmpty(fileName)) throw new ArgumentException("Filename missing", nameof(fileName));
+            ValidateFile(contentType, fileLength);
 
             // Upload to R2 — returns object key
             var storageKey = await _storage.UploadAsync(stream, fileName, contentType, StorageFolder);

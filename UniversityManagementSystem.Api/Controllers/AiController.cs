@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NUlid;
-using UniversityManagementSystem.Core.Application.AI.Execution;
 using UniversityManagementSystem.Core.Application.AI.Logging;
 using UniversityManagementSystem.Core.Application.AI.Security;
 using UniversityManagementSystem.Core.DTOs;
@@ -19,9 +18,8 @@ namespace UniversityManagementSystem.Api.Controllers;
 
 [Route("api/ai")]
 [ApiController]
-public class AiController(AiToolRegistry toolRegistry, AppDbContext context, IAiService aiService, IStudentFileService studentFileService, IUserContextService userContext) : ControllerBase
+public class AiController(AppDbContext context, IAiService aiService, IStudentFileService studentFileService, IUserContextService userContext) : ControllerBase
 {
-    private readonly AiToolRegistry _toolRegistry = toolRegistry;
     private readonly AppDbContext _context = context;
     private readonly IAiService _aiService = aiService;
     private readonly IStudentFileService _studentFileService = studentFileService;

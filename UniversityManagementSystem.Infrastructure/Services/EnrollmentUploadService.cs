@@ -6,20 +6,24 @@ using System.Threading.Tasks;
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NUlid;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Core.Settings;
 using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
     public class EnrollmentUploadService(
         AppDbContext context,
-        IFileService fileService) : IEnrollmentUploadService
+        IFileService fileService,
+        IOptions<UniversitySettings> uniOptions) : IEnrollmentUploadService
     {
         private readonly AppDbContext _context = context;
         private readonly IFileService _fileService = fileService;
+        private readonly UniversitySettings _uniSettings = uniOptions.Value;
         private const string Folder = "enrollment";
 
         public async Task<EnrollmentUploadResultDto> ProcessExcelAsync(Ulid adminId, IFormFile file)
@@ -164,10 +168,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
                             FullName = fullName,
                             NationalId = nationalId,
                             Email = email,
-                            UniversityEmail = $"{nationalId.ToLower()}@university.edu",
-                            PasswordHash = BCrypt.Net.BCrypt.HashPassword("TempPass@123"),
+                            UniversityEmail = $"{nationalId.ToLower()}@{_uniSettings.StudentEmailDomain}",
+                            PasswordHash = BCrypt.Net.BCrypt.HashPassword(_uniSettings.DefaultPassword),
                             Role = UserRole.Student,
-                            IsActive = true
+                            IsActive = true,
+                            MustChangePassword = true
                         };
 
                         var student = new Student

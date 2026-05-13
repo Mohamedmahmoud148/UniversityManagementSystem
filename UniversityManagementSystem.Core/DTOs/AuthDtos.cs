@@ -110,6 +110,7 @@ namespace UniversityManagementSystem.Core.DTOs
         public string? GeneratedUniversityId { get; set; }
         public string? TemporaryPassword { get; set; }
         public string? GeneratedPassword { get; set; }
+        public bool RequiresPasswordChange { get; set; } = false;
     }
 
     public class RefreshTokenRequestDto
