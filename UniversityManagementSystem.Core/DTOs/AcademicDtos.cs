@@ -119,8 +119,8 @@ namespace UniversityManagementSystem.Core.DTOs
     /// <summary>Query-param filter object for GET /api/doctors/filter</summary>
     public record DoctorFilterDto
     {
-        public Ulid? CollegeId    { get; init; }
-        public Ulid? DepartmentId { get; init; }
+        public string? CollegeId    { get; init; }  // received as string; parsed manually to avoid NUlid binding issues
+        public string? DepartmentId { get; init; }  // received as string; parsed manually to avoid NUlid binding issues
         public bool? IsActive     { get; init; }  // filters on SystemUser.IsActive
         public string? Search     { get; init; }  // name / email / staffId
         public int Page           { get; init; } = 1;

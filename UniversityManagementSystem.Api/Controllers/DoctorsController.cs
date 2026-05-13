@@ -72,11 +72,11 @@ namespace UniversityManagementSystem.Api.Controllers
                     .ThenInclude(dep => dep.College)
                 .AsQueryable();
 
-            if (f.DepartmentId.HasValue)
-                query = query.Where(d => d.DepartmentId == f.DepartmentId.Value);
+            if (!string.IsNullOrWhiteSpace(f.DepartmentId) && Ulid.TryParse(f.DepartmentId, out var deptId))
+                query = query.Where(d => d.DepartmentId == deptId);
 
-            if (f.CollegeId.HasValue)
-                query = query.Where(d => d.Department.CollegeId == f.CollegeId.Value);
+            if (!string.IsNullOrWhiteSpace(f.CollegeId) && Ulid.TryParse(f.CollegeId, out var collegeId))
+                query = query.Where(d => d.Department.CollegeId == collegeId);
 
             if (f.IsActive.HasValue)
                 query = query.Where(d => d.SystemUser.IsActive == f.IsActive.Value);
