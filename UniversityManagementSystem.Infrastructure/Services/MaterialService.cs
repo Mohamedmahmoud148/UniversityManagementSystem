@@ -96,17 +96,39 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
         }
 
-        public async Task<PaginatedMaterialResponseDto> GetMaterialsByOfferingAsync(Ulid offeringId, Ulid studentId, int page, int pageSize, string? search)
+        public async Task<PaginatedMaterialResponseDto> GetMaterialsByOfferingAsync(
+            Ulid offeringId,
+            Ulid callerId,
+            string callerRole,
+            int page,
+            int pageSize,
+            string? search)
         {
-            // 1. Validate Enrollment
-            var isEnrolled = await context.Enrollments
-                .AsNoTracking()
-                .AnyAsync(e => e.StudentId == studentId && e.SubjectOfferingId == offeringId);
+            // ── Access Gate ───────────────────────────────────────────────────
+            // Students: must be enrolled in the offering.
+            // Doctors / Admins: bypass enrollment check — the JWT already enforces
+            //   data-level permissions at the backend level.
+            if (callerRole.Equals("Student", StringComparison.OrdinalIgnoreCase))
+            {
+                var isEnrolled = await context.Enrollments
+                    .AsNoTracking()
+                    .AnyAsync(e => e.StudentId == callerId && e.SubjectOfferingId == offeringId);
 
-            if (!isEnrolled)
-                throw new UnauthorizedAccessException("You are not enrolled in this course.");
+                if (!isEnrolled)
+                    throw new UnauthorizedAccessException("You are not enrolled in this course.");
+            }
+            else
+            {
+                // Doctor / Admin: just confirm the offering exists
+                var offeringExists = await context.SubjectOfferings
+                    .AsNoTracking()
+                    .AnyAsync(o => o.Id == offeringId);
 
-            // 2. Query
+                if (!offeringExists)
+                    throw new KeyNotFoundException($"SubjectOffering '{offeringId}' not found.");
+            }
+
+            // ── Query ─────────────────────────────────────────────────────────
             var query = context.Materials
                 .AsNoTracking()
                 .Where(m => m.SubjectOfferingId == offeringId);
@@ -154,7 +176,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
-        public async Task<string> GetMaterialUrlAsync(Ulid materialId, Ulid studentId)
+        public async Task<string> GetMaterialUrlAsync(Ulid materialId, Ulid callerId, string callerRole)
         {
             var material = await context.Materials
                 .Include(m => m.File)
@@ -162,18 +184,21 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .FirstOrDefaultAsync(m => m.Id == materialId)
                 ?? throw new KeyNotFoundException($"Material with ID {materialId} not found.");
 
-            // Validate Enrollment
-            var isEnrolled = await context.Enrollments
-                .AsNoTracking()
-                .AnyAsync(e => e.StudentId == studentId && e.SubjectOfferingId == material.SubjectOfferingId);
+            // Students must be enrolled; doctors/admins bypass
+            if (callerRole.Equals("Student", StringComparison.OrdinalIgnoreCase))
+            {
+                var isEnrolled = await context.Enrollments
+                    .AsNoTracking()
+                    .AnyAsync(e => e.StudentId == callerId && e.SubjectOfferingId == material.SubjectOfferingId);
 
-            if (!isEnrolled)
-                throw new UnauthorizedAccessException("You are not enrolled in this course.");
+                if (!isEnrolled)
+                    throw new UnauthorizedAccessException("You are not enrolled in this course.");
+            }
 
-            var key = material.File?.StorageKey 
+            var key = material.File?.StorageKey
                       ?? (!string.IsNullOrWhiteSpace(material.StorageKey) ? material.StorageKey : material.StoredFileName);
-                      
-            return key; // Full R2 object key
+
+            return key;
         }
 
         /// <summary>

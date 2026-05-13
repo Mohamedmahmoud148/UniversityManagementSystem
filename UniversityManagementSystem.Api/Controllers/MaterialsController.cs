@@ -70,15 +70,19 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("by-offering/{offeringId}")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,Doctor,Admin")]
         public async Task<IActionResult> GetMaterialsByOffering(string offeringId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
         {
             if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
-            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
-            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var studentId = Ulid.Parse(profileClaim.Value);
 
-            var result = await materialService.GetMaterialsByOfferingAsync(oId, studentId, page, pageSize, search);
+            var roleClaim    = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                            ?? User.FindFirst("role")?.Value
+                            ?? "Student";
+            var profileClaim = User.FindFirst("ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var callerId = Ulid.Parse(profileClaim.Value);
+
+            var result = await materialService.GetMaterialsByOfferingAsync(oId, callerId, roleClaim, page, pageSize, search);
             return Ok(result);
         }
 
@@ -87,15 +91,19 @@ namespace UniversityManagementSystem.Api.Controllers
         /// The client downloads directly from R2 — nothing streams through the backend.
         /// </summary>
         [HttpGet("download/{id}")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,Doctor,Admin")]
         public async Task<IActionResult> DownloadMaterial(string id)
         {
             if (!Ulid.TryParse(id, out var materialId)) return BadRequest("Invalid Material ID.");
-            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
-            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var studentId = Ulid.Parse(profileClaim.Value);
 
-            var storedUrl = await materialService.GetMaterialUrlAsync(materialId, studentId);
+            var roleClaim    = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                            ?? User.FindFirst("role")?.Value
+                            ?? "Student";
+            var profileClaim = User.FindFirst("ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var callerId = Ulid.Parse(profileClaim.Value);
+
+            var storedUrl = await materialService.GetMaterialUrlAsync(materialId, callerId, roleClaim);
 
             // Generate a 60-minute signed URL instead of exposing the raw public URL
             var signedUrl = await storageService.GenerateSignedUrlAsync(storedUrl, expiryMinutes: 60);

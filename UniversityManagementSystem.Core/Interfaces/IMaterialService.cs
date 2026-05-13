@@ -11,11 +11,12 @@ namespace UniversityManagementSystem.Core.Interfaces
     {
         Task<MaterialDto> UploadMaterialAsync(Ulid offeringId, Ulid doctorId, IFormFile file);
         Task DeleteMaterialAsync(Ulid materialId, Ulid doctorId);
-        Task<PaginatedMaterialResponseDto> GetMaterialsByOfferingAsync(Ulid offeringId, Ulid studentId, int page, int pageSize, string? search);
+        Task<PaginatedMaterialResponseDto> GetMaterialsByOfferingAsync(Ulid offeringId, Ulid callerId, string callerRole, int page, int pageSize, string? search);
 
         /// <summary>
-        /// Returns the R2 public URL for a material the student is allowed to access.
+        /// Returns the R2 storage key for a material the caller is allowed to access.
+        /// Students require enrollment; Doctors and Admins bypass the enrollment check.
         /// </summary>
-        Task<string> GetMaterialUrlAsync(Ulid materialId, Ulid studentId);
+        Task<string> GetMaterialUrlAsync(Ulid materialId, Ulid callerId, string callerRole);
     }
 }
