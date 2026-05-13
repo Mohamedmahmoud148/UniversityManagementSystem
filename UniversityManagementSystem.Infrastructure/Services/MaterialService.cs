@@ -24,9 +24,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 throw new ArgumentException("File is empty.");
 
             // 1. Validate Offering & Doctor
+            // IgnoreQueryFilters: the offering itself is NOT soft-deleted;
+            // the 404 was caused by EF propagating filters from related entities (e.g. Semester).
             var offering = await context.Set<SubjectOffering>()
                 .AsNoTracking()
-                .FirstOrDefaultAsync(so => so.Id == offeringId)
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(so => so.Id == offeringId && so.DeletedAt == null)
                 ?? throw new KeyNotFoundException($"SubjectOffering with ID {offeringId} not found.");
 
             if (offering.DoctorId != doctorId)
@@ -119,10 +122,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
             else
             {
-                // Doctor / Admin: just confirm the offering exists
+                // Doctor / Admin: just confirm the offering exists.
+                // IgnoreQueryFilters prevents false 404s when related entities (e.g. Semester)
+                // have a soft-delete filter that EF Core propagates to the root query.
                 var offeringExists = await context.SubjectOfferings
                     .AsNoTracking()
-                    .AnyAsync(o => o.Id == offeringId);
+                    .IgnoreQueryFilters()
+                    .AnyAsync(o => o.Id == offeringId && o.DeletedAt == null);
 
                 if (!offeringExists)
                     throw new KeyNotFoundException($"SubjectOffering '{offeringId}' not found.");
