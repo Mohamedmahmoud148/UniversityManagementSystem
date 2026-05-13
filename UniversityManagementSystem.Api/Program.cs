@@ -352,6 +352,8 @@ builder.Services.AddScoped<IBulkUploadJob, BulkUploadJob>();
 builder.Services.AddScoped<IExcelImportService, ExcelImportService>();
 builder.Services.AddScoped<IStudentFileService, StudentFileService>();
 builder.Services.AddScoped<IEnrollmentUploadService, EnrollmentUploadService>();
+builder.Services.AddScoped<IScheduleService, ScheduleService>();
+
 
 
 // Cloudflare R2 Storage

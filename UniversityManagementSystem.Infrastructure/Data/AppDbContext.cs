@@ -46,6 +46,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<ComplaintAnalysis> ComplaintAnalyses { get; set; } = null!;
         public DbSet<ComplaintCluster> ComplaintClusters { get; set; } = null!;
         public DbSet<AcademicYearDepartment> AcademicYearDepartments { get; set; } = null!;
+        public DbSet<ScheduleEntry> ScheduleEntries { get; set; } = null!;
 
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         {
@@ -788,6 +789,46 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<RegulationSubject>()
                 .HasIndex(rs => new { rs.RegulationId, rs.SubjectId })
                 .IsUnique();
+
+            // --------------------------------------------------------
+            // ScheduleEntry
+            // --------------------------------------------------------
+            modelBuilder.Entity<ScheduleEntry>()
+                .HasOne(se => se.SubjectOffering)
+                .WithMany()
+                .HasForeignKey(se => se.SubjectOfferingId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ScheduleEntry>()
+                .HasOne(se => se.Batch)
+                .WithMany()
+                .HasForeignKey(se => se.BatchId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ScheduleEntry>()
+                .HasOne(se => se.Group)
+                .WithMany()
+                .HasForeignKey(se => se.GroupId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Fast lookup: all slots for a batch on a given day
+            modelBuilder.Entity<ScheduleEntry>()
+                .HasIndex(se => new { se.BatchId, se.DayOfWeek })
+                .HasDatabaseName("IX_ScheduleEntries_Batch_Day");
+
+            modelBuilder.Entity<ScheduleEntry>()
+                .HasIndex(se => se.SubjectOfferingId)
+                .HasDatabaseName("IX_ScheduleEntries_OfferingId");
+
+            modelBuilder.Entity<ScheduleEntry>()
+                .Property(se => se.Type)
+                .HasConversion<string>()
+                .HasMaxLength(20);
+
+            modelBuilder.Entity<ScheduleEntry>()
+                .Property(se => se.WeekType)
+                .HasConversion<string>()
+                .HasMaxLength(10);
         }
 
         // ── Soft Delete Intercept ────────────────────────────────────────────
