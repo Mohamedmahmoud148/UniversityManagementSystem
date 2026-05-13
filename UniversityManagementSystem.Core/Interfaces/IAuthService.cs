@@ -15,5 +15,8 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<AuthResponseDto> RefreshTokenAsync(string token, string refreshToken);
         Task<bool> RevokeTokenAsync(string refreshToken);
         Task<bool> ChangePasswordAsync(Ulid userId, string currentPassword, string newPassword);
+
+        /// <summary>Admin-only: reset any user's password without knowing the current one.</summary>
+        Task<string> ResetPasswordAsync(Ulid targetUserId);
     }
 }

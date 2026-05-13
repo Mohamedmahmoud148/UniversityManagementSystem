@@ -476,6 +476,21 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return new string(Random.Shared.GetItems(chars.ToCharArray(), length));
         }
 
+        public async Task<string> ResetPasswordAsync(Ulid targetUserId)
+        {
+            var user = await _context.SystemUsers.FindAsync(targetUserId)
+                ?? throw new KeyNotFoundException($"User '{targetUserId}' not found.");
+
+            var newPassword = GeneratePassword();
+            user.PasswordHash       = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            user.MustChangePassword = true;   // force change on next login
+            user.AccessFailedCount  = 0;
+            user.LockoutEnd         = null;   // unlock if was locked
+
+            await _context.SaveChangesAsync();
+            return newPassword;
+        }
+
         private static string GeneratePassword()
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";

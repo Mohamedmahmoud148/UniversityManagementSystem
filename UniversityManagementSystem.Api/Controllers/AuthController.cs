@@ -93,5 +93,35 @@ namespace UniversityManagementSystem.Api.Controllers
             var result = await _authService.RegisterAdminAsync(dto, creatorId);
             return Ok(result);
         }
+
+        // ── POST /api/auth/admin/reset-password/{userId} ──────────────────────
+        /// <summary>
+        /// Admin resets any user's password without needing the old one.
+        /// Returns the new temporary password — share it with the user.
+        /// The user will be forced to change it on next login (MustChangePassword=true).
+        /// </summary>
+        [HttpPost("admin/reset-password/{userId}")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> ResetPassword(string userId)
+        {
+            if (!NUlid.Ulid.TryParse(userId, out var uid))
+                return BadRequest("Invalid user ID format.");
+
+            try
+            {
+                var newPassword = await _authService.ResetPasswordAsync(uid);
+                return Ok(new
+                {
+                    Message         = "Password reset successfully.",
+                    NewPassword     = newPassword,
+                    MustChangePassword = true,
+                    Note            = "Share this password with the user. They will be required to change it on first login."
+                });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ex.Message);
+            }
+        }
     }
 }
