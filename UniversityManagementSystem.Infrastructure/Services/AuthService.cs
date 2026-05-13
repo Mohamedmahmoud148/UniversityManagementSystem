@@ -38,10 +38,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<AuthResponseDto?> LoginAsync(UserLoginDto loginDto)
         {
-            // Login uses SystemUser.Email (which is populated with UniversityEmail)
-            var user = await _context.SystemUsers.FirstOrDefaultAsync(u => u.Email == loginDto.Email.Trim());
+            // Login supports both personal Email and UniversityEmail
+            // Students are created with UniversityEmail auto-generated; their Email field
+            // may be empty or a personal email — so we search both columns.
+            var emailTrimmed = loginDto.Email.Trim();
+            var user = await _context.SystemUsers.FirstOrDefaultAsync(u =>
+                u.Email == emailTrimmed || u.UniversityEmail == emailTrimmed);
 
             if (user == null) return null;
+
 
             // Check Lockout
             if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTime.UtcNow)
