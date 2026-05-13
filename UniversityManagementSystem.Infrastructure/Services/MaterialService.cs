@@ -35,8 +35,18 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (offering.DoctorId != doctorId)
                 throw new UnauthorizedAccessException("You are not the instructor for this offering.");
 
+            // Resolve the SystemUser ID so the FK on UploadedFiles is satisfied.
+            // doctorId is the Doctor profile ID; UploadedByUserId must reference SystemUsers.
+            var doctor = await context.Set<Doctor>()
+                .AsNoTracking()
+                .IgnoreQueryFilters()
+                .Where(d => d.Id == doctorId && d.DeletedAt == null)
+                .Select(d => new { d.SystemUserId })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException($"Doctor with ID {doctorId} not found.");
+
             // 2. Upload using FileService
-            var fileId = await fileService.UploadFileStreamAsync(doctorId, file.OpenReadStream(), file.FileName, file.ContentType, file.Length);
+            var fileId = await fileService.UploadFileStreamAsync(doctor.SystemUserId, file.OpenReadStream(), file.FileName, file.ContentType, file.Length);
             var uploadedFile = await context.UploadedFiles.FindAsync(fileId) 
                                ?? throw new InvalidOperationException("Failed to retrieve uploaded file.");
             var storageKey = uploadedFile.StorageKey;

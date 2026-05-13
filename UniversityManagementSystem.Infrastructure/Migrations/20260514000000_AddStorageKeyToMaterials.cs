@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using UniversityManagementSystem.Infrastructure.Data;
 
 #nullable disable
 
 namespace UniversityManagementSystem.Infrastructure.Migrations
 {
-    /// <inheritdoc />
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260514000000_AddStorageKeyToMaterials")]
     public partial class AddStorageKeyToMaterials : Migration
     {
         /// <inheritdoc />
