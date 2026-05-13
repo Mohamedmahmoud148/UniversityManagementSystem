@@ -291,6 +291,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     Email = "",
                     Phone = dto.Phone,
                     UniversityStaffId = universityId,
+                    Code = universityId,          // ← تأكيد الـ Code بنفس universityId
                     DepartmentId = department.Id,   // Resolved from DepartmentCode
                     SystemUserId = user.Id
                 };

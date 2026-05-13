@@ -25,8 +25,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var semester = await _context.Set<Semester>().FirstOrDefaultAsync(s => s.Id == semesterIdUlid);
             if (semester == null) throw new KeyNotFoundException($"Semester with ID {dto.SemesterId} not found.");
 
-            var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.Code == dto.DoctorCode);
-            if (doctor == null) throw new KeyNotFoundException($"Doctor with code {dto.DoctorCode} not found.");
+            var doctorIdUlid = Ulid.TryParse(dto.DoctorCode, out var parsedDoctorId) ? parsedDoctorId : Ulid.Empty;
+            var doctor = await _context.Doctors.FirstOrDefaultAsync(d =>
+                d.Code == dto.DoctorCode || d.Id == doctorIdUlid);
+            if (doctor == null) throw new KeyNotFoundException($"Doctor with code/id {dto.DoctorCode} not found.");
 
             // Validate Hierarchy
             var dept = await _context.Departments.FirstOrDefaultAsync(d => d.Code == dto.DepartmentCode);
