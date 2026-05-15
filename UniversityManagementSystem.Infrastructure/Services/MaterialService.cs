@@ -169,6 +169,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 {
                     m.Id,
                     m.FileName,
+                    m.Title,
+                    m.Description,
                     m.ContentType,
                     m.FileSize,
                     m.UploadedAt,
@@ -181,6 +183,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 Id          = m.Id,
                 FileName    = m.FileName,
+                Title       = m.Title,
+                Description = m.Description,
                 ContentType = m.ContentType,
                 FileSize    = m.FileSize,
                 UploadedAt  = m.UploadedAt,
