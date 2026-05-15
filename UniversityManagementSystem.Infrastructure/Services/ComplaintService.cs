@@ -88,7 +88,27 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Take(query.PageSize)
                 .ToListAsync();
 
-            var dtos = items.Select(c => MapToDto(c, maskStudent: callerRole.Equals("Doctor", StringComparison.OrdinalIgnoreCase))).ToList();
+            bool isAdmin = callerRole.Equals("Admin", StringComparison.OrdinalIgnoreCase)
+                        || callerRole.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase);
+            bool maskStudent = callerRole.Equals("Doctor", StringComparison.OrdinalIgnoreCase);
+
+            // For admins: batch-load student profiles (one query, not N)
+            Dictionary<Ulid, Student> studentProfiles = [];
+            if (isAdmin)
+            {
+                var systemUserIds = items.Select(c => c.StudentId).Distinct().ToList();
+                studentProfiles = await _context.Students
+                    .AsNoTracking()
+                    .Include(s => s.SystemUser)
+                    .Where(s => systemUserIds.Contains(s.SystemUserId) && s.DeletedAt == null)
+                    .ToDictionaryAsync(s => s.SystemUserId);
+            }
+
+            var dtos = items.Select(c =>
+            {
+                studentProfiles.TryGetValue(c.StudentId, out var profile);
+                return MapToDto(c, maskStudent: maskStudent, studentProfile: isAdmin ? profile : null);
+            }).ToList();
 
             return new ComplaintsPageDto
             {
@@ -122,7 +142,20 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 }
             }
 
-            return MapToDto(complaint, maskStudent: callerRole.Equals("Doctor", StringComparison.OrdinalIgnoreCase));
+            Student? studentProfile = null;
+            bool isAdmin = callerRole.Equals("Admin", StringComparison.OrdinalIgnoreCase)
+                        || callerRole.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase);
+            if (isAdmin)
+            {
+                studentProfile = await _context.Students
+                    .AsNoTracking()
+                    .Include(s => s.SystemUser)
+                    .FirstOrDefaultAsync(s => s.SystemUserId == complaint.StudentId && s.DeletedAt == null);
+            }
+
+            return MapToDto(complaint,
+                maskStudent: callerRole.Equals("Doctor", StringComparison.OrdinalIgnoreCase),
+                studentProfile: studentProfile);
         }
 
         public async Task<List<DoctorOptionDto>> GetDoctorOptionsForStudentAsync(Ulid studentId)
@@ -168,7 +201,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }).ToList();
         }
 
-        private static ComplaintDto MapToDto(Complaint c, bool maskStudent = false)
+        private static ComplaintDto MapToDto(Complaint c, bool maskStudent = false, Student? studentProfile = null)
         {
             var dto = new ComplaintDto
             {
@@ -183,6 +216,19 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 ResolutionNote = c.ResolutionNote,
                 CreatedAt = c.CreatedAt
             };
+
+            if (studentProfile != null)
+            {
+                dto.Student = new ComplaintStudentDto
+                {
+                    Id = studentProfile.Id.ToString(),
+                    FullName = studentProfile.FullName,
+                    NationalId = studentProfile.SystemUser?.NationalId ?? string.Empty,
+                    Email = studentProfile.Email,
+                    PhoneNumber = studentProfile.Phone,
+                    AcademicCode = studentProfile.UniversityStudentId
+                };
+            }
 
             if (c.Analysis != null)
             {

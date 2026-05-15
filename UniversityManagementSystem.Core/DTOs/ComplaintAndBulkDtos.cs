@@ -29,10 +29,21 @@ namespace UniversityManagementSystem.Core.DTOs
         public string Message { get; set; } = string.Empty;
     }
 
+    public class ComplaintStudentDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string NationalId { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string AcademicCode { get; set; } = string.Empty;
+    }
+
     public class ComplaintDto
     {
         public string Id { get; set; } = string.Empty;
         public string StudentId { get; set; } = string.Empty;
+        public ComplaintStudentDto? Student { get; set; }
         public string Title { get; set; } = string.Empty;
         public string TargetType { get; set; } = string.Empty;
         public string TargetId { get; set; } = string.Empty;
