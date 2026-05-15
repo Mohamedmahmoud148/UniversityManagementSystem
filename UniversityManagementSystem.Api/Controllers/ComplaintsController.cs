@@ -64,5 +64,14 @@ namespace UniversityManagementSystem.Api.Controllers
             var result = await _complaintService.GetClustersAsync(targetType, targetId);
             return Ok(result);
         }
+
+        [HttpGet("doctor-options")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetDoctorOptions()
+        {
+            var studentId = _userContext.GetProfileId();
+            var result = await _complaintService.GetDoctorOptionsForStudentAsync(studentId);
+            return Ok(result);
+        }
     }
 }

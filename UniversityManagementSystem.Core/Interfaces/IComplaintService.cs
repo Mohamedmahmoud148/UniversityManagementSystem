@@ -13,5 +13,6 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<ComplaintDto> GetComplaintByIdAsync(Ulid complaintId, Ulid callerId, string callerRole);
         
         Task<List<ComplaintClusterDto>> GetClustersAsync(string? targetType, string? targetId);
+        Task<List<DoctorOptionDto>> GetDoctorOptionsForStudentAsync(Ulid studentId);
     }
 }

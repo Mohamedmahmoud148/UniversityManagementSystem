@@ -125,6 +125,28 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return MapToDto(complaint, maskStudent: callerRole.Equals("Doctor", StringComparison.OrdinalIgnoreCase));
         }
 
+        public async Task<List<DoctorOptionDto>> GetDoctorOptionsForStudentAsync(Ulid studentId)
+        {
+            // Resolve the student's college directly from the Student record.
+            // Student.CollegeId is a direct FK — no need to traverse Group → Batch → Department.
+            var collegeId = await _context.Students
+                .AsNoTracking()
+                .Where(s => s.Id == studentId && s.DeletedAt == null)
+                .Select(s => (Ulid?)s.CollegeId)
+                .FirstOrDefaultAsync();
+
+            if (collegeId is null)
+                return [];
+
+            // Return all active doctors whose department belongs to that college.
+            return await _context.Doctors
+                .AsNoTracking()
+                .Where(d => d.DeletedAt == null && d.Department.CollegeId == collegeId.Value)
+                .OrderBy(d => d.FullName)
+                .Select(d => new DoctorOptionDto(d.Id.ToString(), d.FullName))
+                .ToListAsync();
+        }
+
         public async Task<List<ComplaintClusterDto>> GetClustersAsync(string? targetType, string? targetId)
         {
             var q = _context.ComplaintClusters.AsNoTracking().AsQueryable();
