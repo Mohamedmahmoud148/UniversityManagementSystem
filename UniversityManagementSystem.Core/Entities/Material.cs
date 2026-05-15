@@ -7,6 +7,12 @@ namespace UniversityManagementSystem.Core.Entities
     {
         public string FileName { get; set; } = string.Empty;
 
+        /// <summary>Human-readable display title set by the uploader.</summary>
+        public string Title { get; set; } = string.Empty;
+
+        /// <summary>Optional description / notes about this material.</summary>
+        public string? Description { get; set; }
+
         /// <summary>
         /// The R2 object key (e.g. "materials/guid_file.pdf").
         /// Use IStorageService.BuildUrl(StorageKey) for public URL,

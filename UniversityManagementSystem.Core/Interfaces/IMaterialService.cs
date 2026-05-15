@@ -9,7 +9,7 @@ namespace UniversityManagementSystem.Core.Interfaces
 {
     public interface IMaterialService
     {
-        Task<MaterialDto> UploadMaterialAsync(Ulid offeringId, Ulid doctorId, IFormFile file);
+        Task<MaterialDto> UploadMaterialAsync(Ulid offeringId, Ulid doctorId, IFormFile file, string title, string? description);
         Task DeleteMaterialAsync(Ulid materialId, Ulid doctorId);
         Task<PaginatedMaterialResponseDto> GetMaterialsByOfferingAsync(Ulid offeringId, Ulid callerId, string callerRole, int page, int pageSize, string? search);
 

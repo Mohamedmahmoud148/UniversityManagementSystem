@@ -45,6 +45,9 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var doctorId = userContext.GetProfileId();
 
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return BadRequest("Title is required.");
+
             if (dto.File == null || dto.File.Length == 0)
                 return BadRequest("No file provided.");
 
@@ -54,7 +57,7 @@ namespace UniversityManagementSystem.Api.Controllers
             if (dto.File.Length > MaxFileSizeBytes)
                 return BadRequest("File exceeds the 500 MB size limit.");
 
-            var material = await materialService.UploadMaterialAsync(dto.OfferingId, doctorId, dto.File);
+            var material = await materialService.UploadMaterialAsync(dto.OfferingId, doctorId, dto.File, dto.Title, dto.Description);
             return CreatedAtAction(nameof(DownloadMaterial), new { id = material.Id.ToString() }, material);
         }
 

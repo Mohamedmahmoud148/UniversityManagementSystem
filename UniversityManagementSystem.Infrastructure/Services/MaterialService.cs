@@ -18,7 +18,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
     {
         private const string StorageFolder = "materials";
 
-        public async Task<MaterialDto> UploadMaterialAsync(Ulid offeringId, Ulid doctorId, IFormFile file)
+        public async Task<MaterialDto> UploadMaterialAsync(Ulid offeringId, Ulid doctorId, IFormFile file, string title, string? description)
         {
             if (file == null || file.Length == 0)
                 throw new ArgumentException("File is empty.");
@@ -55,6 +55,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var material = new Material
             {
                 FileName = file.FileName,
+                Title = title,
+                Description = description,
                 StorageKey = storageKey,                       // New: the R2 object key
                 StoredFileName = storageKey,                   // Legacy: mirrors StorageKey
                 ContentType = file.ContentType,
@@ -72,6 +74,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 Id          = material.Id,
                 FileName    = material.FileName,
+                Title       = material.Title,
+                Description = material.Description,
                 ContentType = material.ContentType,
                 FileSize    = material.FileSize,
                 UploadedAt  = material.UploadedAt,
