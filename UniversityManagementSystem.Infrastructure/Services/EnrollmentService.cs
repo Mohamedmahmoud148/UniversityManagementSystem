@@ -117,6 +117,96 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .OrderBy(e => e.Student.FullName)
                 .ToListAsync();
         }
+        public async Task<AutoEnrollResultDto> AutoEnrollAsync(Ulid studentId)
+        {
+            var student = await _context.Students
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == studentId && s.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Student not found.");
+
+            // All offerings that match the student's batch + department
+            // Group-restricted offerings only match if the student's group matches.
+            var availableOfferings = await _context.SubjectOfferings
+                .AsNoTracking()
+                .Include(o => o.Subject)
+                .Where(o =>
+                    o.DepartmentId == student.DepartmentId &&
+                    o.BatchId      == student.BatchId &&
+                    (o.GroupId == null || o.GroupId == student.GroupId))
+                .ToListAsync();
+
+            if (availableOfferings.Count == 0)
+                return new AutoEnrollResultDto { TotalAvailable = 0 };
+
+            var offeringIds = availableOfferings.Select(o => o.Id).ToList();
+
+            // Load existing enrollments for this student (including soft-deleted)
+            var existing = await _context.Enrollments
+                .IgnoreQueryFilters()
+                .Where(e => e.StudentId == studentId && offeringIds.Contains(e.SubjectOfferingId))
+                .ToListAsync();
+
+            var activeSet    = existing.Where(e => e.IsActive && e.DeletedAt == null)
+                                       .Select(e => e.SubjectOfferingId).ToHashSet();
+            var inactiveDict = existing.Where(e => !e.IsActive || e.DeletedAt != null)
+                                       .ToDictionary(e => e.SubjectOfferingId);
+
+            var enrolledSubjects = new List<string>();
+            var errors           = new List<string>();
+            int alreadyHad       = 0;
+            int enrolled         = 0;
+
+            foreach (var offering in availableOfferings)
+            {
+                if (activeSet.Contains(offering.Id))
+                {
+                    alreadyHad++;
+                    continue;
+                }
+
+                if (inactiveDict.TryGetValue(offering.Id, out var soft))
+                {
+                    // Reactivate soft-deleted enrollment
+                    soft.IsActive  = true;
+                    soft.DeletedAt = null;
+                    soft.EnrolledAt = DateTime.UtcNow;
+                    _context.Enrollments.Update(soft);
+                    enrolledSubjects.Add(offering.Subject?.Name ?? offering.Id.ToString());
+                    enrolled++;
+                    continue;
+                }
+
+                try
+                {
+                    _context.Enrollments.Add(new Enrollment
+                    {
+                        StudentId         = studentId,
+                        SubjectOfferingId = offering.Id,
+                        EnrolledAt        = DateTime.UtcNow,
+                        IsActive          = true,
+                    });
+                    enrolledSubjects.Add(offering.Subject?.Name ?? offering.Id.ToString());
+                    enrolled++;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"{offering.Subject?.Name}: {ex.Message}");
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return new AutoEnrollResultDto
+            {
+                Enrolled       = enrolled,
+                AlreadyHad     = alreadyHad,
+                Skipped        = errors.Count,
+                TotalAvailable = availableOfferings.Count,
+                EnrolledSubjects = enrolledSubjects,
+                Errors           = errors,
+            };
+        }
+
         public async Task ReactivateEnrollmentAsync(Ulid enrollmentId)
         {
             var enrollment = await _context.Enrollments

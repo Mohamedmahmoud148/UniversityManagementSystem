@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using NUlid;
 
@@ -205,6 +206,17 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required] Ulid StudentId,
         [Required] Ulid SubjectOfferingId
     );
+
+    /// <summary>Returned by POST /api/enrollments/auto-enroll.</summary>
+    public record AutoEnrollResultDto
+    {
+        public int Enrolled      { get; init; }
+        public int AlreadyHad    { get; init; }
+        public int Skipped       { get; init; }
+        public int TotalAvailable { get; init; }
+        public List<string> EnrolledSubjects { get; init; } = [];
+        public List<string> Errors           { get; init; } = [];
+    }
 
     /// <summary>GroupDto: id+code+name standard — Code field added for AI/API consistency.</summary>
     public record GroupDto(Ulid Id, string Name, string Code, Ulid BatchId);

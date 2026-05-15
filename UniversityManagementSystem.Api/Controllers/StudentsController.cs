@@ -347,6 +347,137 @@ namespace UniversityManagementSystem.Api.Controllers
             catch (Exception ex) { return BadRequest(ex.Message); }
         }
 
+        // ── GET /api/students/by-offering/{offeringId} ───────────────────────
+        /// <summary>
+        /// Returns all students enrolled in a specific subject offering.
+        /// Doctors see only their own offerings; Admins see all.
+        /// Paginated: ?page=1&size=20
+        /// </summary>
+        [HttpGet("by-offering/{offeringId}")]
+        [Authorize(Roles = "Admin,Doctor")]
+        public async Task<IActionResult> GetByOffering(
+            string offeringId,
+            [FromQuery] int page = 1,
+            [FromQuery] int size = 20)
+        {
+            if (!Ulid.TryParse(offeringId, out var oId))
+                return BadRequest("Invalid Offering ID.");
+
+            page = Math.Max(1, page);
+            size = Math.Clamp(size, 1, 100);
+
+            // Doctors may only query their own offerings
+            var roleClaim = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                         ?? User.FindFirst("role")?.Value ?? "";
+            if (roleClaim.Equals("Doctor", StringComparison.OrdinalIgnoreCase))
+            {
+                var userIdClaim = User.FindFirst("nameid")?.Value;
+                if (userIdClaim == null) return Unauthorized();
+                var doctorUserId = Ulid.Parse(userIdClaim);
+                var isOwner = await _context.SubjectOfferings
+                    .AsNoTracking()
+                    .AnyAsync(o => o.Id == oId && o.Doctor.SystemUserId == doctorUserId);
+                if (!isOwner) return Forbid();
+            }
+
+            var query = _context.Enrollments
+                .AsNoTracking()
+                .Where(e => e.SubjectOfferingId == oId && e.IsActive && e.DeletedAt == null)
+                .Select(e => e.Student);
+
+            var total = await query.CountAsync();
+
+            var data = await query
+                .OrderBy(s => s.FullName)
+                .Skip((page - 1) * size)
+                .Take(size)
+                .Select(s => new StudentSummaryDto
+                {
+                    Id                  = s.Id.ToString(),
+                    Code                = s.Code,
+                    FullName            = s.FullName,
+                    UniversityStudentId = s.UniversityStudentId,
+                    Email               = s.Email,
+                    BatchName           = s.Batch != null ? s.Batch.Name : "",
+                    DepartmentName      = s.Department != null ? s.Department.Name : "",
+                    CollegeName         = s.College != null ? s.College.Name : "",
+                })
+                .ToListAsync();
+
+            return Ok(new PagedResult<StudentSummaryDto>
+            {
+                Data       = data,
+                TotalCount = total,
+                Page       = page,
+                Size       = size,
+            });
+        }
+
+        // ── GET /api/students/struggling ─────────────────────────────────────
+        /// <summary>
+        /// Returns students with average grade points below a threshold.
+        /// Optional: ?threshold=2.0&departmentId=&batchId=&page=1&size=20
+        /// Default threshold is 2.0 (D grade equivalent).
+        /// Admin only.
+        /// </summary>
+        [HttpGet("struggling")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> GetStrugglingStudents(
+            [FromQuery] double  threshold    = 2.0,
+            [FromQuery] string? departmentId = null,
+            [FromQuery] string? batchId      = null,
+            [FromQuery] int     page         = 1,
+            [FromQuery] int     size         = 20)
+        {
+            page = Math.Max(1, page);
+            size = Math.Clamp(size, 1, 100);
+
+            // Average finalized grade points per student
+            var lowGpaQuery = _context.StudentGrades
+                .AsNoTracking()
+                .Where(g => g.IsFinalized && g.DeletedAt == null)
+                .GroupBy(g => g.StudentId)
+                .Where(g => g.Average(x => x.GradePoints) < threshold)
+                .Select(g => g.Key);
+
+            var query = _context.Students
+                .AsNoTracking()
+                .Where(s => s.DeletedAt == null && lowGpaQuery.Contains(s.Id));
+
+            if (!string.IsNullOrWhiteSpace(departmentId) && Ulid.TryParse(departmentId, out var dId))
+                query = query.Where(s => s.DepartmentId == dId);
+
+            if (!string.IsNullOrWhiteSpace(batchId) && Ulid.TryParse(batchId, out var bId))
+                query = query.Where(s => s.BatchId == bId);
+
+            var total = await query.CountAsync();
+
+            var data = await query
+                .OrderBy(s => s.FullName)
+                .Skip((page - 1) * size)
+                .Take(size)
+                .Select(s => new StudentSummaryDto
+                {
+                    Id                  = s.Id.ToString(),
+                    Code                = s.Code,
+                    FullName            = s.FullName,
+                    UniversityStudentId = s.UniversityStudentId,
+                    Email               = s.Email,
+                    BatchName           = s.Batch != null ? s.Batch.Name : "",
+                    DepartmentName      = s.Department != null ? s.Department.Name : "",
+                    CollegeName         = s.College != null ? s.College.Name : "",
+                })
+                .ToListAsync();
+
+            return Ok(new PagedResult<StudentSummaryDto>
+            {
+                Data       = data,
+                TotalCount = total,
+                Page       = page,
+                Size       = size,
+            });
+        }
+
         [HttpPost("bulk-upload-direct")]
         [Authorize(Roles = "Admin")]
         [Consumes("multipart/form-data")]

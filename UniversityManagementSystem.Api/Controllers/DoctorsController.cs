@@ -273,6 +273,89 @@ namespace UniversityManagementSystem.Api.Controllers
                 s.BatchId, s.Batch?.Name)));
         }
 
+        // ── GET /api/doctors/by-offering/{offeringId} ────────────────────────
+        /// <summary>
+        /// Returns the doctor assigned to a specific subject offering.
+        /// Accessible by Admin and Doctor (own offerings).
+        /// </summary>
+        [HttpGet("by-offering/{offeringId}")]
+        [Authorize(Roles = "Admin,Doctor")]
+        public async Task<IActionResult> GetByOffering(string offeringId)
+        {
+            if (!Ulid.TryParse(offeringId, out var oId))
+                return BadRequest("Invalid Offering ID.");
+
+            var doctor = await _context.SubjectOfferings
+                .AsNoTracking()
+                .Where(o => o.Id == oId)
+                .Select(o => new DoctorSummaryDto
+                {
+                    Id             = o.Doctor.Id.ToString(),
+                    Code           = o.Doctor.Code,
+                    FullName       = o.Doctor.FullName,
+                    Email          = o.Doctor.Email,
+                    DepartmentId   = o.Doctor.DepartmentId.ToString(),
+                    DepartmentName = o.Doctor.Department != null ? o.Doctor.Department.Name : "",
+                    CollegeName    = o.Doctor.Department != null && o.Doctor.Department.College != null
+                                        ? o.Doctor.Department.College.Name : "",
+                })
+                .FirstOrDefaultAsync();
+
+            if (doctor == null) return NotFound("Offering not found.");
+            return Ok(doctor);
+        }
+
+        // ── GET /api/doctors/by-subject/{subjectId} ───────────────────────────
+        /// <summary>
+        /// Returns all doctors assigned to teach a subject (via SubjectDoctor junction).
+        /// Paginated: ?page=1&size=20
+        /// </summary>
+        [HttpGet("by-subject/{subjectId}")]
+        [Authorize(Roles = "Admin,Doctor")]
+        public async Task<IActionResult> GetBySubject(
+            string subjectId,
+            [FromQuery] int page = 1,
+            [FromQuery] int size = 20)
+        {
+            if (!Ulid.TryParse(subjectId, out var sId))
+                return BadRequest("Invalid Subject ID.");
+
+            page = Math.Max(1, page);
+            size = Math.Clamp(size, 1, 100);
+
+            var query = _context.SubjectDoctors
+                .AsNoTracking()
+                .Where(sd => sd.SubjectId == sId)
+                .Select(sd => sd.Doctor);
+
+            var total = await query.CountAsync();
+
+            var data = await query
+                .OrderBy(d => d.FullName)
+                .Skip((page - 1) * size)
+                .Take(size)
+                .Select(d => new DoctorSummaryDto
+                {
+                    Id             = d.Id.ToString(),
+                    Code           = d.Code,
+                    FullName       = d.FullName,
+                    Email          = d.Email,
+                    DepartmentId   = d.DepartmentId.ToString(),
+                    DepartmentName = d.Department != null ? d.Department.Name : "",
+                    CollegeName    = d.Department != null && d.Department.College != null
+                                        ? d.Department.College.Name : "",
+                })
+                .ToListAsync();
+
+            return Ok(new PagedResult<DoctorSummaryDto>
+            {
+                Data       = data,
+                TotalCount = total,
+                Page       = page,
+                Size       = size,
+            });
+        }
+
         // ── POST /api/doctors/bulk-upload ─────────────────────────────────────
         [HttpPost("bulk-upload")]
         [Authorize(Roles = "Admin")]

@@ -15,5 +15,11 @@ namespace UniversityManagementSystem.Core.Interfaces
 
         // Admin Override
         Task ReactivateEnrollmentAsync(Ulid enrollmentId);
+
+        /// <summary>
+        /// Finds all SubjectOfferings open for the student's batch/department/group
+        /// that they are not already enrolled in, and enrolls them in all of them.
+        /// </summary>
+        Task<AutoEnrollResultDto> AutoEnrollAsync(Ulid studentId);
     }
 }

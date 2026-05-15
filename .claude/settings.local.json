@@ -3,7 +3,10 @@
     "allow": [
       "Read(//f/ai-orchestration-service/app/agents/**)",
       "Bash(find /f/fastApi -path \"*/venv\" -prune -o -type f \\\\\\( -name \"*.py\" -o -name \"requirements.txt\" -o -name \"Dockerfile\" -o -name \".env.example\" -o -name \"README*\" \\\\\\) -print | sort)",
-      "Read(//f/fastApi/**)"
+      "Read(//f/fastApi/**)",
+      "Read(//f//**)",
+      "Bash(Get-Content \"f:\\\\مشروع التخرج\\\\UniversityManagementSystem.Api\\\\Controllers\\\\*.cs\")",
+      "Bash(Select-String -Pattern \"\\\\[Route|public class|public async\")"
     ],
     "additionalDirectories": [
       "f:\\fastApi\\app\\agents",

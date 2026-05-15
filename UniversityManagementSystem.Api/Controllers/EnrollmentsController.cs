@@ -17,6 +17,30 @@ namespace UniversityManagementSystem.Api.Controllers
     {
         private readonly IEnrollmentService _service = service;
 
+        // ── POST /api/enrollments/auto-enroll ────────────────────────────────
+        /// <summary>
+        /// Enrolls the authenticated student in ALL subject offerings that are
+        /// open for their batch / department / group and they are not already in.
+        /// Designed for AI orchestration — one call handles everything.
+        /// </summary>
+        [HttpPost("auto-enroll")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> AutoEnroll()
+        {
+            var profileIdClaim = User.FindFirst("ProfileId");
+            if (profileIdClaim == null) return Unauthorized("Student profile not found.");
+            if (!Ulid.TryParse(profileIdClaim.Value, out var studentId))
+                return Unauthorized("Invalid student ID.");
+
+            try
+            {
+                var result = await _service.AutoEnrollAsync(studentId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (Exception ex)            { return BadRequest(ex.Message); }
+        }
+
         [HttpPost("{offeringId}")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> Enroll(string offeringId)
