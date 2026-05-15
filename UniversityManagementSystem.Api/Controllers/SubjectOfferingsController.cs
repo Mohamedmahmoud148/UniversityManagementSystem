@@ -175,7 +175,7 @@ namespace UniversityManagementSystem.Api.Controllers
                     BatchName      = o.Batch != null ? o.Batch.Name : "",
                     SemesterName   = o.Semester != null ? o.Semester.Name : "",
                     MaxCapacity    = o.MaxCapacity,
-                    EnrolledCount  = o.Enrollments.Count(e => e.IsActive && e.DeletedAt == null),
+                    EnrolledCount  = _context.Enrollments.Count(e => e.SubjectOfferingId == o.Id && e.IsActive && e.DeletedAt == null),
                 })
                 .ToListAsync();
 
@@ -234,7 +234,7 @@ namespace UniversityManagementSystem.Api.Controllers
                     BatchName      = o.Batch != null ? o.Batch.Name : "",
                     SemesterName   = o.Semester != null ? o.Semester.Name : "",
                     MaxCapacity    = o.MaxCapacity,
-                    EnrolledCount  = o.Enrollments.Count(e => e.IsActive && e.DeletedAt == null),
+                    EnrolledCount  = _context.Enrollments.Count(e => e.SubjectOfferingId == o.Id && e.IsActive && e.DeletedAt == null),
                 })
                 .ToListAsync();
 

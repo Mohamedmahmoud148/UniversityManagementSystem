@@ -130,16 +130,25 @@ namespace UniversityManagementSystem.Api.Controllers
             if (!string.IsNullOrWhiteSpace(collegeId) && Ulid.TryParse(collegeId, out var colId))
                 offeringsQ = offeringsQ.Where(o => o.Department.CollegeId == colId);
 
-            // Aggregate offering count + enrolled count per doctor in one pass
+            // Aggregate offering count per doctor
             var workload = await offeringsQ
                 .GroupBy(o => o.DoctorId)
                 .Select(g => new
                 {
                     DoctorId      = g.Key,
                     OfferingCount = g.Count(),
-                    TotalStudents = g.SelectMany(o => o.Enrollments).Count(e => e.IsActive)
+                    OfferingIds   = g.Select(o => o.Id).ToList()
                 })
                 .ToListAsync();
+
+            // Batch-load enrolled student counts from Enrollments table
+            var allOfferingIds = workload.SelectMany(w => w.OfferingIds).ToList();
+            var enrollmentCountsByOffering = await _context.Enrollments
+                .AsNoTracking()
+                .Where(e => allOfferingIds.Contains(e.SubjectOfferingId) && e.IsActive && e.DeletedAt == null)
+                .GroupBy(e => e.SubjectOfferingId)
+                .Select(g => new { OfferingId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.OfferingId, x => x.Count);
 
             var doctorIds = workload.Select(w => w.DoctorId).ToList();
 
@@ -165,7 +174,7 @@ namespace UniversityManagementSystem.Api.Controllers
                     FullName       = doctorDict[w.DoctorId].FullName,
                     DepartmentName = doctorDict[w.DoctorId].DepartmentName,
                     OfferingCount  = w.OfferingCount,
-                    TotalStudents  = w.TotalStudents,
+                    TotalStudents  = w.OfferingIds.Sum(id => enrollmentCountsByOffering.TryGetValue(id, out var c) ? c : 0),
                 })
                 .OrderByDescending(x => x.TotalStudents)
                 .ToList();
