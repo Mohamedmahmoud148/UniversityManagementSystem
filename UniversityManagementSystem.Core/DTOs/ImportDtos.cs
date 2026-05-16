@@ -8,6 +8,8 @@ namespace UniversityManagementSystem.Core.DTOs
         public string NationalId { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public Ulid BatchId { get; set; }
+        /// <summary>Raw value from column 4 — used as fallback to look up batch by Name or Code.</summary>
+        public string BatchRaw { get; set; } = string.Empty;
     }
 
     public class DoctorImportDto

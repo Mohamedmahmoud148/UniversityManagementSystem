@@ -46,11 +46,15 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
                 {
                     try
                     {
-                        var batch = await _context.Batches.FindAsync(dto.BatchId);
+                        var batch = dto.BatchId != Ulid.Empty
+                            ? await _context.Batches.FindAsync(dto.BatchId)
+                            : await _context.Batches.FirstOrDefaultAsync(b =>
+                                b.Name == dto.BatchRaw || b.Code == dto.BatchRaw);
+
                         if (batch == null)
                         {
                             failCount++;
-                            Console.WriteLine($"BulkUpload Error: BatchId {dto.BatchId} not found in database.");
+                            Console.WriteLine($"BulkUpload Error: Batch '{dto.BatchRaw}' not found in database.");
                             continue;
                         }
 
