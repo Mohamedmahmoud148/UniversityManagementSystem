@@ -513,7 +513,7 @@ using (var scope = app.Services.CreateScope())
             // Safe to ignore — columns/table already exist
         }
 
-        // 1e. Ensure Materials.Title and Materials.Description columns exist
+        // 1e. Ensure all new Materials columns exist
         try
         {
             db.Database.ExecuteSqlRaw(@"
@@ -521,6 +521,18 @@ ALTER TABLE ""Materials""
 ADD COLUMN IF NOT EXISTS ""Title"" text NOT NULL DEFAULT '';
 ALTER TABLE ""Materials""
 ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
+ALTER TABLE ""Materials""
+ADD COLUMN IF NOT EXISTS ""StorageKey"" text NOT NULL DEFAULT '';
+ALTER TABLE ""Materials""
+ADD COLUMN IF NOT EXISTS ""StoredFileName"" text NOT NULL DEFAULT '';
+ALTER TABLE ""Materials""
+ADD COLUMN IF NOT EXISTS ""ContentType"" text NOT NULL DEFAULT '';
+ALTER TABLE ""Materials""
+ADD COLUMN IF NOT EXISTS ""FileSize"" bigint NOT NULL DEFAULT 0;
+ALTER TABLE ""Materials""
+ADD COLUMN IF NOT EXISTS ""UploadedAt"" timestamp with time zone NOT NULL DEFAULT now();
+ALTER TABLE ""Materials""
+ADD COLUMN IF NOT EXISTS ""FileId"" character varying(26) NULL;
             ");
         }
         catch (Exception) { /* safe to ignore */ }
