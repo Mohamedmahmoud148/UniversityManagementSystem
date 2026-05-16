@@ -29,6 +29,7 @@
 | [18](./18-Developer-Onboarding/README.md) | **Developer Onboarding** | New developers |
 | [19](./19-Discussion-Preparation/README.md) | **Discussion Preparation** | Committee presentation |
 | [20](./20-AI-Tools-APIs/README.md) | **AI Tools APIs** | Backend + AI engineers |
+| [21](./21-Diagrams/README.md) | **System Diagrams** | Everyone — visual reference |
 | — | [**Randomized Exam Guide**](./RANDOMIZED_EXAM_FRONTEND_GUIDE.md) | Frontend developers |
 
 ---
