@@ -537,11 +537,12 @@ ADD COLUMN IF NOT EXISTS ""FileId"" character varying(26) NULL;
         }
         catch (Exception) { /* safe to ignore */ }
 
-        // 1f. Ensure ScheduleEntries table exists
+        // 1f. Ensure ScheduleEntries table exists (Type/WeekType stored as varchar per EF HasConversion<string>)
         try
         {
             db.Database.ExecuteSqlRaw(@"
-CREATE TABLE IF NOT EXISTS ""ScheduleEntries"" (
+DROP TABLE IF EXISTS ""ScheduleEntries"";
+CREATE TABLE ""ScheduleEntries"" (
     ""Id""                 character varying(26) NOT NULL,
     ""Code""               text NOT NULL DEFAULT '',
     ""SubjectOfferingId""  character varying(26) NOT NULL,
@@ -550,9 +551,9 @@ CREATE TABLE IF NOT EXISTS ""ScheduleEntries"" (
     ""DayOfWeek""          integer NOT NULL DEFAULT 0,
     ""StartTime""          interval NOT NULL DEFAULT '00:00:00',
     ""EndTime""            interval NOT NULL DEFAULT '00:00:00',
-    ""Type""               integer NOT NULL DEFAULT 0,
+    ""Type""               character varying(20) NOT NULL DEFAULT 'Lecture',
     ""Location""           text NOT NULL DEFAULT '',
-    ""WeekType""           integer NOT NULL DEFAULT 0,
+    ""WeekType""           character varying(10) NOT NULL DEFAULT 'All',
     ""IsActive""           boolean NOT NULL DEFAULT true,
     ""CreatedAt""          timestamp with time zone NOT NULL DEFAULT now(),
     ""DeletedAt""          timestamp with time zone NULL,
@@ -562,10 +563,10 @@ CREATE TABLE IF NOT EXISTS ""ScheduleEntries"" (
     CONSTRAINT ""FK_ScheduleEntries_Batches_BatchId""
         FOREIGN KEY (""BatchId"") REFERENCES ""Batches""(""Id"") ON DELETE CASCADE
 );
-CREATE INDEX IF NOT EXISTS ""IX_ScheduleEntries_SubjectOfferingId""
+CREATE INDEX IF NOT EXISTS ""IX_ScheduleEntries_Batch_Day""
+    ON ""ScheduleEntries""(""BatchId"", ""DayOfWeek"");
+CREATE INDEX IF NOT EXISTS ""IX_ScheduleEntries_OfferingId""
     ON ""ScheduleEntries""(""SubjectOfferingId"");
-CREATE INDEX IF NOT EXISTS ""IX_ScheduleEntries_BatchId""
-    ON ""ScheduleEntries""(""BatchId"");
             ");
         }
         catch (Exception) { /* safe to ignore */ }
