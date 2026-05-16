@@ -171,8 +171,22 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return MapToDto(exam);
         }
 
-        private static ExamDto MapToDto(Exam exam)
+        private static ExamDto MapToDto(Exam exam, bool includeCorrectAnswers = false,
+            IEnumerable<ExamQuestion>? filteredQuestions = null)
         {
+            var questions = (filteredQuestions ?? exam.Questions ?? [])
+                .Select(q => new ExamQuestionDto
+                {
+                    Id = q.Id,
+                    QuestionText = q.QuestionText,
+                    QuestionType = q.QuestionType.ToString(),
+                    Options = q.OptionsJson != null
+                        ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(q.OptionsJson)
+                        : null,
+                    Mark = q.Mark,
+                    CorrectAnswer = includeCorrectAnswers ? q.CorrectAnswer : null
+                }).ToList();
+
             return new ExamDto
             {
                 Id = exam.Id,
@@ -187,13 +201,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 CreatedByDoctorId = exam.CreatedByDoctorId,
                 SubjectOfferingId = exam.SubjectOfferingId,
                 SubjectName = exam.SubjectOffering?.Subject?.Name ?? string.Empty,
-                // SAFEGUARD: Handle potentially null Questions collection
-                Questions = exam.Questions?.Select(q => new ExamQuestionDto
-                {
-                    Id = q.Id,
-                    QuestionText = q.QuestionText,
-                    Mark = q.Mark
-                }).ToList() ?? []
+                IsRandomized = exam.IsRandomized,
+                QuestionsPerStudent = exam.QuestionsPerStudent,
+                Questions = questions
             };
         }
         public async Task<IEnumerable<ExamDto>> GetExamsByDoctorAsync(Ulid doctorId)
@@ -206,7 +216,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .OrderByDescending(e => e.StartTime)
                 .ToListAsync();
 
-            return exams.Select(MapToDto);
+            return exams.Select(e => MapToDto(e, includeCorrectAnswers: true));
         }
 
         public async Task<IEnumerable<ExamDto>> GetExamsByOfferingAsync(Ulid offeringId, Ulid doctorId)
@@ -228,7 +238,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .OrderByDescending(e => e.StartTime)
                 .ToListAsync();
 
-            return exams.Select(MapToDto);
+            return exams.Select(e => MapToDto(e, includeCorrectAnswers: true));
         }
 
         public async Task<IEnumerable<ExamSubmissionResponseDto>> GetExamSubmissionsAsync(Ulid examId, Ulid doctorId)
@@ -279,7 +289,46 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .OrderBy(e => e.StartTime)
                 .ToListAsync();
 
-            return exams.Select(MapToDto);
+            return exams.Select(e => MapToDto(e));
+        }
+
+        public async Task<ExamDto> GetStudentVariantAsync(Ulid examId, Ulid studentId)
+        {
+            var exam = await context.Exams
+                .AsNoTracking()
+                .Include(e => e.Questions)
+                .Include(e => e.SubjectOffering).ThenInclude(so => so.Subject)
+                .FirstOrDefaultAsync(e => e.Id == examId)
+                ?? throw new KeyNotFoundException($"Exam {examId} not found.");
+
+            if (!exam.IsRandomized)
+                return MapToDto(exam);
+
+            var variant = await context.Set<StudentExamVariant>()
+                .FirstOrDefaultAsync(v => v.ExamId == examId && v.StudentId == studentId);
+
+            if (variant == null)
+            {
+                var allIds = exam.Questions.Select(q => q.Id).OrderBy(_ => Guid.NewGuid()).ToList();
+                var count = exam.QuestionsPerStudent > 0 && exam.QuestionsPerStudent < allIds.Count
+                    ? exam.QuestionsPerStudent : allIds.Count;
+                var selectedIds = allIds.Take(count).ToList();
+
+                variant = new StudentExamVariant
+                {
+                    ExamId = examId,
+                    StudentId = studentId,
+                    QuestionIdsJson = System.Text.Json.JsonSerializer.Serialize(selectedIds.Select(id => id.ToString()))
+                };
+                context.Set<StudentExamVariant>().Add(variant);
+                await context.SaveChangesAsync();
+            }
+
+            var variantIds = System.Text.Json.JsonSerializer
+                .Deserialize<List<string>>(variant.QuestionIdsJson)!
+                .Select(Ulid.Parse).ToHashSet();
+            var filtered = exam.Questions.Where(q => variantIds.Contains(q.Id));
+            return MapToDto(exam, includeCorrectAnswers: false, filteredQuestions: filtered);
         }
 
         public async Task<ExamSubmissionResponseDto?> GetStudentSubmissionAsync(Ulid examId, Ulid studentId)
@@ -479,12 +528,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 Mode = ExamMode.AI,
                 CreatedByDoctorId = doctorId,
                 SubjectOfferingId = request.SubjectOfferingId,
+                IsRandomized = request.IsRandomized,
+                QuestionsPerStudent = request.QuestionsPerStudent,
                 CreatedAt = DateTime.UtcNow,
                 Questions = [.. questionsDto.Select(q => new ExamQuestion
                 {
                     QuestionText = q.QuestionText,
                     CorrectAnswer = q.CorrectAnswer,
                     Mark = q.Mark,
+                    OptionsJson = q.Options != null && q.Options.Count > 0
+                        ? System.Text.Json.JsonSerializer.Serialize(q.Options) : null,
                     CreatedAt = DateTime.UtcNow
                 })]
             };

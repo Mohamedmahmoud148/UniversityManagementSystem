@@ -14,13 +14,7 @@ namespace UniversityManagementSystem.Api.Controllers
     // DTOs
     // ─────────────────────────────────────────────
 
-    public class DistributeExamsRequest
-    {
-        public List<string> ExamIds { get; set; } = new();
-        public string OfferingId { get; set; } = string.Empty;
-    }
-
-    // ── New AI tool DTOs ──────────────────────────────────────────────────
+    // ── AI tool DTOs ──────────────────────────────────────────────────────
     public record ResolveStudentResult(string StudentId, string StudentName, string StudentCode);
     public record ResolveDoctorResult(string DoctorId, string DoctorName, string DoctorCode);
     public record StudentGpaResult(string StudentId, double Gpa);
@@ -215,84 +209,6 @@ namespace UniversityManagementSystem.Api.Controllers
             });
         }
 
-        // ── 4. Distribute Exams Randomly ────────────────────────────────────
-        /// <summary>POST /api/ai-tools/distribute-exams</summary>
-        [HttpPost("distribute-exams")]
-        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
-        public async Task<IActionResult> DistributeExams([FromBody] DistributeExamsRequest request)
-        {
-            if (request is null)
-                return BadRequest("Request body is required.");
-
-            if (!Ulid.TryParse(request.OfferingId, out var parsedOfferingId))
-                return BadRequest("Invalid offering ID format.");
-
-            if (request.ExamIds is null || request.ExamIds.Count == 0)
-                return BadRequest("At least one exam ID is required.");
-
-            var examIds = new List<Ulid>();
-            foreach (var raw in request.ExamIds)
-            {
-                if (!Ulid.TryParse(raw, out var eid))
-                    return BadRequest($"Invalid exam ID format: '{raw}'.");
-                examIds.Add(eid);
-            }
-
-            var offeringExists = await _context.SubjectOfferings
-                .AnyAsync(o => o.Id == parsedOfferingId);
-
-            if (!offeringExists)
-                return NotFound($"Offering '{request.OfferingId}' not found.");
-
-            var studentIds = await _context.Enrollments
-                .Where(e => e.SubjectOfferingId == parsedOfferingId && e.IsActive)
-                .Select(e => e.StudentId)
-                .ToListAsync();
-
-            if (!studentIds.Any())
-                return BadRequest("No active students are enrolled in this offering.");
-
-            var rng = new Random();
-            var toInsert = new List<ExamSubmission>();
-            var skippedCount = 0;
-
-            foreach (var sid in studentIds)
-            {
-                var randomExamId = examIds[rng.Next(examIds.Count)];
-
-                var alreadyAssigned = await _context.ExamSubmissions
-                    .AnyAsync(s => s.StudentId == sid && s.ExamId == randomExamId);
-
-                if (alreadyAssigned)
-                {
-                    skippedCount++;
-                    continue;
-                }
-
-                toInsert.Add(new ExamSubmission
-                {
-                    StudentId   = sid,
-                    ExamId      = randomExamId,
-                    IsGraded    = false,
-                    AnswersJson = "[]"
-                });
-            }
-
-            if (toInsert.Any())
-            {
-                await _context.ExamSubmissions.AddRangeAsync(toInsert);
-                await _context.SaveChangesAsync();
-            }
-
-            return Ok(new
-            {
-                message           = "Exams distributed successfully.",
-                studentsProcessed = studentIds.Count,
-                newAssignments    = toInsert.Count,
-                skippedDuplicates = skippedCount
-            });
-        }
-
         // ── 5. Resolve Student by Name ──────────────────────────────────────
         /// <summary>GET /api/ai-tools/resolve-student?name={name}</summary>
         [HttpGet("resolve-student")]
@@ -456,7 +372,7 @@ namespace UniversityManagementSystem.Api.Controllers
             var complaint = new Complaint
             {
                 StudentId         = userId,
-                Title             = "AI Tool Complaint",
+                Title             = dto.Title,
                 TargetType        = dto.TargetType,
                 TargetId          = dto.TargetId ?? string.Empty,
                 Message           = dto.Message,

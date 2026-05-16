@@ -24,11 +24,17 @@ namespace UniversityManagementSystem.Core.Entities
         public Ulid CreatedByDoctorId { get; set; }
         public Ulid SubjectOfferingId { get; set; }
 
+        /// <summary>When true, each student receives a unique random subset of questions.</summary>
+        public bool IsRandomized { get; set; } = false;
+        /// <summary>How many questions each student sees when IsRandomized=true. 0 = all questions.</summary>
+        public int QuestionsPerStudent { get; set; } = 0;
+
         // Navigation Properties
         public Doctor CreatedByDoctor { get; set; } = null!;
         public SubjectOffering SubjectOffering { get; set; } = null!;
         public ICollection<ExamQuestion> Questions { get; set; } = new List<ExamQuestion>();
         public ICollection<ExamSubmission> Submissions { get; set; } = new List<ExamSubmission>();
+        public ICollection<StudentExamVariant> StudentVariants { get; set; } = new List<StudentExamVariant>();
 
         public void Update(string title, ExamType type, DateTime startTime, DateTime endTime, ExamStatus status, ExamMode mode, string? filePath)
         {

@@ -36,6 +36,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<Exam> Exams { get; set; } = null!;
         public DbSet<ExamQuestion> ExamQuestions { get; set; } = null!;
         public DbSet<ExamSubmission> ExamSubmissions { get; set; } = null!;
+        public DbSet<StudentExamVariant> StudentExamVariants { get; set; } = null!;
         public DbSet<StudentGrade> StudentGrades { get; set; } = null!;
         public DbSet<Material> Materials { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
@@ -636,6 +637,24 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<ExamSubmission>()
                 .HasIndex(s => s.StudentId)
                 .HasDatabaseName("IX_ExamSubmissions_StudentId");
+
+            // StudentExamVariant
+            modelBuilder.Entity<StudentExamVariant>()
+                .HasOne(v => v.Exam)
+                .WithMany(e => e.StudentVariants)
+                .HasForeignKey(v => v.ExamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StudentExamVariant>()
+                .HasOne(v => v.Student)
+                .WithMany()
+                .HasForeignKey(v => v.StudentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<StudentExamVariant>()
+                .HasIndex(v => new { v.ExamId, v.StudentId })
+                .IsUnique()
+                .HasDatabaseName("IX_StudentExamVariants_ExamId_StudentId");
 
             // --------------------------------------------------------
             // StudentGrade

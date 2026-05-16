@@ -104,6 +104,19 @@ namespace UniversityManagementSystem.Api.Controllers
             var submissionId = await examService.SubmitExamAsync(examId, studentId, dto);
             return CreatedAtAction(nameof(GetExam), new { id }, new { submissionId, message = "Exam submitted successfully." });
         }
+        [HttpGet("{id}/my-variant")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetMyVariant(string id)
+        {
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var studentId = Ulid.Parse(profileClaim.Value);
+
+            var result = await examService.GetStudentVariantAsync(examId, studentId);
+            return Ok(result);
+        }
+
         [HttpGet("my-exams")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetMyExams()

@@ -21,6 +21,9 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<IEnumerable<ExamDto>> GetStudentEnrolledExamsAsync(Ulid studentId);
         Task<ExamSubmissionResponseDto?> GetStudentSubmissionAsync(Ulid examId, Ulid studentId);
 
+        // Randomized exam — returns the student's personal question subset
+        Task<ExamDto> GetStudentVariantAsync(Ulid examId, Ulid studentId);
+
         // Grading
         Task GradeSubmissionAsync(GradeSubmissionDto dto, Ulid doctorId);
         Task<int> AutoGradeExamAsync(Ulid examId, Ulid doctorId); // Returns count of graded submissions
