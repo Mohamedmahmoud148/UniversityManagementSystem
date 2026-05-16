@@ -466,6 +466,53 @@ using (var scope = app.Services.CreateScope())
             // Column already exists — safe to ignore
         }
 
+        // 1d. Ensure randomized-exam columns exist (AddRandomizedExamSupport migration)
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+    ALTER TABLE ""Exams""
+    ADD COLUMN IF NOT EXISTS ""IsRandomized"" boolean NOT NULL DEFAULT false;
+
+    ALTER TABLE ""Exams""
+    ADD COLUMN IF NOT EXISTS ""QuestionsPerStudent"" integer NOT NULL DEFAULT 0;
+
+    ALTER TABLE ""ExamQuestions""
+    ADD COLUMN IF NOT EXISTS ""OptionsJson"" text NULL;
+
+    ALTER TABLE ""ExamQuestions""
+    ADD COLUMN IF NOT EXISTS ""QuestionType"" integer NOT NULL DEFAULT 0;
+
+    CREATE TABLE IF NOT EXISTS ""StudentExamVariants"" (
+        ""Id""              character varying(26) NOT NULL,
+        ""Code""            text NOT NULL DEFAULT '',
+        ""ExamId""          character varying(26) NOT NULL,
+        ""StudentId""       character varying(26) NOT NULL,
+        ""QuestionIdsJson"" text NOT NULL DEFAULT '[]',
+        ""CreatedAt""       timestamp with time zone NOT NULL DEFAULT now(),
+        ""DeletedAt""       timestamp with time zone NULL,
+        CONSTRAINT ""PK_StudentExamVariants"" PRIMARY KEY (""Id""),
+        CONSTRAINT ""FK_StudentExamVariants_Exams_ExamId""
+            FOREIGN KEY (""ExamId"") REFERENCES ""Exams""(""Id"") ON DELETE CASCADE,
+        CONSTRAINT ""FK_StudentExamVariants_Students_StudentId""
+            FOREIGN KEY (""StudentId"") REFERENCES ""Students""(""Id"") ON DELETE RESTRICT
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_StudentExamVariants_ExamId_StudentId""
+        ON ""StudentExamVariants""(""ExamId"", ""StudentId"");
+
+    CREATE INDEX IF NOT EXISTS ""IX_StudentExamVariants_StudentId""
+        ON ""StudentExamVariants""(""StudentId"");
+
+    INSERT INTO ""__EFMigrationsHistory""(""MigrationId"", ""ProductVersion"")
+    VALUES ('20260516025341_AddRandomizedExamSupport', '9.0.0')
+    ON CONFLICT DO NOTHING;
+    ");
+        }
+        catch (Exception)
+        {
+            // Safe to ignore — columns/table already exist
+        }
+
         // 2. Seed initial data (SuperAdmin, lookup tables, etc.)
         await DbInitializer.SeedAsync(services);
     }
