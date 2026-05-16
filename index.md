@@ -29,6 +29,7 @@
 | [Developer Onboarding](Project-Documentation/18-Developer-Onboarding/README.md) | Setup and getting started |
 | [Discussion Preparation](Project-Documentation/19-Discussion-Preparation/README.md) | Committee presentation guide |
 | [AI Tools APIs](Project-Documentation/20-AI-Tools-APIs/README.md) | Internal AI tool endpoints |
+| [System Diagrams](Project-Documentation/21-Diagrams/README.md) | 14 Mermaid diagrams — architecture, flows, ERD |
 
 ---
 
