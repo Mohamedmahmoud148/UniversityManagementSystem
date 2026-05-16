@@ -381,6 +381,23 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var entity = new Department { Name = dto.Name, Code = codeUpper, CollegeId = college.Id };
             var result = await _service.CreateDepartmentAsync(entity);
+
+            // If academicYearId provided, link the new department to that year
+            if (!string.IsNullOrWhiteSpace(dto.AcademicYearId) && Ulid.TryParse(dto.AcademicYearId, out var yearId))
+            {
+                var yearExists = await _context.Set<AcademicYear>().AnyAsync(y => y.Id == yearId);
+                if (yearExists)
+                {
+                    _context.AcademicYearDepartments.Add(new AcademicYearDepartment
+                    {
+                        AcademicYearId = yearId,
+                        DepartmentId   = result.Id,
+                        IsActive       = true
+                    });
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             return Ok(new DepartmentDto(result.Id, result.Name, result.Code, result.CollegeId));
         }
 

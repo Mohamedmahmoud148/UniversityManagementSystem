@@ -23,8 +23,9 @@ namespace UniversityManagementSystem.Core.DTOs
     public record DepartmentDto(Ulid Id, string Name, string Code, Ulid CollegeId);
     public record CreateDepartmentDto(
         [Required] string Name,
-        [Required] string Code,            // Missing before
-        [Required] string CollegeCode      // Admin input: public code, not internal ULID
+        [Required] string Code,
+        [Required] string CollegeCode,     // Admin input: public code, not internal ULID
+        string? AcademicYearId = null      // Optional — if provided, links dept to this academic year
     );
 
     public record BatchDto(Ulid Id, string Name, string Code, Ulid DepartmentId);
