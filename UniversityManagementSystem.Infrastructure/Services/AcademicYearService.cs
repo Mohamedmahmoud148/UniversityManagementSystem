@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
+using UniversityManagementSystem.Core.Exceptions;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
 using NUlid;
@@ -24,9 +25,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             // Enforce Order uniqueness per college (1–6 constraint is on entity constructor)
             var orderTaken = await _context.Set<AcademicYear>()
+                .IgnoreQueryFilters()
                 .AnyAsync(y => y.CollegeId == dto.CollegeId && y.Order == dto.Order);
             if (orderTaken)
-                throw new InvalidOperationException($"A year with Order={dto.Order} already exists for this college.");
+                throw new ConflictException($"A year with Order={dto.Order} already exists for this college.");
+
+            var nameTaken = await _context.Set<AcademicYear>()
+                .IgnoreQueryFilters()
+                .AnyAsync(y => y.CollegeId == dto.CollegeId && y.Name == dto.Name);
+            if (nameTaken)
+                throw new ConflictException($"An academic year named '{dto.Name}' already exists for this college.");
 
             // If new year is active, deactivate others in the same college
             if (dto.IsActive)
@@ -95,9 +103,19 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (year.Order != dto.Order)
             {
                 var orderTaken = await _context.Set<AcademicYear>()
+                    .IgnoreQueryFilters()
                     .AnyAsync(y => y.CollegeId == year.CollegeId && y.Order == dto.Order && y.Id != id);
                 if (orderTaken)
-                    throw new InvalidOperationException($"A year with Order={dto.Order} already exists for this college.");
+                    throw new ConflictException($"A year with Order={dto.Order} already exists for this college.");
+            }
+
+            if (!string.Equals(year.Name, dto.Name, StringComparison.Ordinal))
+            {
+                var nameTaken = await _context.Set<AcademicYear>()
+                    .IgnoreQueryFilters()
+                    .AnyAsync(y => y.CollegeId == year.CollegeId && y.Name == dto.Name && y.Id != id);
+                if (nameTaken)
+                    throw new ConflictException($"An academic year named '{dto.Name}' already exists for this college.");
             }
 
             var oldValues = System.Text.Json.JsonSerializer.Serialize(new { year.Name, year.IsActive, year.Order });

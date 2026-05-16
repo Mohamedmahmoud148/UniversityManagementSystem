@@ -401,10 +401,12 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new DepartmentDto(result.Id, result.Name, result.Code, result.CollegeId));
         }
 
-        [HttpPut("{code}")]
+        [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(string code, CreateDepartmentDto dto)
+        public async Task<IActionResult> Update(string id, CreateDepartmentDto dto)
         {
+            if (!Ulid.TryParse(id, out var departmentId)) return BadRequest("Invalid Department ID.");
+
             if (string.IsNullOrWhiteSpace(dto.CollegeCode))
                 return BadRequest("CollegeCode is required.");
 
@@ -412,15 +414,15 @@ namespace UniversityManagementSystem.Api.Controllers
             if (college == null)
                 return NotFound($"College with code '{dto.CollegeCode}' not found.");
 
-            var entity = await _service.GetDepartmentByCodeAsync(code);
-            if (entity == null) return NotFound($"Department with code '{code}' not found.");
+            var entity = await _service.GetDepartmentByIdAsync(departmentId);
+            if (entity == null) return NotFound($"Department with ID '{id}' not found.");
             entity.Name = dto.Name;
             entity.CollegeId = college.Id;
 
             if (!string.IsNullOrWhiteSpace(dto.Code) && dto.Code.ToUpper() != entity.Code)
             {
                 var codeConflict = await _service.GetDepartmentByCodeAsync(dto.Code.ToUpper());
-                if (codeConflict != null)
+                if (codeConflict != null && codeConflict.Id != entity.Id)
                     return Conflict($"A Department with code '{dto.Code.ToUpper()}' already exists.");
                 entity.Code = dto.Code.ToUpper();
             }
@@ -429,13 +431,15 @@ namespace UniversityManagementSystem.Api.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{code}")]
+        [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string code)
+        public async Task<IActionResult> Delete(string id)
         {
-            var entity = await _service.GetDepartmentByCodeAsync(code);
-            if (entity == null) return NotFound($"Department with code '{code}' not found.");
-            await _service.DeleteDepartmentAsync(entity.Id);
+            if (!Ulid.TryParse(id, out var departmentId)) return BadRequest("Invalid Department ID.");
+
+            var entity = await _service.GetDepartmentByIdAsync(departmentId);
+            if (entity == null) return NotFound($"Department with ID '{id}' not found.");
+            await _service.DeleteDepartmentAsync(departmentId);
             return NoContent();
         }
     }
