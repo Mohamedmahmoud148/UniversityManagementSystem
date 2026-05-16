@@ -513,6 +513,51 @@ using (var scope = app.Services.CreateScope())
             // Safe to ignore — columns/table already exist
         }
 
+        // 1e. Ensure Materials.Title and Materials.Description columns exist
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+ALTER TABLE ""Materials""
+ADD COLUMN IF NOT EXISTS ""Title"" text NOT NULL DEFAULT '';
+ALTER TABLE ""Materials""
+ADD COLUMN IF NOT EXISTS ""Description"" text NULL;
+            ");
+        }
+        catch (Exception) { /* safe to ignore */ }
+
+        // 1f. Ensure ScheduleEntries table exists
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+CREATE TABLE IF NOT EXISTS ""ScheduleEntries"" (
+    ""Id""                 character varying(26) NOT NULL,
+    ""Code""               text NOT NULL DEFAULT '',
+    ""SubjectOfferingId""  character varying(26) NOT NULL,
+    ""BatchId""            character varying(26) NOT NULL,
+    ""GroupId""            character varying(26) NULL,
+    ""DayOfWeek""          integer NOT NULL DEFAULT 0,
+    ""StartTime""          interval NOT NULL DEFAULT '00:00:00',
+    ""EndTime""            interval NOT NULL DEFAULT '00:00:00',
+    ""Type""               integer NOT NULL DEFAULT 0,
+    ""Location""           text NOT NULL DEFAULT '',
+    ""WeekType""           integer NOT NULL DEFAULT 0,
+    ""IsActive""           boolean NOT NULL DEFAULT true,
+    ""CreatedAt""          timestamp with time zone NOT NULL DEFAULT now(),
+    ""DeletedAt""          timestamp with time zone NULL,
+    CONSTRAINT ""PK_ScheduleEntries"" PRIMARY KEY (""Id""),
+    CONSTRAINT ""FK_ScheduleEntries_SubjectOfferings_SubjectOfferingId""
+        FOREIGN KEY (""SubjectOfferingId"") REFERENCES ""SubjectOfferings""(""Id"") ON DELETE CASCADE,
+    CONSTRAINT ""FK_ScheduleEntries_Batches_BatchId""
+        FOREIGN KEY (""BatchId"") REFERENCES ""Batches""(""Id"") ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ""IX_ScheduleEntries_SubjectOfferingId""
+    ON ""ScheduleEntries""(""SubjectOfferingId"");
+CREATE INDEX IF NOT EXISTS ""IX_ScheduleEntries_BatchId""
+    ON ""ScheduleEntries""(""BatchId"");
+            ");
+        }
+        catch (Exception) { /* safe to ignore */ }
+
         // 2. Seed initial data (SuperAdmin, lookup tables, etc.)
         await DbInitializer.SeedAsync(services);
     }
