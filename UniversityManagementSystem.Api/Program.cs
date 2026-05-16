@@ -21,7 +21,9 @@ using System.Threading.RateLimiting;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using UniversityManagementSystem.Api.Filters;
+using UniversityManagementSystem.Api.Hubs;
 using UniversityManagementSystem.Api.Middleware;
+using UniversityManagementSystem.Api.Services;
 using UniversityManagementSystem.Infrastructure.Consumers;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
@@ -319,7 +321,11 @@ builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IExcelService, ExcelService>();
 builder.Services.AddScoped<IIdentityProvisioningService, IdentityProvisioningService>();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IRealtimeNotifier, SignalRNotifier>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IAcademicRiskJob, AcademicRiskJob>();
+builder.Services.AddScoped<IExamReminderJob, ExamReminderJob>();
 builder.Services.AddScoped<IRegulationService, RegulationService>();
 builder.Services.AddScoped<ISmartStringGenerator, SmartStringGenerator>();
 builder.Services.AddScoped<IChatService, ChatService>();
@@ -400,6 +406,7 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 });
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 // Task 5: Health Check Endpoint
 app.MapHealthChecks("/health", new HealthCheckOptions
@@ -487,6 +494,16 @@ using (var scope = app.Services.CreateScope())
         "monthly-complaint-report",
         job => job.GenerateMonthlyReportAsync(),
         Cron.Monthly);
+
+    recurringJobManager.AddOrUpdate<IAcademicRiskJob>(
+        "academic-risk-alerts",
+        job => job.RunAsync(),
+        Cron.Daily);
+
+    recurringJobManager.AddOrUpdate<IExamReminderJob>(
+        "exam-reminders",
+        job => job.RunAsync(),
+        "*/30 * * * *"); // every 30 minutes
 }
 
 app.Run();

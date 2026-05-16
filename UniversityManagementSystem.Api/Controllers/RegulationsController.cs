@@ -171,6 +171,245 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(await ToDto(regulation));
         }
 
+        // ── GET /api/Regulations/my-roadmap ─────────────────────────────────
+        /// <summary>
+        /// Returns the authenticated student's full personalized academic roadmap.
+        /// Combines their regulation (لائحة) with real grade and enrollment data.
+        ///
+        /// Enables the AI to answer in one call:
+        ///   - "ايه مواد الترم التاني في لائحتي؟"
+        ///   - "كام ساعة خلصت؟"
+        ///   - "المواد اللي رسبت فيها؟"
+        ///   - "ايه المواد المقترحة الترم الجاي؟"
+        /// </summary>
+        [HttpGet("my-roadmap")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetMyRoadmap()
+        {
+            var profileIdClaim = User.FindFirst("ProfileId");
+            if (profileIdClaim == null) return Unauthorized("Student profile not found.");
+            if (!Ulid.TryParse(profileIdClaim.Value, out var studentId))
+                return Unauthorized("Invalid student ID.");
+
+            // 1. Load student with navigations
+            var student = await _context.Students
+                .AsNoTracking()
+                .Include(s => s.Department).ThenInclude(d => d.College)
+                .Include(s => s.Batch)
+                .FirstOrDefaultAsync(s => s.Id == studentId && s.DeletedAt == null);
+
+            if (student == null) return NotFound("Student not found.");
+            if (student.RegulationId == null)
+                return NotFound("No academic regulation is assigned to your profile yet. Please contact the admin.");
+
+            // 2. Load regulation with all subjects + subject details
+            var regulation = await _context.Regulations
+                .AsNoTracking()
+                .Include(r => r.RegulationSubjects)
+                    .ThenInclude(rs => rs.Subject)
+                .FirstOrDefaultAsync(r => r.Id == student.RegulationId.Value);
+
+            if (regulation == null) return NotFound("Assigned regulation not found.");
+
+            // 3. Load all finalized grades for this student
+            var grades = await _context.StudentGrades
+                .AsNoTracking()
+                .Where(g => g.StudentId == studentId && g.IsFinalized)
+                .Select(g => new
+                {
+                    g.SubjectOfferingId,
+                    SubjectId = g.SubjectOffering.SubjectId,
+                    g.GradeLetter,
+                    g.GradePoints,
+                    g.FinalScore
+                })
+                .ToListAsync();
+
+            // 4. Load active enrollments
+            var enrolledSubjectIds = await _context.Enrollments
+                .AsNoTracking()
+                .Where(e => e.StudentId == studentId && e.IsActive && e.DeletedAt == null)
+                .Select(e => e.SubjectOffering.SubjectId)
+                .Distinct()
+                .ToListAsync();
+
+            // 5. Load student's GPA
+            double? gpa = null;
+            if (grades.Any())
+            {
+                var gpaSummary = await _context.StudentGrades
+                    .AsNoTracking()
+                    .Where(g => g.StudentId == studentId && g.IsFinalized && g.GradePoints > 0)
+                    .GroupBy(_ => 1)
+                    .Select(g => g.Average(x => x.GradePoints))
+                    .FirstOrDefaultAsync();
+                gpa = gpaSummary > 0 ? Math.Round(gpaSummary, 2) : null;
+            }
+
+            // 6. Build lookup maps
+            // passedSubjectIds: subject IDs where student got a passing grade (GradePoints >= 1.0 = D)
+            var passedSubjectIds = grades
+                .Where(g => g.GradePoints >= 1.0)
+                .Select(g => g.SubjectId)
+                .ToHashSet();
+
+            var failedSubjectIds = grades
+                .Where(g => g.GradePoints < 1.0)
+                .Select(g => g.SubjectId)
+                .ToHashSet();
+
+            var gradeBySubject = grades
+                .GroupBy(g => g.SubjectId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(x => x.GradePoints).First()
+                );
+
+            var enrolledSet = enrolledSubjectIds.ToHashSet();
+
+            // 7. Group regulation subjects by semester
+            var bySemester = regulation.RegulationSubjects
+                .GroupBy(rs => rs.Semester)
+                .OrderBy(g => g.Key)
+                .ToList();
+
+            int totalSemesters        = bySemester.Any() ? bySemester.Max(g => g.Key) : 0;
+            int totalCreditHours      = regulation.RegulationSubjects.Sum(rs => rs.Subject?.CreditHours ?? 0);
+            int completedCreditHours  = 0;
+            int totalPassedSubjects   = 0;
+            int totalFailedSubjects   = 0;
+            int totalEnrolled         = 0;
+
+            var semesterDtos = new List<SemesterRoadmapDto>();
+
+            foreach (var semGroup in bySemester)
+            {
+                var subjectDtos = semGroup.Select(rs =>
+                {
+                    var subj = rs.Subject;
+                    if (subj == null) return null;
+
+                    string status;
+                    string? gradeLetter = null;
+                    double? gradePoints = null;
+                    double? finalScore  = null;
+
+                    if (passedSubjectIds.Contains(subj.Id))
+                    {
+                        status = "passed";
+                        if (gradeBySubject.TryGetValue(subj.Id, out var g))
+                        {
+                            gradeLetter = g.GradeLetter;
+                            gradePoints = g.GradePoints;
+                            finalScore  = g.FinalScore;
+                        }
+                    }
+                    else if (failedSubjectIds.Contains(subj.Id) && !enrolledSet.Contains(subj.Id))
+                    {
+                        status = "failed";
+                        if (gradeBySubject.TryGetValue(subj.Id, out var g))
+                        {
+                            gradeLetter = g.GradeLetter;
+                            gradePoints = g.GradePoints;
+                            finalScore  = g.FinalScore;
+                        }
+                    }
+                    else if (enrolledSet.Contains(subj.Id))
+                    {
+                        status = "enrolled";
+                    }
+                    else
+                    {
+                        status = "upcoming";
+                    }
+
+                    return new SubjectStatusDto
+                    {
+                        SubjectId   = subj.Id.ToString(),
+                        SubjectName = subj.Name,
+                        SubjectCode = subj.Code,
+                        CreditHours = subj.CreditHours,
+                        IsRequired  = rs.IsRequired,
+                        Status      = status,
+                        GradeLetter = gradeLetter,
+                        GradePoints = gradePoints,
+                        FinalScore  = finalScore,
+                    };
+                })
+                .Where(x => x != null)
+                .Cast<SubjectStatusDto>()
+                .ToList();
+
+                int semPassed   = subjectDtos.Count(s => s.Status == "passed");
+                int semFailed   = subjectDtos.Count(s => s.Status == "failed");
+                int semEnrolled = subjectDtos.Count(s => s.Status == "enrolled");
+                int semCredits  = subjectDtos.Sum(s => s.CreditHours);
+                int semEarned   = subjectDtos.Where(s => s.Status == "passed").Sum(s => s.CreditHours);
+
+                string semStatus = semPassed == subjectDtos.Count
+                    ? "completed"
+                    : semEnrolled > 0 || semFailed > 0
+                        ? "in_progress"
+                        : "upcoming";
+
+                completedCreditHours += semEarned;
+                totalPassedSubjects  += semPassed;
+                totalFailedSubjects  += semFailed;
+                totalEnrolled        += semEnrolled;
+
+                semesterDtos.Add(new SemesterRoadmapDto
+                {
+                    SemesterNumber    = semGroup.Key,
+                    Status            = semStatus,
+                    TotalSubjects     = subjectDtos.Count,
+                    PassedSubjects    = semPassed,
+                    FailedSubjects    = semFailed,
+                    EnrolledSubjects  = semEnrolled,
+                    TotalCreditHours  = semCredits,
+                    EarnedCreditHours = semEarned,
+                    Subjects          = subjectDtos,
+                });
+            }
+
+            // 8. Determine current semester (first non-completed semester)
+            var currentSem = semesterDtos.FirstOrDefault(s => s.Status != "completed");
+            int currentSemNumber = currentSem?.SemesterNumber ?? totalSemesters;
+
+            // 9. Recommended next: next semester's upcoming subjects
+            var nextSemNumber = currentSemNumber + 1;
+            var nextSem = semesterDtos.FirstOrDefault(s => s.SemesterNumber == nextSemNumber);
+            var recommendedNext = nextSem?.Subjects
+                .Where(s => s.Status == "upcoming")
+                .ToList() ?? [];
+
+            // 10. Must-retake: failed required subjects not currently enrolled
+            var mustRetake = semesterDtos
+                .SelectMany(s => s.Subjects)
+                .Where(s => s.Status == "failed" && s.IsRequired)
+                .ToList();
+
+            return Ok(new AcademicRoadmapDto
+            {
+                RegulationId         = regulation.Id.ToString(),
+                RegulationTitle      = regulation.Title,
+                DepartmentName       = student.Department?.Name ?? "",
+                CollegeName          = student.Department?.College?.Name ?? "",
+                BatchName            = student.Batch?.Name ?? "",
+                TotalSemesters       = totalSemesters,
+                TotalCreditHours     = totalCreditHours,
+                CompletedCreditHours = completedCreditHours,
+                RemainingCreditHours = totalCreditHours - completedCreditHours,
+                TotalSubjects        = regulation.RegulationSubjects.Count,
+                PassedSubjects       = totalPassedSubjects,
+                FailedSubjects       = totalFailedSubjects,
+                CurrentlyEnrolled    = totalEnrolled,
+                CurrentGpa           = gpa,
+                Semesters            = semesterDtos,
+                RecommendedNext      = recommendedNext,
+                MustRetake           = mustRetake,
+            });
+        }
+
         // ── POST /api/Regulations ─────────────────────────────────────────────
         /// <summary>
         /// Create a regulation. Supports two modes:

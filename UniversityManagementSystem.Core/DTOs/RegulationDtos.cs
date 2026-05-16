@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http;
 using UniversityManagementSystem.Core.Entities;
@@ -68,14 +70,79 @@ namespace UniversityManagementSystem.Core.DTOs
         public RegulationType Type { get; set; }
         public bool IsActive { get; set; }
 
-        /// <summary>
-        /// Optionally replace the attached file.
-        /// Bound from multipart/form-data.
-        /// </summary>
         [JsonIgnore]
         public IFormFile? File { get; set; }
 
         public string? DepartmentId { get; set; }
         public string? SubjectsJson { get; set; }
+    }
+
+    // ── Academic Roadmap DTOs ─────────────────────────────────────────────────
+
+    /// <summary>Status of a single subject in the student's academic roadmap.</summary>
+    public record SubjectStatusDto
+    {
+        public string SubjectId     { get; init; } = string.Empty;
+        public string SubjectName   { get; init; } = string.Empty;
+        public string SubjectCode   { get; init; } = string.Empty;
+        public int    CreditHours   { get; init; }
+        public bool   IsRequired    { get; init; }
+
+        /// <summary>passed | failed | enrolled | upcoming</summary>
+        public string Status        { get; init; } = "upcoming";
+
+        public string? GradeLetter  { get; init; }
+        public double? GradePoints  { get; init; }
+        public double? FinalScore   { get; init; }
+    }
+
+    /// <summary>One semester's worth of subjects with aggregate stats.</summary>
+    public record SemesterRoadmapDto
+    {
+        public int    SemesterNumber    { get; init; }
+
+        /// <summary>completed | in_progress | upcoming</summary>
+        public string Status            { get; init; } = "upcoming";
+
+        public int    TotalSubjects     { get; init; }
+        public int    PassedSubjects    { get; init; }
+        public int    FailedSubjects    { get; init; }
+        public int    EnrolledSubjects  { get; init; }
+        public int    TotalCreditHours  { get; init; }
+        public int    EarnedCreditHours { get; init; }
+
+        public List<SubjectStatusDto> Subjects { get; init; } = [];
+    }
+
+    /// <summary>
+    /// Full personalized academic roadmap for a student.
+    /// Returned by GET /api/Regulations/my-roadmap.
+    /// Enables the AI to answer ANY regulation or progress question with one call.
+    /// </summary>
+    public record AcademicRoadmapDto
+    {
+        public string RegulationId      { get; init; } = string.Empty;
+        public string RegulationTitle   { get; init; } = string.Empty;
+        public string DepartmentName    { get; init; } = string.Empty;
+        public string CollegeName       { get; init; } = string.Empty;
+        public string BatchName         { get; init; } = string.Empty;
+
+        public int    TotalSemesters         { get; init; }
+        public int    TotalCreditHours       { get; init; }
+        public int    CompletedCreditHours   { get; init; }
+        public int    RemainingCreditHours   { get; init; }
+        public int    TotalSubjects          { get; init; }
+        public int    PassedSubjects         { get; init; }
+        public int    FailedSubjects         { get; init; }
+        public int    CurrentlyEnrolled      { get; init; }
+        public double? CurrentGpa            { get; init; }
+
+        public List<SemesterRoadmapDto>  Semesters          { get; init; } = [];
+
+        /// <summary>Subjects in the next semester not yet enrolled in.</summary>
+        public List<SubjectStatusDto>    RecommendedNext    { get; init; } = [];
+
+        /// <summary>Required subjects the student failed and must retake.</summary>
+        public List<SubjectStatusDto>    MustRetake         { get; init; } = [];
     }
 }

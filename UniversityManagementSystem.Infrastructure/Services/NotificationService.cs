@@ -7,10 +7,11 @@ using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class NotificationService(AppDbContext context, IAuditService auditService) : INotificationService
+    public class NotificationService(AppDbContext context, IAuditService auditService, IRealtimeNotifier realtimeNotifier) : INotificationService
     {
         private readonly AppDbContext _context = context;
         private readonly IAuditService _auditService = auditService;
+        private readonly IRealtimeNotifier _realtime = realtimeNotifier;
 
         public async Task<IEnumerable<NotificationDto>> GetUserNotificationsAsync(Ulid userId, bool unreadOnly = false)
         {
@@ -57,6 +58,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             _context.AppNotifications.Add(notification);
             await _context.SaveChangesAsync();
+
+            // Push real-time via SignalR (fire-and-forget — DB is source of truth)
+            try { await _realtime.PushToUserAsync(userId.ToString(), title, message, actionUrl); }
+            catch { /* SignalR failure must not break the DB write */ }
         }
 
         public async Task SendAdminNotificationAsync(CreateAdminNotificationDto dto)
@@ -67,17 +72,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
             else
             {
-                // Global notification (Broadcast to all users or handle via generic UserId=null if supported)
-                // For now, let's assume global means we might need a separate mechanism or just log it.
-                // If AppNotification requires UserId, we might need a way to send to 'All'.
-                // Requirement: "POST /api/Notification (Admin only) - Can send global or specific user".
-                // Let's check entity properties.
-
-                // If UserId is required in DB, we might need to send to everyone.
-                // For simplicity, I'll log that it was sent globally if UserId is null.
                 var notification = new AppNotification
                 {
-                    UserId = Ulid.Empty, // Use Ulid.Empty for global if 0 was used
+                    UserId = Ulid.Empty,
                     Title = dto.Title,
                     Message = dto.Message,
                     IsRead = false,
@@ -103,6 +100,67 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _context.SaveChangesAsync();
 
             await _auditService.LogAsync("SoftDelete", "Notification", notificationId.ToString(), oldValues, null, null);
+        }
+
+        public async Task<int> SendToOfferingStudentsAsync(
+            Ulid doctorSystemUserId,
+            string title,
+            string message,
+            string? offeringId = null,
+            string? actionUrl = null)
+        {
+            // Resolve doctor profile
+            var doctor = await _context.Doctors
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.SystemUserId == doctorSystemUserId && d.DeletedAt == null);
+
+            if (doctor == null) return 0;
+
+            // Build offerings query scoped to this doctor
+            var offeringsQ = _context.SubjectOfferings
+                .AsNoTracking()
+                .Where(o => o.DoctorId == doctor.Id);
+
+            if (!string.IsNullOrWhiteSpace(offeringId) && Ulid.TryParse(offeringId, out var oid))
+                offeringsQ = offeringsQ.Where(o => o.Id == oid);
+
+            var targetOfferingIds = await offeringsQ.Select(o => o.Id).ToListAsync();
+
+            if (targetOfferingIds.Count == 0) return 0;
+
+            // Get distinct SystemUserIds of enrolled students
+            var studentSystemUserIds = await _context.Enrollments
+                .AsNoTracking()
+                .Where(e => targetOfferingIds.Contains(e.SubjectOfferingId) && e.IsActive && e.DeletedAt == null)
+                .Select(e => e.Student.SystemUserId)
+                .Distinct()
+                .ToListAsync();
+
+            if (studentSystemUserIds.Count == 0) return 0;
+
+            var now = DateTime.UtcNow;
+            var notifications = studentSystemUserIds.Select(uid => new AppNotification
+            {
+                UserId = uid,
+                Title = title,
+                Message = message,
+                IsRead = false,
+                ActionUrl = actionUrl,
+                CreatedAt = now
+            }).ToList();
+
+            _context.AppNotifications.AddRange(notifications);
+            await _context.SaveChangesAsync();
+
+            // Push real-time to each student
+            var pushTasks = studentSystemUserIds.Select(uid =>
+            {
+                try { return _realtime.PushToUserAsync(uid.ToString(), title, message, actionUrl); }
+                catch { return Task.CompletedTask; }
+            });
+            await Task.WhenAll(pushTasks);
+
+            return studentSystemUserIds.Count;
         }
     }
 }

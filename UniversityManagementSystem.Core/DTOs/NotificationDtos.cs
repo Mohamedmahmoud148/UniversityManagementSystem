@@ -20,4 +20,11 @@ namespace UniversityManagementSystem.Core.DTOs
         public string Message { get; set; } = string.Empty;
         public string? ActionUrl { get; set; }
     }
+
+    public class SendToStudentsDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public string? ActionUrl { get; set; }
+    }
 }

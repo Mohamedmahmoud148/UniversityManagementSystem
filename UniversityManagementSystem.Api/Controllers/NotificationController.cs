@@ -31,7 +31,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> SendAdminNotification([FromBody] CreateAdminNotificationDto dto)
         {
             await _notificationService.SendAdminNotificationAsync(dto);
@@ -39,12 +39,30 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> DeleteNotification(string id)
         {
             if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid notification ID.");
             await _notificationService.DeleteNotificationAsync(uid);
             return NoContent();
+        }
+
+        /// <summary>
+        /// POST /api/notification/send-to-my-students
+        /// Doctor sends a notification to all students in their offerings.
+        /// Optionally scope to a specific offering via offeringId query param.
+        /// </summary>
+        [HttpPost("send-to-my-students")]
+        [Authorize(Roles = "Doctor")]
+        public async Task<IActionResult> SendToMyStudents(
+            [FromBody] SendToStudentsDto dto,
+            [FromQuery] string? offeringId = null)
+        {
+            var doctorSystemUserId = _userContext.GetUserId();
+            var count = await _notificationService.SendToOfferingStudentsAsync(
+                doctorSystemUserId, dto.Title, dto.Message, offeringId, dto.ActionUrl);
+
+            return Ok(new { sentTo = count, message = $"Notification sent to {count} students." });
         }
     }
 }
