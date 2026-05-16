@@ -33,6 +33,14 @@ namespace UniversityManagementSystem.Core.Entities
         public double PlatformMaxScore { get; set; } = 10;
         public double PlatformWeight { get; set; } = 0.1;
 
+        public void Update(Ulid doctorId, int maxCapacity, Ulid? groupId)
+        {
+            if (maxCapacity <= 0) throw new ArgumentException("Max capacity must be greater than zero.");
+            DoctorId    = doctorId;
+            MaxCapacity = maxCapacity;
+            GroupId     = groupId;
+        }
+
         private SubjectOffering() { }
 
         public SubjectOffering(Ulid subjectId, Ulid semesterId, Ulid doctorId, Ulid departmentId, Ulid batchId, Ulid? groupId, int maxCapacity)

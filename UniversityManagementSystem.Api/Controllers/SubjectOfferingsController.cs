@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -242,6 +243,59 @@ namespace UniversityManagementSystem.Api.Controllers
             {
                 Data = data, TotalCount = total, Page = page, Size = size,
             });
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(string id, [FromBody] UpdateSubjectOfferingDto dto)
+        {
+            if (!Ulid.TryParse(id, out var offeringId))
+                return BadRequest("Invalid SubjectOffering ID.");
+
+            if (!Ulid.TryParse(dto.DoctorId, out var doctorId))
+                return BadRequest("Invalid Doctor ID.");
+
+            var offering = await _context.SubjectOfferings.FindAsync(offeringId);
+            if (offering == null || offering.DeletedAt != null)
+                return NotFound($"SubjectOffering '{id}' not found.");
+
+            var doctorExists = await _context.Doctors.AnyAsync(d => d.Id == doctorId && d.DeletedAt == null);
+            if (!doctorExists)
+                return NotFound($"Doctor '{dto.DoctorId}' not found.");
+
+            Ulid? groupId = null;
+            if (!string.IsNullOrWhiteSpace(dto.GroupId))
+            {
+                if (!Ulid.TryParse(dto.GroupId, out var gId))
+                    return BadRequest("Invalid Group ID.");
+                groupId = gId;
+            }
+
+            offering.Update(doctorId, dto.MaxCapacity, groupId);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { offering.Id, offering.DoctorId, offering.MaxCapacity, offering.GroupId });
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(string id)
+        {
+            if (!Ulid.TryParse(id, out var offeringId))
+                return BadRequest("Invalid SubjectOffering ID.");
+
+            var offering = await _context.SubjectOfferings.FindAsync(offeringId);
+            if (offering == null || offering.DeletedAt != null)
+                return NotFound($"SubjectOffering '{id}' not found.");
+
+            var hasEnrollments = await _context.Enrollments
+                .AnyAsync(e => e.SubjectOfferingId == offeringId && e.DeletedAt == null && e.IsActive);
+            if (hasEnrollments)
+                return Conflict("Cannot delete: this offering has active student enrollments.");
+
+            offering.DeletedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return NoContent();
         }
 
         [HttpGet("my-enrollments")]

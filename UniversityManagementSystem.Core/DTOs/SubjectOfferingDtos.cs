@@ -50,4 +50,15 @@ namespace UniversityManagementSystem.Core.DTOs
         [Range(1, 1000)]
         public int MaxCapacity { get; set; }
     }
+
+    public class UpdateSubjectOfferingDto
+    {
+        [Required]
+        public string DoctorId { get; set; } = string.Empty;
+
+        [Range(1, 1000)]
+        public int MaxCapacity { get; set; }
+
+        public string? GroupId { get; set; }
+    }
 }
