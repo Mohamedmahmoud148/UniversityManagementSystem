@@ -17,13 +17,15 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
         IExcelService excelService,
         IIdentityProvisioningService identityService,
         IAuthService authService,
-        IAiService aiService) : IBulkUploadJob
+        IAiService aiService,
+        IStorageService storageService) : IBulkUploadJob
     {
         private readonly AppDbContext _context = context;
         private readonly IExcelService _excelService = excelService;
         private readonly IIdentityProvisioningService _identityService = identityService;
         private readonly IAuthService _authService = authService;
         private readonly IAiService _aiService = aiService;
+        private readonly IStorageService _storageService = storageService;
 
         public async Task ProcessStudentDirectUpload(Ulid fileId, Ulid uploaderUserId)
         {
@@ -35,10 +37,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
             try
             {
-                // Ensure file exists
-                if (!File.Exists(file.StorageKey)) throw new FileNotFoundException("File not found on disk");
-
-                using var stream = File.OpenRead(file.StorageKey);
+                using var stream = await _storageService.DownloadAsync(file.StorageKey);
                 var students = _excelService.ParseStudents(stream);
                 int successCount = 0;
                 int failCount = 0;
@@ -135,8 +134,6 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
             try
             {
-                if (!File.Exists(file.StorageKey)) throw new FileNotFoundException("File not found on disk");
-
                 var extractionResult = await _aiService.ExtractDataFromFileAsync(file.StorageKey, file.ContentType);
                 if (!extractionResult.Success || string.IsNullOrEmpty(extractionResult.ExtractectedJson))
                 {
@@ -237,9 +234,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
             try
             {
-                if (!File.Exists(file.StorageKey)) throw new FileNotFoundException("File not found on disk");
-
-                using var stream = File.OpenRead(file.StorageKey);
+                using var stream = await _storageService.DownloadAsync(file.StorageKey);
                 var doctors = _excelService.ParseDoctors(stream);
                 int successCount = 0;
                 int failCount = 0;

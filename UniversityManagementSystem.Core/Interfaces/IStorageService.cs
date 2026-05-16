@@ -32,5 +32,10 @@ namespace UniversityManagementSystem.Core.Interfaces
         /// Use only for non-sensitive, publicly accessible resources.
         /// </summary>
         string BuildUrl(string objectKey);
+
+        /// <summary>
+        /// Downloads an object from storage and returns its content as a <see cref="Stream"/>.
+        /// </summary>
+        Task<Stream> DownloadAsync(string objectKey);
     }
 }

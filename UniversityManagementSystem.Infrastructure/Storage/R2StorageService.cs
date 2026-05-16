@@ -160,6 +160,25 @@ namespace UniversityManagementSystem.Infrastructure.Storage
                 .Replace("?", "")
                 .Replace("&", "");
 
+        /// <inheritdoc/>
+        public async Task<Stream> DownloadAsync(string objectKey)
+        {
+            if (objectKey.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+                objectKey = ExtractKeyFromUrl(objectKey);
+
+            var request = new GetObjectRequest
+            {
+                BucketName = _settings.BucketName,
+                Key = objectKey
+            };
+
+            var response = await _s3.GetObjectAsync(request);
+            var ms = new MemoryStream();
+            await response.ResponseStream.CopyToAsync(ms);
+            ms.Position = 0;
+            return ms;
+        }
+
         public void Dispose() => _s3?.Dispose();
     }
 }
