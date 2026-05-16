@@ -21,14 +21,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             foreach (var row in rows)
             {
-                var batchRaw = row.Cell(4).GetValue<string>().Trim();
+                // Excel format: A=FullName, B=BatchCode, C=GroupCode, D=NationalId, E=Phone
+                var batchRaw = row.Cell(2).GetValue<string>().Trim();
                 list.Add(new StudentImportDto
                 {
-                    FullName = row.Cell(1).GetValue<string>(),
-                    NationalId = row.Cell(2).GetValue<string>(),
-                    Phone = row.Cell(3).GetValue<string>(),
-                    BatchId = Ulid.TryParse(batchRaw, out var bId) ? bId : Ulid.Empty,
-                    BatchRaw = batchRaw,
+                    FullName    = row.Cell(1).GetValue<string>().Trim(),
+                    BatchId     = Ulid.TryParse(batchRaw, out var bId) ? bId : Ulid.Empty,
+                    BatchRaw    = batchRaw,
+                    NationalId  = row.Cell(4).GetValue<string>().Trim(),
+                    Phone       = row.Cell(5).GetValue<string>().Trim(),
                 });
             }
             return list;
