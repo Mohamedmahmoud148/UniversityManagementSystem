@@ -278,27 +278,23 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new CollegeDto(result.Id, result.Name, result.Code, result.UniversityId));
         }
 
-        [HttpPut("{code}")]
+        [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(string code, CreateCollegeDto dto)
+        public async Task<IActionResult> Update(string id, CreateCollegeDto dto)
         {
-            // ✅ FIX: Resolve UniversityCode → UniversityId internally
-            if (!string.IsNullOrWhiteSpace(dto.UniversityCode))
-            {
-                var university = await _universityService.GetUniversityByCodeAsync(dto.UniversityCode);
-                if (university == null)
-                    return NotFound($"University with code '{dto.UniversityCode}' not found.");
-            }
+            if (!Ulid.TryParse(id, out var collegeId)) return BadRequest("Invalid College ID.");
 
-            var entity = await _service.GetCollegeByCodeAsync(code);
-            if (entity == null) return NotFound($"College with code '{code}' not found.");
+            var entity = await _service.GetCollegeByIdAsync(collegeId);
+            if (entity == null) return NotFound($"College with ID '{id}' not found.");
 
             entity.Name = dto.Name;
 
             if (!string.IsNullOrWhiteSpace(dto.UniversityCode))
             {
                 var university = await _universityService.GetUniversityByCodeAsync(dto.UniversityCode);
-                entity.UniversityId = university!.Id;
+                if (university == null)
+                    return NotFound($"University with code '{dto.UniversityCode}' not found.");
+                entity.UniversityId = university.Id;
             }
 
             if (!string.IsNullOrWhiteSpace(dto.Code) && dto.Code.ToUpper() != entity.Code)
@@ -313,12 +309,13 @@ namespace UniversityManagementSystem.Api.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{code}")]
+        [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string code)
+        public async Task<IActionResult> Delete(string id)
         {
-            var entity = await _service.GetCollegeByCodeAsync(code);
-            if (entity == null) return NotFound($"College with code '{code}' not found.");
+            if (!Ulid.TryParse(id, out var collegeId)) return BadRequest("Invalid College ID.");
+            var entity = await _service.GetCollegeByIdAsync(collegeId);
+            if (entity == null) return NotFound($"College with ID '{id}' not found.");
             await _service.DeleteCollegeAsync(entity.Id);
             return NoContent();
         }
@@ -504,10 +501,12 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new BatchDto(result.Id, result.Name, result.Code, result.DepartmentId));
         }
 
-        [HttpPut("{code}")]
+        [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(string code, CreateBatchDto dto)
+        public async Task<IActionResult> Update(string id, CreateBatchDto dto)
         {
+            if (!Ulid.TryParse(id, out var batchId)) return BadRequest("Invalid Batch ID.");
+
             if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
                 return BadRequest("DepartmentCode is required.");
 
@@ -515,8 +514,8 @@ namespace UniversityManagementSystem.Api.Controllers
             if (department == null)
                 return NotFound($"Department with code '{dto.DepartmentCode}' not found.");
 
-            var entity = await _service.GetBatchByCodeAsync(code);
-            if (entity == null) return NotFound($"Batch with code '{code}' not found.");
+            var entity = await _service.GetBatchByIdAsync(batchId);
+            if (entity == null) return NotFound($"Batch with ID '{id}' not found.");
             entity.Name = dto.Name;
             entity.DepartmentId = department.Id;
 
@@ -532,12 +531,13 @@ namespace UniversityManagementSystem.Api.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{code}")]
+        [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string code)
+        public async Task<IActionResult> Delete(string id)
         {
-            var entity = await _service.GetBatchByCodeAsync(code);
-            if (entity == null) return NotFound($"Batch with code '{code}' not found.");
+            if (!Ulid.TryParse(id, out var batchId)) return BadRequest("Invalid Batch ID.");
+            var entity = await _service.GetBatchByIdAsync(batchId);
+            if (entity == null) return NotFound($"Batch with ID '{id}' not found.");
             await _service.DeleteBatchAsync(entity.Id);
             return NoContent();
         }
@@ -606,10 +606,12 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new GroupDto(result.Id, result.Name, result.Code, result.BatchId));
         }
 
-        [HttpPut("{code}")]
+        [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(string code, CreateGroupDto dto)
+        public async Task<IActionResult> Update(string id, CreateGroupDto dto)
         {
+            if (!Ulid.TryParse(id, out var groupId)) return BadRequest("Invalid Group ID.");
+
             if (string.IsNullOrWhiteSpace(dto.BatchCode))
                 return BadRequest("BatchCode is required.");
 
@@ -617,8 +619,8 @@ namespace UniversityManagementSystem.Api.Controllers
             if (batch == null)
                 return NotFound($"Batch with code '{dto.BatchCode}' not found.");
 
-            var entity = await _service.GetGroupByCodeAsync(code);
-            if (entity == null) return NotFound($"Group with code '{code}' not found.");
+            var entity = await _service.GetGroupByIdAsync(groupId);
+            if (entity == null) return NotFound($"Group with ID '{id}' not found.");
             entity.Name = dto.Name;
             entity.BatchId = batch.Id;
 
@@ -634,12 +636,13 @@ namespace UniversityManagementSystem.Api.Controllers
             return NoContent();
         }
 
-        [HttpDelete("{code}")]
+        [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Delete(string code)
+        public async Task<IActionResult> Delete(string id)
         {
-            var entity = await _service.GetGroupByCodeAsync(code);
-            if (entity == null) return NotFound($"Group with code '{code}' not found.");
+            if (!Ulid.TryParse(id, out var groupId)) return BadRequest("Invalid Group ID.");
+            var entity = await _service.GetGroupByIdAsync(groupId);
+            if (entity == null) return NotFound($"Group with ID '{id}' not found.");
             await _service.DeleteGroupAsync(entity.Id);
             return NoContent();
         }

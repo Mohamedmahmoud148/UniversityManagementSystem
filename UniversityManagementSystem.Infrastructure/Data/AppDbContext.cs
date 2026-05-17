@@ -899,28 +899,18 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 }
                 case Department dept:
                 {
+                    // Cascade into Batches only — Doctors and TAs are NOT deleted with the department
                     var batches = await Batches.IgnoreQueryFilters()
                         .Where(b => b.DepartmentId == dept.Id && b.DeletedAt == null).ToListAsync();
                     foreach (var b in batches) { await CascadeChildrenAsync(b, now); b.DeletedAt = now; }
-
-                    var doctors = await Doctors.IgnoreQueryFilters()
-                        .Where(d => d.DepartmentId == dept.Id && d.DeletedAt == null).ToListAsync();
-                    foreach (var d in doctors) d.DeletedAt = now;
-
-                    var tas = await TeachingAssistants.IgnoreQueryFilters()
-                        .Where(ta => ta.DepartmentId == dept.Id && ta.DeletedAt == null).ToListAsync();
-                    foreach (var ta in tas) ta.DeletedAt = now;
                     break;
                 }
                 case Batch batch:
                 {
+                    // Cascade into Groups and SubjectOfferings — Students are NOT deleted with the batch
                     var groups = await Groups.IgnoreQueryFilters()
                         .Where(g => g.BatchId == batch.Id && g.DeletedAt == null).ToListAsync();
                     foreach (var g in groups) { await CascadeChildrenAsync(g, now); g.DeletedAt = now; }
-
-                    var students = await Students.IgnoreQueryFilters()
-                        .Where(s => s.BatchId == batch.Id && s.DeletedAt == null).ToListAsync();
-                    foreach (var s in students) s.DeletedAt = now;
 
                     var offerings = await SubjectOfferings.IgnoreQueryFilters()
                         .Where(so => so.BatchId == batch.Id && so.DeletedAt == null).ToListAsync();
@@ -929,10 +919,7 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 }
                 case Group group:
                 {
-                    var students = await Students.IgnoreQueryFilters()
-                        .Where(s => s.GroupId == group.Id && s.DeletedAt == null).ToListAsync();
-                    foreach (var s in students) s.DeletedAt = now;
-
+                    // Cascade into SubjectOfferings only — Students are NOT deleted with the group
                     var offerings = await SubjectOfferings.IgnoreQueryFilters()
                         .Where(so => so.GroupId == group.Id && so.DeletedAt == null).ToListAsync();
                     foreach (var so in offerings) { await CascadeChildrenAsync(so, now); so.DeletedAt = now; }
