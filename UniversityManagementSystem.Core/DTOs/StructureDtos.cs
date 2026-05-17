@@ -10,29 +10,25 @@ namespace UniversityManagementSystem.Core.DTOs
     public record CreateUniversityDto([Required] string Name, [Required] string Code);
 
     public record CollegeDto(Ulid Id, string Name, string Code, Ulid UniversityId);
-    /// <summary>
-    /// Admin creates a College by referencing the University by its public Code,
-    /// not by internal ULID. Controller resolves UniversityCode → UniversityId.
-    /// </summary>
     public record CreateCollegeDto(
         [Required] string Name,
         [Required] string Code,
-        [Required] string UniversityCode   // Admin input: public code, not internal ULID
+        [Required] string UniversityId     // ULID of the parent University
     );
 
     public record DepartmentDto(Ulid Id, string Name, string Code, Ulid CollegeId);
     public record CreateDepartmentDto(
         [Required] string Name,
         [Required] string Code,
-        [Required] string CollegeCode,     // Admin input: public code, not internal ULID
-        string? AcademicYearId = null      // Optional — if provided, links dept to this academic year
+        [Required] string CollegeId,       // ULID of the parent College
+        string? AcademicYearId = null
     );
 
     public record BatchDto(Ulid Id, string Name, string Code, Ulid DepartmentId);
     public record CreateBatchDto(
         [Required] string Name,
-        [Required] string Code,            // Missing before
-        [Required] string DepartmentCode   // Admin input: public code, not internal ULID
+        [Required] string Code,
+        [Required] string DepartmentId     // ULID of the parent Department
     );
 }
 

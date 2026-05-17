@@ -223,7 +223,7 @@ namespace UniversityManagementSystem.Core.DTOs
 
     public record CreateGroupDto(
         [Required] string Name,
-        [Required] string Code,           // Missing before
-        [Required] string BatchCode       // replaces BatchId
+        [Required] string Code,
+        [Required] string BatchId         // ULID of the parent Batch
     );
 }

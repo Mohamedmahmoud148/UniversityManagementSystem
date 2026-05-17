@@ -257,16 +257,12 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<CollegeDto>> Create(CreateCollegeDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.Code))
-                return BadRequest("College code is required.");
+            if (!Ulid.TryParse(dto.UniversityId, out var universityId))
+                return BadRequest("Invalid University ID.");
 
-            // ✅ FIX: Resolve UniversityCode → UniversityId internally
-            if (string.IsNullOrWhiteSpace(dto.UniversityCode))
-                return BadRequest("UniversityCode is required.");
-
-            var university = await _universityService.GetUniversityByCodeAsync(dto.UniversityCode);
+            var university = await _universityService.GetUniversityByIdAsync(universityId);
             if (university == null)
-                return NotFound($"University with code '{dto.UniversityCode}' not found.");
+                return NotFound($"University with ID '{dto.UniversityId}' not found.");
 
             var codeUpper = dto.Code.ToUpper();
             var existing = await _service.GetCollegeByCodeAsync(codeUpper);
@@ -289,11 +285,11 @@ namespace UniversityManagementSystem.Api.Controllers
 
             entity.Name = dto.Name;
 
-            if (!string.IsNullOrWhiteSpace(dto.UniversityCode))
+            if (!string.IsNullOrWhiteSpace(dto.UniversityId) && dto.UniversityId != entity.UniversityId.ToString())
             {
-                var university = await _universityService.GetUniversityByCodeAsync(dto.UniversityCode);
-                if (university == null)
-                    return NotFound($"University with code '{dto.UniversityCode}' not found.");
+                if (!Ulid.TryParse(dto.UniversityId, out var uId)) return BadRequest("Invalid University ID.");
+                var university = await _universityService.GetUniversityByIdAsync(uId);
+                if (university == null) return NotFound($"University with ID '{dto.UniversityId}' not found.");
                 entity.UniversityId = university.Id;
             }
 
@@ -364,12 +360,12 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<DepartmentDto>> Create(CreateDepartmentDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.CollegeCode))
-                return BadRequest("CollegeCode is required.");
+            if (!Ulid.TryParse(dto.CollegeId, out var collegeUlid))
+                return BadRequest("Invalid College ID.");
 
-            var college = await _collegeService.GetCollegeByCodeAsync(dto.CollegeCode);
+            var college = await _collegeService.GetCollegeByIdAsync(collegeUlid);
             if (college == null)
-                return NotFound($"College with code '{dto.CollegeCode}' not found.");
+                return NotFound($"College with ID '{dto.CollegeId}' not found.");
 
             var codeUpper = dto.Code.ToUpper();
             var existing = await _service.GetDepartmentByCodeAsync(codeUpper);
@@ -404,12 +400,12 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             if (!Ulid.TryParse(id, out var departmentId)) return BadRequest("Invalid Department ID.");
 
-            if (string.IsNullOrWhiteSpace(dto.CollegeCode))
-                return BadRequest("CollegeCode is required.");
+            if (!Ulid.TryParse(dto.CollegeId, out var collegeUlid))
+                return BadRequest("Invalid College ID.");
 
-            var college = await _collegeService.GetCollegeByCodeAsync(dto.CollegeCode);
+            var college = await _collegeService.GetCollegeByIdAsync(collegeUlid);
             if (college == null)
-                return NotFound($"College with code '{dto.CollegeCode}' not found.");
+                return NotFound($"College with ID '{dto.CollegeId}' not found.");
 
             var entity = await _service.GetDepartmentByIdAsync(departmentId);
             if (entity == null) return NotFound($"Department with ID '{id}' not found.");
@@ -484,12 +480,12 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<BatchDto>> Create(CreateBatchDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
-                return BadRequest("DepartmentCode is required.");
+            if (!Ulid.TryParse(dto.DepartmentId, out var departmentUlid))
+                return BadRequest("Invalid Department ID.");
 
-            var department = await _departmentService.GetDepartmentByCodeAsync(dto.DepartmentCode);
+            var department = await _departmentService.GetDepartmentByIdAsync(departmentUlid);
             if (department == null)
-                return NotFound($"Department with code '{dto.DepartmentCode}' not found.");
+                return NotFound($"Department with ID '{dto.DepartmentId}' not found.");
 
             var codeUpper = dto.Code.ToUpper();
             var existing = await _service.GetBatchByCodeAsync(codeUpper);
@@ -507,12 +503,12 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             if (!Ulid.TryParse(id, out var batchId)) return BadRequest("Invalid Batch ID.");
 
-            if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
-                return BadRequest("DepartmentCode is required.");
+            if (!Ulid.TryParse(dto.DepartmentId, out var deptUlid))
+                return BadRequest("Invalid Department ID.");
 
-            var department = await _departmentService.GetDepartmentByCodeAsync(dto.DepartmentCode);
+            var department = await _departmentService.GetDepartmentByIdAsync(deptUlid);
             if (department == null)
-                return NotFound($"Department with code '{dto.DepartmentCode}' not found.");
+                return NotFound($"Department with ID '{dto.DepartmentId}' not found.");
 
             var entity = await _service.GetBatchByIdAsync(batchId);
             if (entity == null) return NotFound($"Batch with ID '{id}' not found.");
@@ -588,12 +584,12 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<GroupDto>> Create(CreateGroupDto dto)
         {
-            if (string.IsNullOrWhiteSpace(dto.BatchCode))
-                return BadRequest("BatchCode is required.");
+            if (!Ulid.TryParse(dto.BatchId, out var batchUlid))
+                return BadRequest("Invalid Batch ID.");
 
-            var batch = await _batchService.GetBatchByCodeAsync(dto.BatchCode);
+            var batch = await _batchService.GetBatchByIdAsync(batchUlid);
             if (batch == null)
-                return NotFound($"Batch with code '{dto.BatchCode}' not found.");
+                return NotFound($"Batch with ID '{dto.BatchId}' not found.");
 
             var codeUpper = dto.Code.ToUpper();
             var existing = await _service.GetGroupByCodeAsync(codeUpper);
@@ -602,7 +598,6 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var entity = new Group { Name = dto.Name, Code = codeUpper, BatchId = batch.Id };
             var result = await _service.CreateGroupAsync(entity);
-            // ✅ FIX: GroupDto now includes Code field
             return Ok(new GroupDto(result.Id, result.Name, result.Code, result.BatchId));
         }
 
@@ -612,12 +607,12 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             if (!Ulid.TryParse(id, out var groupId)) return BadRequest("Invalid Group ID.");
 
-            if (string.IsNullOrWhiteSpace(dto.BatchCode))
-                return BadRequest("BatchCode is required.");
+            if (!Ulid.TryParse(dto.BatchId, out var batchUlid))
+                return BadRequest("Invalid Batch ID.");
 
-            var batch = await _batchService.GetBatchByCodeAsync(dto.BatchCode);
+            var batch = await _batchService.GetBatchByIdAsync(batchUlid);
             if (batch == null)
-                return NotFound($"Batch with code '{dto.BatchCode}' not found.");
+                return NotFound($"Batch with ID '{dto.BatchId}' not found.");
 
             var entity = await _service.GetGroupByIdAsync(groupId);
             if (entity == null) return NotFound($"Group with ID '{id}' not found.");
