@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NUlid;
 using UniversityManagementSystem.Core.Application.AI.Logging;
 using UniversityManagementSystem.Core.Entities;
+using UniversityManagementSystem.Core.Exceptions;
 
 namespace UniversityManagementSystem.Infrastructure.Data
 {
@@ -953,6 +954,195 @@ namespace UniversityManagementSystem.Infrastructure.Data
                     var submissions = await ExamSubmissions.IgnoreQueryFilters()
                         .Where(s => s.ExamId == exam.Id && s.DeletedAt == null).ToListAsync();
                     foreach (var s in submissions) s.DeletedAt = now;
+                    break;
+                }
+            }
+        }
+
+        // ── Hard Cascade Delete ──────────────────────────────────────────────
+        // Permanently removes the entity and all its academic children from the DB.
+        // BLOCKS with DomainException if any students, doctors, or TAs are still
+        // linked — they must be reassigned first.
+        // Uses ExecuteDeleteAsync which bypasses EF tracking and fires real SQL
+        // DELETE — completely independent of the soft-delete SaveChangesAsync hook.
+        public async Task HardCascadeDeleteAsync(BaseEntity entity)
+        {
+            await EnsureNoLinkedUsersAsync(entity);
+            await HardCascadeChildrenAsync(entity);
+
+            switch (entity)
+            {
+                case University u:
+                    await Universities.IgnoreQueryFilters().Where(x => x.Id == u.Id).ExecuteDeleteAsync();
+                    break;
+                case College c:
+                    await Colleges.IgnoreQueryFilters().Where(x => x.Id == c.Id).ExecuteDeleteAsync();
+                    break;
+                case Department d:
+                    await Departments.IgnoreQueryFilters().Where(x => x.Id == d.Id).ExecuteDeleteAsync();
+                    break;
+                case Batch b:
+                    await Batches.IgnoreQueryFilters().Where(x => x.Id == b.Id).ExecuteDeleteAsync();
+                    break;
+                case Group g:
+                    await Groups.IgnoreQueryFilters().Where(x => x.Id == g.Id).ExecuteDeleteAsync();
+                    break;
+                case SubjectOffering so:
+                    await SubjectOfferings.IgnoreQueryFilters().Where(x => x.Id == so.Id).ExecuteDeleteAsync();
+                    break;
+            }
+        }
+
+        // Throws DomainException if students/doctors/TAs reference this entity.
+        // Non-nullable FKs on Student mean we cannot null them out — user must
+        // reassign them before the structure can be deleted.
+        private async Task EnsureNoLinkedUsersAsync(BaseEntity entity)
+        {
+            switch (entity)
+            {
+                case Group group:
+                {
+                    var count = await Students.IgnoreQueryFilters()
+                        .CountAsync(s => s.GroupId == group.Id);
+                    if (count > 0)
+                        throw new DomainException(
+                            $"Cannot delete Group: {count} student(s) are assigned to it. Reassign them first.");
+                    break;
+                }
+                case Batch batch:
+                {
+                    var count = await Students.IgnoreQueryFilters()
+                        .CountAsync(s => s.BatchId == batch.Id);
+                    if (count > 0)
+                        throw new DomainException(
+                            $"Cannot delete Batch: {count} student(s) belong to it. Reassign them first.");
+                    break;
+                }
+                case Department dept:
+                {
+                    var students = await Students.IgnoreQueryFilters().CountAsync(s => s.DepartmentId == dept.Id);
+                    var doctors  = await Doctors.IgnoreQueryFilters().CountAsync(d => d.DepartmentId == dept.Id);
+                    var tas      = await TeachingAssistants.IgnoreQueryFilters().CountAsync(t => t.DepartmentId == dept.Id);
+                    if (students + doctors + tas > 0)
+                        throw new DomainException(
+                            $"Cannot delete Department: {students} student(s), {doctors} doctor(s), {tas} TA(s) are linked. Reassign them first.");
+                    break;
+                }
+                case College college:
+                {
+                    var depts = await Departments.IgnoreQueryFilters()
+                        .Where(d => d.CollegeId == college.Id).ToListAsync();
+                    foreach (var d in depts) await EnsureNoLinkedUsersAsync(d);
+                    break;
+                }
+                case University u:
+                {
+                    var colleges = await Colleges.IgnoreQueryFilters()
+                        .Where(c => c.UniversityId == u.Id).ToListAsync();
+                    foreach (var c in colleges) await EnsureNoLinkedUsersAsync(c);
+                    break;
+                }
+            }
+        }
+
+        // Deletes all academic children bottom-up before the parent is removed.
+        // Order matters — children with Restrict FKs must go before their parents.
+        private async Task HardCascadeChildrenAsync(BaseEntity entity)
+        {
+            switch (entity)
+            {
+                case University u:
+                {
+                    var colleges = await Colleges.IgnoreQueryFilters()
+                        .Where(c => c.UniversityId == u.Id).ToListAsync();
+                    foreach (var c in colleges) await HardCascadeChildrenAsync(c);
+                    await Colleges.IgnoreQueryFilters()
+                        .Where(c => c.UniversityId == u.Id).ExecuteDeleteAsync();
+                    break;
+                }
+                case College college:
+                {
+                    var depts = await Departments.IgnoreQueryFilters()
+                        .Where(d => d.CollegeId == college.Id).ToListAsync();
+                    foreach (var d in depts) await HardCascadeChildrenAsync(d);
+                    await Departments.IgnoreQueryFilters()
+                        .Where(d => d.CollegeId == college.Id).ExecuteDeleteAsync();
+                    break;
+                }
+                case Department dept:
+                {
+                    // Junction table (no soft-delete, no IgnoreQueryFilters needed)
+                    await AcademicYearDepartments
+                        .Where(m => m.DepartmentId == dept.Id).ExecuteDeleteAsync();
+
+                    // Regulations: delete subjects first, then the regulation itself
+                    var regIds = await Regulations.IgnoreQueryFilters()
+                        .Where(r => r.DepartmentId == dept.Id).Select(r => r.Id).ToListAsync();
+                    if (regIds.Count > 0)
+                    {
+                        await RegulationSubjects.IgnoreQueryFilters()
+                            .Where(rs => regIds.Contains(rs.RegulationId)).ExecuteDeleteAsync();
+                        await Regulations.IgnoreQueryFilters()
+                            .Where(r => r.DepartmentId == dept.Id).ExecuteDeleteAsync();
+                    }
+
+                    var batches = await Batches.IgnoreQueryFilters()
+                        .Where(b => b.DepartmentId == dept.Id).ToListAsync();
+                    foreach (var b in batches) await HardCascadeChildrenAsync(b);
+                    await Batches.IgnoreQueryFilters()
+                        .Where(b => b.DepartmentId == dept.Id).ExecuteDeleteAsync();
+                    break;
+                }
+                case Batch batch:
+                {
+                    var groups = await Groups.IgnoreQueryFilters()
+                        .Where(g => g.BatchId == batch.Id).ToListAsync();
+                    foreach (var g in groups) await HardCascadeChildrenAsync(g);
+                    await Groups.IgnoreQueryFilters()
+                        .Where(g => g.BatchId == batch.Id).ExecuteDeleteAsync();
+
+                    // Batch-level offerings (GroupId IS NULL) — group-level ones
+                    // were already deleted by the group cascade above.
+                    var offerings = await SubjectOfferings.IgnoreQueryFilters()
+                        .Where(so => so.BatchId == batch.Id && so.GroupId == null).ToListAsync();
+                    foreach (var so in offerings) await HardCascadeChildrenAsync(so);
+                    await SubjectOfferings.IgnoreQueryFilters()
+                        .Where(so => so.BatchId == batch.Id && so.GroupId == null).ExecuteDeleteAsync();
+                    break;
+                }
+                case Group group:
+                {
+                    var offerings = await SubjectOfferings.IgnoreQueryFilters()
+                        .Where(so => so.GroupId == group.Id).ToListAsync();
+                    foreach (var so in offerings) await HardCascadeChildrenAsync(so);
+                    await SubjectOfferings.IgnoreQueryFilters()
+                        .Where(so => so.GroupId == group.Id).ExecuteDeleteAsync();
+                    break;
+                }
+                case SubjectOffering offering:
+                {
+                    // ExamSubmissions have Restrict FK → must delete before Exams
+                    var examIds = await Exams.IgnoreQueryFilters()
+                        .Where(e => e.SubjectOfferingId == offering.Id)
+                        .Select(e => e.Id).ToListAsync();
+                    if (examIds.Count > 0)
+                    {
+                        await ExamSubmissions.IgnoreQueryFilters()
+                            .Where(s => examIds.Contains(s.ExamId)).ExecuteDeleteAsync();
+                        // DB CASCADE removes ExamQuestions + StudentExamVariants automatically
+                        await Exams.IgnoreQueryFilters()
+                            .Where(e => e.SubjectOfferingId == offering.Id).ExecuteDeleteAsync();
+                    }
+
+                    await Enrollments.IgnoreQueryFilters()
+                        .Where(e => e.SubjectOfferingId == offering.Id).ExecuteDeleteAsync();
+                    await Materials.IgnoreQueryFilters()
+                        .Where(m => m.SubjectOfferingId == offering.Id).ExecuteDeleteAsync();
+                    await StudentGrades.IgnoreQueryFilters()
+                        .Where(g => g.SubjectOfferingId == offering.Id).ExecuteDeleteAsync();
+                    await UploadedFiles.IgnoreQueryFilters()
+                        .Where(f => f.SubjectOfferingId == offering.Id).ExecuteDeleteAsync();
+                    // DB CASCADE removes ScheduleEntries automatically when SubjectOffering is deleted
                     break;
                 }
             }

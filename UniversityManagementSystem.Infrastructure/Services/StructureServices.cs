@@ -27,7 +27,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task DeleteUniversityAsync(Ulid id)
         {
             var entity = await _repo.GetByIdAsync(id);
-            if (entity != null) await _db.CascadeDeleteAsync(entity);
+            if (entity != null) await _db.HardCascadeDeleteAsync(entity);
         }
     }
 
@@ -58,7 +58,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task DeleteCollegeAsync(Ulid id)
         {
             var entity = await _repo.GetByIdAsync(id);
-            if (entity != null) await _db.CascadeDeleteAsync(entity);
+            if (entity != null) await _db.HardCascadeDeleteAsync(entity);
         }
     }
 
@@ -88,7 +88,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task DeleteDepartmentAsync(Ulid id)
         {
             var entity = await _repo.GetByIdAsync(id);
-            if (entity != null) await _db.CascadeDeleteAsync(entity);
+            if (entity != null) await _db.HardCascadeDeleteAsync(entity);
         }
     }
 
@@ -112,7 +112,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task DeleteBatchAsync(Ulid id)
         {
             var entity = await _repo.GetByIdAsync(id);
-            if (entity != null) await _db.CascadeDeleteAsync(entity);
+            if (entity != null) await _db.HardCascadeDeleteAsync(entity);
         }
     }
 
@@ -136,7 +136,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task DeleteGroupAsync(Ulid id)
         {
             var entity = await _repo.GetByIdAsync(id);
-            if (entity != null) await _db.CascadeDeleteAsync(entity);
+            if (entity != null) await _db.HardCascadeDeleteAsync(entity);
         }
     }
 }
