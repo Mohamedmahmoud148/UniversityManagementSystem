@@ -2,14 +2,15 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Infrastructure.Data;
 using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class UniversityService(IGenericRepository<University> repo, IGenericRepository<College> collegeRepo) : IUniversityService
+    public class UniversityService(IGenericRepository<University> repo, AppDbContext db) : IUniversityService
     {
         private readonly IGenericRepository<University> _repo = repo;
-        private readonly IGenericRepository<College> _collegeRepo = collegeRepo;
+        private readonly AppDbContext _db = db;
 
         public async Task<IReadOnlyList<University>> GetAllUniversitiesAsync() => await _repo.GetAllAsync();
         public async Task<University?> GetUniversityByIdAsync(Ulid id) => await _repo.GetByIdAsync(id);
@@ -25,19 +26,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task UpdateUniversityAsync(University university) => await _repo.UpdateAsync(university);
         public async Task DeleteUniversityAsync(Ulid id)
         {
-            var hasChildren = (await _collegeRepo.GetAsync(c => c.UniversityId == id)).Any();
-            if (hasChildren) throw new InvalidOperationException("Cannot delete University with associated Colleges.");
-
             var entity = await _repo.GetByIdAsync(id);
-            if (entity != null) await _repo.DeleteAsync(entity);
+            if (entity != null) await _db.CascadeDeleteAsync(entity);
         }
     }
 
-    public class CollegeService(IGenericRepository<College> repo, IGenericRepository<Department> deptRepo, ISmartStringGenerator smartString) : ICollegeService
+    public class CollegeService(IGenericRepository<College> repo, ISmartStringGenerator smartString, AppDbContext db) : ICollegeService
     {
         private readonly IGenericRepository<College> _repo = repo;
-        private readonly IGenericRepository<Department> _deptRepo = deptRepo;
         private readonly ISmartStringGenerator _smartString = smartString;
+        private readonly AppDbContext _db = db;
 
         public async Task<IReadOnlyList<College>> GetAllCollegesAsync() => await _repo.GetAllAsync();
         public async Task<IReadOnlyList<College>> GetCollegesByUniversityIdAsync(Ulid universityId)
@@ -59,19 +57,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task UpdateCollegeAsync(College college) => await _repo.UpdateAsync(college);
         public async Task DeleteCollegeAsync(Ulid id)
         {
-            var hasChildren = (await _deptRepo.GetAsync(d => d.CollegeId == id)).Any();
-            if (hasChildren) throw new InvalidOperationException("Cannot delete College with associated Departments.");
-
             var entity = await _repo.GetByIdAsync(id);
-            if (entity != null) await _repo.DeleteAsync(entity);
+            if (entity != null) await _db.CascadeDeleteAsync(entity);
         }
     }
 
-    public class DepartmentService(IGenericRepository<Department> repo, IGenericRepository<Batch> batchRepo, ISmartStringGenerator smartString) : IDepartmentService
+    public class DepartmentService(IGenericRepository<Department> repo, ISmartStringGenerator smartString, AppDbContext db) : IDepartmentService
     {
         private readonly IGenericRepository<Department> _repo = repo;
-        private readonly IGenericRepository<Batch> _batchRepo = batchRepo;
         private readonly ISmartStringGenerator _smartString = smartString;
+        private readonly AppDbContext _db = db;
 
         public async Task<IReadOnlyList<Department>> GetDepartmentsByCollegeIdAsync(Ulid collegeId)
             => await _repo.GetAsync(d => d.CollegeId == collegeId);
@@ -92,18 +87,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task UpdateDepartmentAsync(Department department) => await _repo.UpdateAsync(department);
         public async Task DeleteDepartmentAsync(Ulid id)
         {
-            var hasChildren = (await _batchRepo.GetAsync(b => b.DepartmentId == id)).Any();
-            if (hasChildren) throw new InvalidOperationException("Cannot delete Department with associated Batches.");
-
             var entity = await _repo.GetByIdAsync(id);
-            if (entity != null) await _repo.DeleteAsync(entity);
+            if (entity != null) await _db.CascadeDeleteAsync(entity);
         }
     }
 
-    public class BatchService(IGenericRepository<Batch> repo, IGenericRepository<Group> groupRepo) : IBatchService
+    public class BatchService(IGenericRepository<Batch> repo, AppDbContext db) : IBatchService
     {
         private readonly IGenericRepository<Batch> _repo = repo;
-        private readonly IGenericRepository<Group> _groupRepo = groupRepo;
+        private readonly AppDbContext _db = db;
 
         public async Task<IReadOnlyList<Batch>> GetBatchesByDepartmentIdAsync(Ulid departmentId)
             => await _repo.GetAsync(b => b.DepartmentId == departmentId);
@@ -119,18 +111,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task UpdateBatchAsync(Batch batch) => await _repo.UpdateAsync(batch);
         public async Task DeleteBatchAsync(Ulid id)
         {
-            var hasChildren = (await _groupRepo.GetAsync(g => g.BatchId == id)).Any();
-            if (hasChildren) throw new InvalidOperationException("Cannot delete Batch with associated Groups.");
-
             var entity = await _repo.GetByIdAsync(id);
-            if (entity != null) await _repo.DeleteAsync(entity);
+            if (entity != null) await _db.CascadeDeleteAsync(entity);
         }
     }
 
-    public class GroupService(IGenericRepository<Group> repo, IGenericRepository<Student> studentRepo) : IGroupService
+    public class GroupService(IGenericRepository<Group> repo, AppDbContext db) : IGroupService
     {
         private readonly IGenericRepository<Group> _repo = repo;
-        private readonly IGenericRepository<Student> _studentRepo = studentRepo;
+        private readonly AppDbContext _db = db;
 
         public async Task<IReadOnlyList<Group>> GetGroupsByBatchIdAsync(Ulid batchId)
             => await _repo.GetAsync(g => g.BatchId == batchId);
@@ -146,11 +135,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task UpdateGroupAsync(Group group) => await _repo.UpdateAsync(group);
         public async Task DeleteGroupAsync(Ulid id)
         {
-            var hasChildren = (await _studentRepo.GetAsync(s => s.GroupId == id)).Any();
-            if (hasChildren) throw new InvalidOperationException("Cannot delete Group with associated Students.");
-
             var entity = await _repo.GetByIdAsync(id);
-            if (entity != null) await _repo.DeleteAsync(entity);
+            if (entity != null) await _db.CascadeDeleteAsync(entity);
         }
     }
 }

@@ -865,5 +865,110 @@ namespace UniversityManagementSystem.Infrastructure.Data
 
             return base.SaveChangesAsync(cancellationToken);
         }
+
+        // ── Cascade Soft Delete ──────────────────────────────────────────────
+        // Recursively soft-deletes all children of the given entity before
+        // soft-deleting the entity itself. Bypasses query filters so that
+        // already-soft-deleted children are not double-processed.
+        public async Task CascadeDeleteAsync(BaseEntity entity)
+        {
+            var now = DateTime.UtcNow;
+            await CascadeChildrenAsync(entity, now);
+            entity.DeletedAt = now;
+            Entry(entity).State = EntityState.Modified;
+            await SaveChangesAsync();
+        }
+
+        private async Task CascadeChildrenAsync(BaseEntity entity, DateTime now)
+        {
+            switch (entity)
+            {
+                case University u:
+                {
+                    var children = await Colleges.IgnoreQueryFilters()
+                        .Where(c => c.UniversityId == u.Id && c.DeletedAt == null).ToListAsync();
+                    foreach (var child in children) { await CascadeChildrenAsync(child, now); child.DeletedAt = now; }
+                    break;
+                }
+                case College c:
+                {
+                    var children = await Departments.IgnoreQueryFilters()
+                        .Where(d => d.CollegeId == c.Id && d.DeletedAt == null).ToListAsync();
+                    foreach (var child in children) { await CascadeChildrenAsync(child, now); child.DeletedAt = now; }
+                    break;
+                }
+                case Department dept:
+                {
+                    var batches = await Batches.IgnoreQueryFilters()
+                        .Where(b => b.DepartmentId == dept.Id && b.DeletedAt == null).ToListAsync();
+                    foreach (var b in batches) { await CascadeChildrenAsync(b, now); b.DeletedAt = now; }
+
+                    var doctors = await Doctors.IgnoreQueryFilters()
+                        .Where(d => d.DepartmentId == dept.Id && d.DeletedAt == null).ToListAsync();
+                    foreach (var d in doctors) d.DeletedAt = now;
+
+                    var tas = await TeachingAssistants.IgnoreQueryFilters()
+                        .Where(ta => ta.DepartmentId == dept.Id && ta.DeletedAt == null).ToListAsync();
+                    foreach (var ta in tas) ta.DeletedAt = now;
+                    break;
+                }
+                case Batch batch:
+                {
+                    var groups = await Groups.IgnoreQueryFilters()
+                        .Where(g => g.BatchId == batch.Id && g.DeletedAt == null).ToListAsync();
+                    foreach (var g in groups) { await CascadeChildrenAsync(g, now); g.DeletedAt = now; }
+
+                    var students = await Students.IgnoreQueryFilters()
+                        .Where(s => s.BatchId == batch.Id && s.DeletedAt == null).ToListAsync();
+                    foreach (var s in students) s.DeletedAt = now;
+
+                    var offerings = await SubjectOfferings.IgnoreQueryFilters()
+                        .Where(so => so.BatchId == batch.Id && so.DeletedAt == null).ToListAsync();
+                    foreach (var so in offerings) { await CascadeChildrenAsync(so, now); so.DeletedAt = now; }
+                    break;
+                }
+                case Group group:
+                {
+                    var students = await Students.IgnoreQueryFilters()
+                        .Where(s => s.GroupId == group.Id && s.DeletedAt == null).ToListAsync();
+                    foreach (var s in students) s.DeletedAt = now;
+
+                    var offerings = await SubjectOfferings.IgnoreQueryFilters()
+                        .Where(so => so.GroupId == group.Id && so.DeletedAt == null).ToListAsync();
+                    foreach (var so in offerings) { await CascadeChildrenAsync(so, now); so.DeletedAt = now; }
+                    break;
+                }
+                case SubjectOffering offering:
+                {
+                    var enrollments = await Enrollments.IgnoreQueryFilters()
+                        .Where(e => e.SubjectOfferingId == offering.Id && e.DeletedAt == null).ToListAsync();
+                    foreach (var e in enrollments) e.DeletedAt = now;
+
+                    var materials = await Materials.IgnoreQueryFilters()
+                        .Where(m => m.SubjectOfferingId == offering.Id && m.DeletedAt == null).ToListAsync();
+                    foreach (var m in materials) m.DeletedAt = now;
+
+                    var grades = await StudentGrades.IgnoreQueryFilters()
+                        .Where(g => g.SubjectOfferingId == offering.Id && g.DeletedAt == null).ToListAsync();
+                    foreach (var g in grades) g.DeletedAt = now;
+
+                    var files = await UploadedFiles.IgnoreQueryFilters()
+                        .Where(f => f.SubjectOfferingId == offering.Id && f.DeletedAt == null).ToListAsync();
+                    foreach (var f in files) f.DeletedAt = now;
+
+                    var exams = await Exams.IgnoreQueryFilters()
+                        .Where(e => e.SubjectOfferingId == offering.Id && e.DeletedAt == null).ToListAsync();
+                    foreach (var e in exams) { await CascadeChildrenAsync(e, now); e.DeletedAt = now; }
+                    break;
+                }
+                case Exam exam:
+                {
+                    var submissions = await ExamSubmissions.IgnoreQueryFilters()
+                        .Where(s => s.ExamId == exam.Id && s.DeletedAt == null).ToListAsync();
+                    foreach (var s in submissions) s.DeletedAt = now;
+                    break;
+                }
+            }
+        }
     }
 }
