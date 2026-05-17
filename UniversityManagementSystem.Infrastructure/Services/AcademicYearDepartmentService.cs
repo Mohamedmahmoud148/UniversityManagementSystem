@@ -28,6 +28,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             YearName       = m.AcademicYear?.Name ?? string.Empty,
             DepartmentId   = m.DepartmentId,
             DepartmentName = m.Department?.Name ?? string.Empty,
+            DepartmentCode = m.Department?.Code ?? string.Empty,
             IsActive       = m.IsActive
         };
 
