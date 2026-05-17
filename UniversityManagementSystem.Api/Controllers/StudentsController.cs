@@ -75,7 +75,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Example: GET /api/students/filter?departmentId=X&batchId=Y&page=1&size=25
         /// </summary>
         [HttpGet("filter")]
-        [Authorize(Roles = "Admin,Doctor,TeachingAssistant")]
+        [Authorize(Roles = "Admin,Doctor,TeachingAssistant,SuperAdmin")]
         public async Task<IActionResult> Filter([FromQuery] StudentFilterDto f)
         {
             var page = Math.Max(1, f.Page);
@@ -206,7 +206,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Example: send only { "isActive": false } to deactivate without touching other fields.
         /// </summary>
         [HttpPatch("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Patch(string id, [FromBody] PatchStudentDto dto)
         {
             if (!Ulid.TryParse(id, out var studentId))
@@ -243,7 +243,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── GET /api/students/by-batch/{batchId} ─────────────────────────────
         [HttpGet("by-batch/{batchId}")]
-        [Authorize(Roles = "Admin,Doctor,TeachingAssistant")]
+        [Authorize(Roles = "Admin,Doctor,TeachingAssistant,SuperAdmin")]
         public async Task<ActionResult<IEnumerable<StudentDto>>> GetByBatch(Ulid batchId)
         {
             var list = await _studentService.GetStudentsByBatchIdAsync(batchId);
@@ -266,7 +266,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── POST /api/students ───────────────────────────────────────────────
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<StudentDto>> Create(CreateStudentDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.BatchCode))
@@ -319,7 +319,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── PUT /api/students/{code} ─────────────────────────────────────────
         [HttpPut("{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Update(string code, UpdateStudentDto dto)
         {
             var entity = await _studentService.GetStudentByCodeAsync(code);
@@ -334,7 +334,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── DELETE /api/students/{code} ──────────────────────────────────────
         [HttpDelete("{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string code)
         {
             var entity = await _studentService.GetStudentByCodeAsync(code);
@@ -354,7 +354,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Paginated: ?page=1&size=20
         /// </summary>
         [HttpGet("by-offering/{offeringId}")]
-        [Authorize(Roles = "Admin,Doctor")]
+        [Authorize(Roles = "Admin,Doctor,SuperAdmin")]
         public async Task<IActionResult> GetByOffering(
             string offeringId,
             [FromQuery] int page = 1,
@@ -479,7 +479,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("bulk-upload-direct")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> BulkUploadDirect(IFormFile file, [FromServices] IFileService fileService, [FromServices] IBackgroundJobClient jobClient)
         {
@@ -492,7 +492,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("bulk-upload-ai")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> BulkUploadAi(IFormFile file, [FromServices] IFileService fileService, [FromServices] IBackgroundJobClient jobClient)
         {
@@ -505,7 +505,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("import-excel")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> ImportFromExcel(IFormFile file)
         {

@@ -33,7 +33,7 @@ public class AiController(AppDbContext context, IAiService aiService, IStudentFi
     /// Sends extracted text if available; otherwise sends signed URL to AI.
     /// </summary>
     [HttpPost("summarize")]
-    [Authorize(Roles = "Student")]
+    [Authorize(Roles = "Student,SuperAdmin")]
     public async Task<IActionResult> Summarize([FromBody] SummarizeRequestDto dto)
     {
         var studentId = ResolveStudentId();
@@ -73,7 +73,7 @@ public class AiController(AppDbContext context, IAiService aiService, IStudentFi
     /// Ask a question about a student file. Student role only.
     /// </summary>
     [HttpPost("ask")]
-    [Authorize(Roles = "Student")]
+    [Authorize(Roles = "Student,SuperAdmin")]
     public async Task<IActionResult> Ask([FromBody] AskRequestDto dto)
     {
         var studentId = ResolveStudentId();

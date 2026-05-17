@@ -22,7 +22,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> CreateComplaint([FromBody] CreateComplaintDto dto)
         {
             var userId = _userContext.GetUserId();
@@ -31,7 +31,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("my-complaints")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> GetMyComplaints([FromQuery] GetComplaintsQueryDto query)
         {
             var userId = _userContext.GetUserId();
@@ -40,7 +40,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("my-reports")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> GetDoctorReports([FromQuery] GetComplaintsQueryDto query)
         {
             var userId = _userContext.GetUserId();
@@ -66,7 +66,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("doctor-options")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> GetDoctorOptions()
         {
             var studentId = _userContext.GetProfileId();

@@ -53,7 +53,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Optionally scope to a specific offering via offeringId query param.
         /// </summary>
         [HttpPost("send-to-my-students")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> SendToMyStudents(
             [FromBody] SendToStudentsDto dto,
             [FromQuery] string? offeringId = null)

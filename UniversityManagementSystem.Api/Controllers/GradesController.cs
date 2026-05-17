@@ -14,7 +14,7 @@ namespace UniversityManagementSystem.Api.Controllers
     public class GradesController(IGradeService gradeService, IExcelImportService excelImportService, IFileService fileService, IUserContextService userContextService) : ControllerBase
     {
         [HttpPost("import/{offeringId}")]
-        [Authorize(Roles = "Doctor,Admin")]
+        [Authorize(Roles = "Doctor,Admin,SuperAdmin")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> ImportGrades(string offeringId, IFormFile file)
         {
@@ -41,7 +41,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("calculate/{offeringId}")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> CalculateGrades(string offeringId)
         {
             if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
@@ -63,7 +63,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<UniversityManagementSystem.Core.DTOs.GradeDto>> UpdateGrade(string id, UniversityManagementSystem.Core.DTOs.UpdateGradeDto dto)
         {
             if (!Ulid.TryParse(id, out var gradeId)) return BadRequest("Invalid Grade ID.");

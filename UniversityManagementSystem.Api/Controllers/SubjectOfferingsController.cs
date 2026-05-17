@@ -33,7 +33,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Create([FromBody] CreateSubjectOfferingDto dto)
         {
             var result = await _service.CreateAsync(dto);
@@ -41,7 +41,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("by-semester/{semesterId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> GetBySemester(string semesterId)
         {
             if (!Ulid.TryParse(semesterId, out var uid)) return BadRequest("Invalid Semester ID.");
@@ -50,7 +50,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("my-offerings")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> GetMyOfferings()
         {
             var claim = User.Claims.FirstOrDefault(c => c.Type == "nameid");
@@ -66,7 +66,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Optional: ?batchId=&semesterId=&page=1&size=20
         /// </summary>
         [HttpGet("by-department/{departmentId}")]
-        [Authorize(Roles = "Admin,Doctor")]
+        [Authorize(Roles = "Admin,Doctor,SuperAdmin")]
         public async Task<IActionResult> GetByDepartment(
             string departmentId,
             [FromQuery] string? batchId    = null,
@@ -125,7 +125,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Doctor role: only their own offerings. Admin: any doctor.
         /// </summary>
         [HttpGet("by-doctor/{doctorId}")]
-        [Authorize(Roles = "Admin,Doctor")]
+        [Authorize(Roles = "Admin,Doctor,SuperAdmin")]
         public async Task<IActionResult> GetByDoctor(
             string doctorId,
             [FromQuery] string? semesterId = null,
@@ -192,7 +192,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Optional: ?departmentId=&semesterId=&page=1&size=20
         /// </summary>
         [HttpGet("by-batch/{batchId}")]
-        [Authorize(Roles = "Admin,Doctor")]
+        [Authorize(Roles = "Admin,Doctor,SuperAdmin")]
         public async Task<IActionResult> GetByBatch(
             string batchId,
             [FromQuery] string? departmentId = null,
@@ -246,7 +246,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Update(string id, [FromBody] UpdateSubjectOfferingDto dto)
         {
             if (!Ulid.TryParse(id, out var offeringId))
@@ -278,7 +278,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!Ulid.TryParse(id, out var offeringId))
@@ -299,7 +299,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("my-enrollments")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> GetMyEnrollments()
         {
             var profileIdClaim = User.FindFirst("ProfileId");

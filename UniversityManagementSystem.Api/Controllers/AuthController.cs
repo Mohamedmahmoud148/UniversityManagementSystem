@@ -68,7 +68,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("register/student")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<AuthResponseDto>> RegisterStudent(RegisterStudentDto dto)
         {
             var creatorId = _userContext.GetUserId();
@@ -77,7 +77,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("register/doctor")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<AuthResponseDto>> RegisterDoctor(RegisterDoctorDto dto)
         {
             var creatorId = _userContext.GetUserId();

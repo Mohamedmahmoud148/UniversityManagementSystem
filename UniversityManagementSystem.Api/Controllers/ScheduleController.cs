@@ -67,7 +67,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Accessible by: Admin, Doctor, Student
         /// </summary>
         [HttpGet("batch/{batchId}")]
-        [Authorize(Roles = "Admin,Doctor,Student")]
+        [Authorize(Roles = "Admin,Doctor,Student,SuperAdmin")]
         public async Task<IActionResult> GetByBatch(string batchId)
         {
             if (!Ulid.TryParse(batchId, out var uid)) return BadRequest("Invalid Batch ID.");
@@ -84,7 +84,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Accessible by: Admin, Doctor, Student
         /// </summary>
         [HttpGet("batch/{batchId}/today")]
-        [Authorize(Roles = "Admin,Doctor,Student")]
+        [Authorize(Roles = "Admin,Doctor,Student,SuperAdmin")]
         public async Task<IActionResult> GetToday(string batchId)
         {
             if (!Ulid.TryParse(batchId, out var uid)) return BadRequest("Invalid Batch ID.");
@@ -101,7 +101,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Accessible by: Admin, Doctor, Student
         /// </summary>
         [HttpGet("batch/{batchId}/day/{day:int}")]
-        [Authorize(Roles = "Admin,Doctor,Student")]
+        [Authorize(Roles = "Admin,Doctor,Student,SuperAdmin")]
         public async Task<IActionResult> GetByDay(string batchId, int day)
         {
             if (!Ulid.TryParse(batchId, out var uid)) return BadRequest("Invalid Batch ID.");
@@ -117,7 +117,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// GET /api/schedule/offering/{offeringId}
         /// </summary>
         [HttpGet("offering/{offeringId}")]
-        [Authorize(Roles = "Admin,Doctor,Student")]
+        [Authorize(Roles = "Admin,Doctor,Student,SuperAdmin")]
         public async Task<IActionResult> GetByOffering(string offeringId)
         {
             if (!Ulid.TryParse(offeringId, out var uid)) return BadRequest("Invalid Offering ID.");
@@ -133,7 +133,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Accessible by: Doctor only
         /// </summary>
         [HttpGet("my-schedule")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> GetMySchedule()
         {
             var profileClaim = User.FindFirst("ProfileId");
@@ -152,7 +152,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Accessible by: Doctor only
         /// </summary>
         [HttpGet("my-today")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> GetMyToday()
         {
             var profileClaim = User.FindFirst("ProfileId");

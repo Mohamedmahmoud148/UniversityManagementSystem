@@ -13,7 +13,7 @@ namespace UniversityManagementSystem.Api.Controllers
     public class GpaController(IGradeService gradeService) : ControllerBase
     {
         [HttpGet("my-gpa")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<ActionResult<StudentGpaDto>> GetMyGpa()
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
@@ -25,7 +25,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("student/{studentId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<StudentGpaDto>> GetStudentGpa(string studentId)
         {
             if (!Ulid.TryParse(studentId, out var uid)) return BadRequest("Invalid Student ID.");

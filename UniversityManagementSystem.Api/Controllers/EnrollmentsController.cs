@@ -24,7 +24,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Designed for AI orchestration — one call handles everything.
         /// </summary>
         [HttpPost("auto-enroll")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> AutoEnroll()
         {
             var profileIdClaim = User.FindFirst("ProfileId");
@@ -42,7 +42,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("{offeringId}")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> Enroll(string offeringId)
         {
             if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
@@ -58,7 +58,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("my-enrollments")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> GetMyEnrollments()
         {
             var profileIdClaim = User.FindFirst("ProfileId");
@@ -86,7 +86,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("by-offering/{offeringId}")]
-        [Authorize(Roles = "Doctor,Admin")]
+        [Authorize(Roles = "Doctor,Admin,SuperAdmin")]
         public async Task<IActionResult> GetByOffering(string offeringId)
         {
             if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
@@ -111,7 +111,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!Ulid.TryParse(id, out var enrollmentId)) return BadRequest("Invalid Enrollment ID.");

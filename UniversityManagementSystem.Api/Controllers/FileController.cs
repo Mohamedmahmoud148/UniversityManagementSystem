@@ -62,7 +62,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPut("{id}/rename")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> RenameFile(string id, [FromBody] RenameFileDto dto)
         {
             if (!NUlid.Ulid.TryParse(id, out var uid)) return BadRequest("Invalid file ID.");
@@ -71,7 +71,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> DeleteFile(string id)
         {
             if (!NUlid.Ulid.TryParse(id, out var uid)) return BadRequest("Invalid file ID.");

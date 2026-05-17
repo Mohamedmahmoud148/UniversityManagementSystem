@@ -37,7 +37,7 @@ namespace UniversityManagementSystem.Api.Controllers
     // University Controller
     // ─────────────────────────────────────────────────────────
 
-    [Authorize(Roles = "Admin,Student,Doctor")]
+    [Authorize(Roles = "Admin,Student,Doctor,SuperAdmin")]
     [ApiController]
     [Route("api/[controller]")]
     public class UniversityController : ControllerBase
@@ -74,7 +74,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<UniversityDto>> Create(CreateUniversityDto dto)
         {
             var codeUpper = dto.Code.ToUpper();
@@ -89,7 +89,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── LEGACY (keep for backward compat): PUT/DELETE by internal ULID ────
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> UpdateById(string id, CreateUniversityDto dto)
         {
@@ -102,7 +102,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> DeleteById(string id)
         {
@@ -117,7 +117,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route.
         /// </summary>
         [HttpPut("by-code/{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> UpdateByCode(string code, CreateUniversityDto dto)
         {
             var entity = await _service.GetUniversityByCodeAsync(code);
@@ -143,7 +143,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route.
         /// </summary>
         [HttpDelete("by-code/{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> DeleteByCode(string code)
         {
             var entity = await _service.GetUniversityByCodeAsync(code);
@@ -218,7 +218,7 @@ namespace UniversityManagementSystem.Api.Controllers
     // Colleges Controller
     // ─────────────────────────────────────────────────────────
 
-    [Authorize(Roles = "Admin,Student,Doctor")]
+    [Authorize(Roles = "Admin,Student,Doctor,SuperAdmin")]
     [ApiController]
     [Route("api/[controller]")]
     public class CollegesController(ICollegeService service, IUniversityService universityService, AppDbContext context) : ControllerBase
@@ -254,7 +254,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<CollegeDto>> Create(CreateCollegeDto dto)
         {
             if (!Ulid.TryParse(dto.UniversityId, out var universityId))
@@ -275,7 +275,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Update(string id, CreateCollegeDto dto)
         {
             if (!Ulid.TryParse(id, out var collegeId)) return BadRequest("Invalid College ID.");
@@ -306,7 +306,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!Ulid.TryParse(id, out var collegeId)) return BadRequest("Invalid College ID.");
@@ -321,7 +321,7 @@ namespace UniversityManagementSystem.Api.Controllers
     // Departments Controller
     // ─────────────────────────────────────────────────────────
 
-    [Authorize(Roles = "Admin,Student,Doctor")]
+    [Authorize(Roles = "Admin,Student,Doctor,SuperAdmin")]
     [ApiController]
     [Route("api/[controller]")]
     public class DepartmentsController(IDepartmentService service, ICollegeService collegeService, AppDbContext context) : ControllerBase
@@ -357,7 +357,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<DepartmentDto>> Create(CreateDepartmentDto dto)
         {
             if (!Ulid.TryParse(dto.CollegeId, out var collegeUlid))
@@ -395,7 +395,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Update(string id, CreateDepartmentDto dto)
         {
             if (!Ulid.TryParse(id, out var departmentId)) return BadRequest("Invalid Department ID.");
@@ -425,7 +425,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!Ulid.TryParse(id, out var departmentId)) return BadRequest("Invalid Department ID.");
@@ -441,7 +441,7 @@ namespace UniversityManagementSystem.Api.Controllers
     // Batches Controller
     // ─────────────────────────────────────────────────────────
 
-    [Authorize(Roles = "Admin,Student,Doctor")]
+    [Authorize(Roles = "Admin,Student,Doctor,SuperAdmin")]
     [ApiController]
     [Route("api/[controller]")]
     public class BatchesController(IBatchService service, IDepartmentService departmentService, AppDbContext context) : ControllerBase
@@ -477,7 +477,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<BatchDto>> Create(CreateBatchDto dto)
         {
             if (!Ulid.TryParse(dto.DepartmentId, out var departmentUlid))
@@ -498,7 +498,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Update(string id, CreateBatchDto dto)
         {
             if (!Ulid.TryParse(id, out var batchId)) return BadRequest("Invalid Batch ID.");
@@ -528,7 +528,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!Ulid.TryParse(id, out var batchId)) return BadRequest("Invalid Batch ID.");
@@ -543,7 +543,7 @@ namespace UniversityManagementSystem.Api.Controllers
     // Groups Controller
     // ─────────────────────────────────────────────────────────
 
-    [Authorize(Roles = "Admin,Student,Doctor")]
+    [Authorize(Roles = "Admin,Student,Doctor,SuperAdmin")]
     [ApiController]
     [Route("api/[controller]")]
     public class GroupsController(IGroupService service, IBatchService batchService, AppDbContext context) : ControllerBase
@@ -581,7 +581,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<GroupDto>> Create(CreateGroupDto dto)
         {
             if (!Ulid.TryParse(dto.BatchId, out var batchUlid))
@@ -602,7 +602,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Update(string id, CreateGroupDto dto)
         {
             if (!Ulid.TryParse(id, out var groupId)) return BadRequest("Invalid Group ID.");
@@ -632,7 +632,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!Ulid.TryParse(id, out var groupId)) return BadRequest("Invalid Group ID.");

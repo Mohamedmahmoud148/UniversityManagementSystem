@@ -354,7 +354,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// and stored in TargetDoctorId for efficient filtering.
         /// </summary>
         [HttpPost("create-complaint")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> CreateComplaint([FromBody] CreateComplaintDto dto)
         {
             if (!ModelState.IsValid)

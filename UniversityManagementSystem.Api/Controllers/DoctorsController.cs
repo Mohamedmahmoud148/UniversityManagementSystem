@@ -59,7 +59,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Example: GET /api/doctors/filter?departmentId=X&isActive=true&page=1&size=20
         /// </summary>
         [HttpGet("filter")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Filter([FromQuery] DoctorFilterDto f)
         {
             var page = Math.Max(1, f.Page);
@@ -166,7 +166,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Partial update — only the non-null fields you send will be changed.
         /// </summary>
         [HttpPatch("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Patch(string id, [FromBody] PatchDoctorDto dto)
         {
             if (!Ulid.TryParse(id, out var doctorId))
@@ -193,7 +193,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── POST /api/doctors ─────────────────────────────────────────────────
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<DoctorDto>> Create(CreateDoctorDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.DepartmentCode))
@@ -231,7 +231,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── PUT /api/doctors/{code} ───────────────────────────────────────────
         [HttpPut("{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Update(string code, UpdateDoctorDto dto)
         {
             var entity = await _service.GetDoctorByCodeAsync(code);
@@ -246,7 +246,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── DELETE /api/doctors/{code} ────────────────────────────────────────
         [HttpDelete("{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string code)
         {
             var entity = await _service.GetDoctorByCodeAsync(code);
@@ -279,7 +279,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Accessible by Admin and Doctor (own offerings).
         /// </summary>
         [HttpGet("by-offering/{offeringId}")]
-        [Authorize(Roles = "Admin,Doctor")]
+        [Authorize(Roles = "Admin,Doctor,SuperAdmin")]
         public async Task<IActionResult> GetByOffering(string offeringId)
         {
             if (!Ulid.TryParse(offeringId, out var oId))
@@ -311,7 +311,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Paginated: ?page=1&size=20
         /// </summary>
         [HttpGet("by-subject/{subjectId}")]
-        [Authorize(Roles = "Admin,Doctor")]
+        [Authorize(Roles = "Admin,Doctor,SuperAdmin")]
         public async Task<IActionResult> GetBySubject(
             string subjectId,
             [FromQuery] int page = 1,
@@ -358,7 +358,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── POST /api/doctors/bulk-upload ─────────────────────────────────────
         [HttpPost("bulk-upload")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> BulkUpload(IFormFile file, [FromServices] IFileService fileService, [FromServices] IBackgroundJobClient jobClient)
         {

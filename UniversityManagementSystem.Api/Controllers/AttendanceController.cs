@@ -37,7 +37,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("check-in")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> CheckIn([FromBody] RecordAttendanceDto dto)
         {
             var studentIdClaim = User.FindFirst("ProfileId");
@@ -71,7 +71,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("record/{sessionId}/{studentId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<AttendanceResponseDto>> GetRecord(string sessionId, string studentId)
         {
             if (!Ulid.TryParse(sessionId, out var sessId)) return BadRequest("Invalid Session ID.");
@@ -81,7 +81,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPut("record/{sessionId}/{studentId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> UpdateRecord(string sessionId, string studentId, [FromBody] UpdateAttendanceDto dto)
         {
             if (!Ulid.TryParse(sessionId, out var sessId)) return BadRequest("Invalid Session ID.");
@@ -91,7 +91,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("record/{sessionId}/{studentId}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> DeleteRecord(string sessionId, string studentId)
         {
             if (!Ulid.TryParse(sessionId, out var sessId)) return BadRequest("Invalid Session ID.");

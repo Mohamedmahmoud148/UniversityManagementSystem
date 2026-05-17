@@ -155,7 +155,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<SubjectDto>> Create(CreateSubjectDto dto)
         {
             // Resolve DepartmentCode → Id
@@ -207,7 +207,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPut("{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Update(string code, UpdateSubjectDto dto)
         {
             var entity = await _service.GetSubjectByCodeAsync(code);
@@ -217,7 +217,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string code)
         {
             var entity = await _service.GetSubjectByCodeAsync(code);
@@ -235,7 +235,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── LEGACY (kept for AI/internal use): assign by internal ULID ─────────
         [HttpPut("assign-doctor-by-id")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> AssignDoctorById(string subjectId, string doctorId)
         {
@@ -251,7 +251,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route. ULIDs are resolved internally.
         /// </summary>
         [HttpPut("assign-doctor")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> AssignDoctor([FromQuery] string subjectCode, [FromQuery] string doctorCode)
         {
             if (string.IsNullOrWhiteSpace(subjectCode)) return BadRequest("subjectCode is required.");
@@ -286,7 +286,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── LEGACY (kept for AI/internal use): assign assistant by internal ULID
         [HttpPut("assign-assistant-by-id")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> AssignAssistantById(string subjectId, string assistantId)
         {
@@ -301,7 +301,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route. ULIDs are resolved internally.
         /// </summary>
         [HttpPut("assign-assistant")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> AssignAssistant([FromQuery] string subjectCode, [FromQuery] string assistantCode)
         {
             if (string.IsNullOrWhiteSpace(subjectCode))   return BadRequest("subjectCode is required.");

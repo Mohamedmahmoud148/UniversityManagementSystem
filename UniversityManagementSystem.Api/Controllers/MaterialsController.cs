@@ -39,7 +39,7 @@ namespace UniversityManagementSystem.Api.Controllers
         private const long MaxFileSizeBytes = 500L * 1024 * 1024; // 500 MB
 
         [HttpPost("upload")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         [RequestSizeLimit(524_288_000)] // 500 MB
         public async Task<IActionResult> UploadMaterial([FromForm] Core.DTOs.UploadMaterialDto dto)
         {
@@ -62,7 +62,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> DeleteMaterial(string id)
         {
             if (!Ulid.TryParse(id, out var materialId)) return BadRequest("Invalid Material ID.");
@@ -73,7 +73,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("by-offering/{offeringId}")]
-        [Authorize(Roles = "Student,Doctor,Admin")]
+        [Authorize(Roles = "Student,Doctor,Admin,SuperAdmin")]
         public async Task<IActionResult> GetMaterialsByOffering(string offeringId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
         {
             if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
@@ -94,7 +94,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// The client downloads directly from R2 — nothing streams through the backend.
         /// </summary>
         [HttpGet("download/{id}")]
-        [Authorize(Roles = "Student,Doctor,Admin")]
+        [Authorize(Roles = "Student,Doctor,Admin,SuperAdmin")]
         public async Task<IActionResult> DownloadMaterial(string id)
         {
             if (!Ulid.TryParse(id, out var materialId)) return BadRequest("Invalid Material ID.");

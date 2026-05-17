@@ -14,7 +14,7 @@ namespace UniversityManagementSystem.Api.Controllers
     {
 
         [HttpGet("by-code/{code}")]
-        [Authorize(Roles = "Admin, Doctor, Student")]
+        [Authorize(Roles = "Admin, Doctor, Student,SuperAdmin")]
         public async Task<IActionResult> GetByCode(string code)
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId")?.Value;
@@ -29,7 +29,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> CreateExam([FromQuery] string subjectOfferingId, [FromBody] CreateExamDto dto)
         {
             if (!Ulid.TryParse(subjectOfferingId, out var offeringId)) return BadRequest("Invalid Offering ID.");
@@ -42,7 +42,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("generate-ai")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> GenerateAiExam([FromBody] CreateAiExamRequest request)
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
@@ -54,7 +54,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("upload-pdf")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> UploadPdfExam([FromQuery] string subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file)
         {
             if (!Ulid.TryParse(subjectOfferingId, out var offeringId)) return BadRequest("Invalid Offering ID.");
@@ -87,7 +87,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("{id}/submit")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> SubmitExam(string id, [FromBody] ExamSubmissionDto dto)
         {
             if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
@@ -105,7 +105,7 @@ namespace UniversityManagementSystem.Api.Controllers
             return CreatedAtAction(nameof(GetExam), new { id }, new { submissionId, message = "Exam submitted successfully." });
         }
         [HttpGet("{id}/my-variant")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> GetMyVariant(string id)
         {
             if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
@@ -118,7 +118,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("my-exams")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> GetMyExams()
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
@@ -130,7 +130,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("by-offering/{offeringId}")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> GetExamsByOffering(string offeringId)
         {
             if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
@@ -143,7 +143,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("{id}/results")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> GetExamResults(string id)
         {
             if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
@@ -156,7 +156,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("my-enrolled-exams")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> GetMyEnrolledExams()
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
@@ -168,7 +168,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("{id}/my-submission")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> GetMySubmission(string id)
         {
             if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
@@ -185,7 +185,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("grade-submission")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> GradeSubmission([FromBody] GradeSubmissionDto dto)
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
@@ -198,7 +198,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── LEGACY: Restore by internal ULID ──────────────────────────────────
         [HttpPost("{id}/restore")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> RestoreExam(string id)
         {
@@ -212,7 +212,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route.
         /// </summary>
         [HttpPost("by-code/{code}/restore")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> RestoreExamByCode(string code)
         {
             var userRole  = User.FindFirstValue(ClaimTypes.Role) ?? "Admin";
@@ -230,7 +230,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── LEGACY: Admin update/delete/restore by internal ULID ─────────────────
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<ActionResult<ExamDto>> UpdateExam(string id, UpdateExamDto dto)
         {
@@ -245,7 +245,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route.
         /// </summary>
         [HttpPut("by-code/{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<ExamDto>> UpdateExamByCode(string code, UpdateExamDto dto)
         {
             var userRole   = User.FindFirstValue(ClaimTypes.Role) ?? "Admin";
@@ -262,7 +262,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [ApiExplorerSettings(GroupName = "legacy")]
         public async Task<IActionResult> DeleteExam(string id)
         {
@@ -276,7 +276,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route.
         /// </summary>
         [HttpDelete("by-code/{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> DeleteExamByCode(string code)
         {
             var userRole  = User.FindFirstValue(ClaimTypes.Role) ?? "Admin";
@@ -293,7 +293,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("{id}/auto-grade")]
-        [Authorize(Roles = "Doctor")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
         public async Task<IActionResult> AutoGradeExam(string id)
         {
             if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");

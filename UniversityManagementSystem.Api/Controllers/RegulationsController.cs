@@ -183,7 +183,7 @@ namespace UniversityManagementSystem.Api.Controllers
         ///   - "ايه المواد المقترحة الترم الجاي؟"
         /// </summary>
         [HttpGet("my-roadmap")]
-        [Authorize(Roles = "Student")]
+        [Authorize(Roles = "Student,SuperAdmin")]
         public async Task<IActionResult> GetMyRoadmap()
         {
             var profileIdClaim = User.FindFirst("ProfileId");
@@ -499,7 +499,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── PUT /api/Regulations/{id} ─────────────────────────────────────────
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(52_428_800)]
         public async Task<IActionResult> Update(string id, [FromForm] UpdateRegulationDto dto)
@@ -516,7 +516,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route.
         /// </summary>
         [HttpPut("by-code/{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(52_428_800)]
         public async Task<IActionResult> UpdateByCode(string code, [FromForm] UpdateRegulationDto dto)
@@ -530,7 +530,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── DELETE /api/Regulations/{id} ──────────────────────────────────────
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!Ulid.TryParse(id, out var regId))
@@ -547,7 +547,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route.
         /// </summary>
         [HttpDelete("by-code/{code}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> DeleteByCode(string code)
         {
             var regulation = await _service.GetByCodeAsync(code);

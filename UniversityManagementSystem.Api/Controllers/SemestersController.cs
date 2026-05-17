@@ -10,7 +10,7 @@ namespace UniversityManagementSystem.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public class SemestersController : ControllerBase
     {
         private readonly ISemesterService _semesterService;
@@ -36,7 +36,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<ActionResult<SemesterDto>> Update(string id, UpdateSemesterDto dto)
         {
             if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid ID.");
@@ -45,7 +45,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> Delete(string id)
         {
             if (!Ulid.TryParse(id, out var uid)) return BadRequest("Invalid ID.");

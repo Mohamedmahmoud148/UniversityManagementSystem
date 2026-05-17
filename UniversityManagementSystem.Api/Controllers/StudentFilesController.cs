@@ -8,7 +8,7 @@ using UniversityManagementSystem.Core.Interfaces;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
-    [Authorize(Roles = "Student")]
+    [Authorize(Roles = "Student,SuperAdmin")]
     [ApiController]
     [Route("api/[controller]")]
     public class StudentFilesController(
