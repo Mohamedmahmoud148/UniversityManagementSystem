@@ -1062,11 +1062,25 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 }
                 case College college:
                 {
+                    // Departments first — cascades Batches → Groups → SubjectOfferings
                     var depts = await Departments.IgnoreQueryFilters()
                         .Where(d => d.CollegeId == college.Id).ToListAsync();
                     foreach (var d in depts) await HardCascadeChildrenAsync(d);
                     await Departments.IgnoreQueryFilters()
                         .Where(d => d.CollegeId == college.Id).ExecuteDeleteAsync();
+
+                    // SubjectOfferings are now gone, so Semesters can be deleted.
+                    // AcademicYearDepartments cascade at DB level when AcademicYear is deleted.
+                    var yearIds = await Set<AcademicYear>().IgnoreQueryFilters()
+                        .Where(y => y.CollegeId == college.Id)
+                        .Select(y => y.Id).ToListAsync();
+                    if (yearIds.Count > 0)
+                    {
+                        await Set<Semester>().IgnoreQueryFilters()
+                            .Where(s => yearIds.Contains(s.AcademicYearId)).ExecuteDeleteAsync();
+                        await Set<AcademicYear>().IgnoreQueryFilters()
+                            .Where(y => y.CollegeId == college.Id).ExecuteDeleteAsync();
+                    }
                     break;
                 }
                 case Department dept:
