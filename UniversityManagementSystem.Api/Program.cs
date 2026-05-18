@@ -444,6 +444,184 @@ using (var scope = app.Services.CreateScope())
         // 1. Apply any pending EF Core migrations automatically
         db.Database.Migrate();
 
+        // 1a. Ensure AddRegistrationAndAcademicFeatures migration is applied
+        // This migration renames AcademicYear→AcademicYears and Semester→Semesters and creates
+        // new tables. It can fail if FK names differ in production, so we apply it idempotently.
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+DO $$
+BEGIN
+
+    -- Step 1: Drop FKs that block the rename (by name — ignore if already gone)
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_AcademicYear_Colleges_CollegeId') THEN
+        ALTER TABLE ""AcademicYear"" DROP CONSTRAINT ""FK_AcademicYear_Colleges_CollegeId"";
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_AcademicYearDepartments_AcademicYear_AcademicYearId') THEN
+        ALTER TABLE ""AcademicYearDepartments"" DROP CONSTRAINT ""FK_AcademicYearDepartments_AcademicYear_AcademicYearId"";
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_Semester_AcademicYear_AcademicYearId') THEN
+        ALTER TABLE ""Semester"" DROP CONSTRAINT ""FK_Semester_AcademicYear_AcademicYearId"";
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_SubjectOfferings_Semester_SemesterId') THEN
+        ALTER TABLE ""SubjectOfferings"" DROP CONSTRAINT ""FK_SubjectOfferings_Semester_SemesterId"";
+    END IF;
+
+    -- Step 2: Drop PKs that block the rename
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_Semester') THEN
+        ALTER TABLE ""Semester"" DROP CONSTRAINT ""PK_Semester"";
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_AcademicYear') THEN
+        ALTER TABLE ""AcademicYear"" DROP CONSTRAINT ""PK_AcademicYear"";
+    END IF;
+
+    -- Step 3: Rename tables (only if old name exists and new name doesn't)
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Semester')
+       AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'Semesters') THEN
+        ALTER TABLE ""Semester"" RENAME TO ""Semesters"";
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'AcademicYear')
+       AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'AcademicYears') THEN
+        ALTER TABLE ""AcademicYear"" RENAME TO ""AcademicYears"";
+    END IF;
+
+    -- Step 4: Rename indexes on Semesters
+    IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'IX_Semester_Name_AcademicYearId') THEN
+        ALTER INDEX ""IX_Semester_Name_AcademicYearId"" RENAME TO ""IX_Semesters_Name_AcademicYearId"";
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'IX_Semester_AcademicYearId') THEN
+        ALTER INDEX ""IX_Semester_AcademicYearId"" RENAME TO ""IX_Semesters_AcademicYearId"";
+    END IF;
+
+    -- Step 5: Re-add PKs
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_Semesters') THEN
+        ALTER TABLE ""Semesters"" ADD CONSTRAINT ""PK_Semesters"" PRIMARY KEY (""Id"");
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'PK_AcademicYears') THEN
+        ALTER TABLE ""AcademicYears"" ADD CONSTRAINT ""PK_AcademicYears"" PRIMARY KEY (""Id"");
+    END IF;
+
+    -- Step 6: Create new tables
+    CREATE TABLE IF NOT EXISTS ""AcademicPolicies"" (
+        ""Id""                      character varying(26) NOT NULL,
+        ""DepartmentId""            character varying(26) NULL,
+        ""DefaultMaxHours""         integer NOT NULL DEFAULT 18,
+        ""HonorMaxHours""           integer NOT NULL DEFAULT 21,
+        ""WarningMaxHours""         integer NOT NULL DEFAULT 12,
+        ""ProbationMaxHours""       integer NOT NULL DEFAULT 9,
+        ""WarningGpaThreshold""     double precision NOT NULL DEFAULT 2.0,
+        ""ProbationGpaThreshold""   double precision NOT NULL DEFAULT 1.5,
+        ""HonorGpaThreshold""       double precision NOT NULL DEFAULT 3.5,
+        ""GraduationMinGpa""        double precision NOT NULL DEFAULT 2.0,
+        ""Code""                    text NOT NULL DEFAULT '',
+        ""CreatedAt""               timestamp with time zone NOT NULL DEFAULT now(),
+        ""DeletedAt""               timestamp with time zone NULL,
+        CONSTRAINT ""PK_AcademicPolicies"" PRIMARY KEY (""Id"")
+    );
+
+    CREATE TABLE IF NOT EXISTS ""StudentAcademicStatuses"" (
+        ""Id""                      character varying(26) NOT NULL,
+        ""StudentId""               character varying(26) NOT NULL,
+        ""GPA""                     double precision NOT NULL DEFAULT 0,
+        ""CGPA""                    double precision NOT NULL DEFAULT 0,
+        ""LastSemesterGPA""         double precision NOT NULL DEFAULT 0,
+        ""LastCalculatedAt""        timestamp with time zone NULL,
+        ""EarnedCreditHours""       integer NOT NULL DEFAULT 0,
+        ""RemainingCreditHours""    integer NOT NULL DEFAULT 0,
+        ""TotalRequiredHours""      integer NOT NULL DEFAULT 0,
+        ""Standing""                integer NOT NULL DEFAULT 0,
+        ""WarningCount""            integer NOT NULL DEFAULT 0,
+        ""CurrentLevel""            integer NOT NULL DEFAULT 0,
+        ""Code""                    text NOT NULL DEFAULT '',
+        ""CreatedAt""               timestamp with time zone NOT NULL DEFAULT now(),
+        ""DeletedAt""               timestamp with time zone NULL,
+        CONSTRAINT ""PK_StudentAcademicStatuses"" PRIMARY KEY (""Id""),
+        CONSTRAINT ""FK_StudentAcademicStatuses_Students_StudentId""
+            FOREIGN KEY (""StudentId"") REFERENCES ""Students""(""Id"") ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS ""SubjectOfferingWaitlists"" (
+        ""Id""                  character varying(26) NOT NULL,
+        ""StudentId""           character varying(26) NOT NULL,
+        ""SubjectOfferingId""   character varying(26) NOT NULL,
+        ""Position""            integer NOT NULL DEFAULT 0,
+        ""AddedAt""             timestamp with time zone NOT NULL DEFAULT now(),
+        ""Code""                text NOT NULL DEFAULT '',
+        ""CreatedAt""           timestamp with time zone NOT NULL DEFAULT now(),
+        ""DeletedAt""           timestamp with time zone NULL,
+        CONSTRAINT ""PK_SubjectOfferingWaitlists"" PRIMARY KEY (""Id""),
+        CONSTRAINT ""FK_SubjectOfferingWaitlists_Students_StudentId""
+            FOREIGN KEY (""StudentId"") REFERENCES ""Students""(""Id"") ON DELETE CASCADE,
+        CONSTRAINT ""FK_SubjectOfferingWaitlists_SubjectOfferings_SubjectOfferingId""
+            FOREIGN KEY (""SubjectOfferingId"") REFERENCES ""SubjectOfferings""(""Id"") ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS ""SubjectPrerequisites"" (
+        ""Id""                      character varying(26) NOT NULL,
+        ""SubjectId""               character varying(26) NOT NULL,
+        ""PrerequisiteSubjectId""   character varying(26) NOT NULL,
+        ""MinimumGrade""            double precision NULL,
+        ""Code""                    text NOT NULL DEFAULT '',
+        ""CreatedAt""               timestamp with time zone NOT NULL DEFAULT now(),
+        ""DeletedAt""               timestamp with time zone NULL,
+        CONSTRAINT ""PK_SubjectPrerequisites"" PRIMARY KEY (""Id""),
+        CONSTRAINT ""FK_SubjectPrerequisites_Subjects_SubjectId""
+            FOREIGN KEY (""SubjectId"") REFERENCES ""Subjects""(""Id"") ON DELETE CASCADE,
+        CONSTRAINT ""FK_SubjectPrerequisites_Subjects_PrerequisiteSubjectId""
+            FOREIGN KEY (""PrerequisiteSubjectId"") REFERENCES ""Subjects""(""Id"") ON DELETE RESTRICT
+    );
+
+    -- Step 7: Create indexes
+    CREATE INDEX IF NOT EXISTS ""IX_AcademicPolicies_DepartmentId""
+        ON ""AcademicPolicies""(""DepartmentId"");
+    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_StudentAcademicStatuses_StudentId""
+        ON ""StudentAcademicStatuses""(""StudentId"");
+    CREATE INDEX IF NOT EXISTS ""IX_SubjectOfferingWaitlist_OfferingId""
+        ON ""SubjectOfferingWaitlists""(""SubjectOfferingId"");
+    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_SubjectOfferingWaitlist_Student_Offering""
+        ON ""SubjectOfferingWaitlists""(""StudentId"", ""SubjectOfferingId"");
+    CREATE INDEX IF NOT EXISTS ""IX_SubjectPrerequisites_PrerequisiteSubjectId""
+        ON ""SubjectPrerequisites""(""PrerequisiteSubjectId"");
+    CREATE UNIQUE INDEX IF NOT EXISTS ""IX_SubjectPrerequisites_Subject_Prereq""
+        ON ""SubjectPrerequisites""(""SubjectId"", ""PrerequisiteSubjectId"");
+    CREATE INDEX IF NOT EXISTS ""IX_SubjectPrerequisites_SubjectId""
+        ON ""SubjectPrerequisites""(""SubjectId"");
+
+    -- Step 8: Re-add FKs on renamed tables (only if missing)
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_AcademicYearDepartments_AcademicYears_AcademicYearId') THEN
+        ALTER TABLE ""AcademicYearDepartments""
+            ADD CONSTRAINT ""FK_AcademicYearDepartments_AcademicYears_AcademicYearId""
+            FOREIGN KEY (""AcademicYearId"") REFERENCES ""AcademicYears""(""Id"") ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_AcademicYears_Colleges_CollegeId') THEN
+        ALTER TABLE ""AcademicYears""
+            ADD CONSTRAINT ""FK_AcademicYears_Colleges_CollegeId""
+            FOREIGN KEY (""CollegeId"") REFERENCES ""Colleges""(""Id"") ON DELETE RESTRICT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_Semesters_AcademicYears_AcademicYearId') THEN
+        ALTER TABLE ""Semesters""
+            ADD CONSTRAINT ""FK_Semesters_AcademicYears_AcademicYearId""
+            FOREIGN KEY (""AcademicYearId"") REFERENCES ""AcademicYears""(""Id"") ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_SubjectOfferings_Semesters_SemesterId') THEN
+        ALTER TABLE ""SubjectOfferings""
+            ADD CONSTRAINT ""FK_SubjectOfferings_Semesters_SemesterId""
+            FOREIGN KEY (""SemesterId"") REFERENCES ""Semesters""(""Id"") ON DELETE RESTRICT;
+    END IF;
+
+    -- Step 9: Mark migration as applied
+    INSERT INTO ""__EFMigrationsHistory""(""MigrationId"", ""ProductVersion"")
+    VALUES ('20260518015621_AddRegistrationAndAcademicFeatures', '9.0.0')
+    ON CONFLICT DO NOTHING;
+
+END $$;
+            ");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Migration workaround 20260518015621 encountered an issue (may be safe to ignore if already applied).");
+        }
+
         // 1b. Ensure legacy databases have the Code column in SystemUsers
         try
         {
