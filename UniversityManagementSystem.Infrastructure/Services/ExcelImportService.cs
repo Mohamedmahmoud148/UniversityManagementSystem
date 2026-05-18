@@ -463,6 +463,18 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
                     newStudents.Add(student);
 
+                    // Collect credentials for the download Excel
+                    result.ImportedCredentials.Add(new Core.DTOs.StudentCredentialRow
+                    {
+                        FullName            = fullName,
+                        UniversityStudentId = uniStId,
+                        UniversityEmail     = universityEmail,
+                        TemporaryPassword   = _uniSettings.DefaultPassword,
+                        BatchCode           = batchCode,
+                        GroupCode           = groupCode,
+                        Department          = department.Name
+                    });
+
                     // Track for in-file dedup
                     if (!string.IsNullOrEmpty(nationalId)) batchNationalIds.Add(nationalId);
                     batchUniStudentIds.Add(uniStId);
@@ -492,6 +504,97 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             result.TemporaryPassword = _uniSettings.DefaultPassword;
             return result;
+        }
+
+        // ── Generate credentials Excel ────────────────────────────────────────
+        public Task<byte[]> GenerateCredentialsExcelAsync(
+            IReadOnlyList<Core.DTOs.StudentCredentialRow> credentials,
+            string universityName)
+        {
+            using var workbook  = new XLWorkbook();
+            var ws = workbook.Worksheets.Add("Student Credentials");
+
+            // ── Title row ────────────────────────────────────────────────────
+            ws.Cell(1, 1).Value = $"{universityName} — Student Login Credentials";
+            ws.Range(1, 1, 1, 7).Merge();
+            var titleCell = ws.Cell(1, 1);
+            titleCell.Style.Font.Bold      = true;
+            titleCell.Style.Font.FontSize  = 14;
+            titleCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            titleCell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1E3A5F");
+            titleCell.Style.Font.FontColor = XLColor.White;
+
+            // ── Sub-title ────────────────────────────────────────────────────
+            ws.Cell(2, 1).Value = $"Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC  •  Total Students: {credentials.Count}  •  ⚠ Share securely — contains passwords";
+            ws.Range(2, 1, 2, 7).Merge();
+            var subCell = ws.Cell(2, 1);
+            subCell.Style.Font.Italic    = true;
+            subCell.Style.Font.FontSize  = 9;
+            subCell.Style.Font.FontColor = XLColor.DarkRed;
+            subCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+            // ── Header row (row 3) ────────────────────────────────────────────
+            var headers = new[] { "#", "Full Name", "University ID", "University Email", "Temporary Password", "Batch", "Department" };
+            for (int c = 0; c < headers.Length; c++)
+            {
+                var cell = ws.Cell(3, c + 1);
+                cell.Value = headers[c];
+                cell.Style.Font.Bold = true;
+                cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#2E75B6");
+                cell.Style.Font.FontColor = XLColor.White;
+                cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                cell.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+            }
+
+            // ── Data rows ─────────────────────────────────────────────────────
+            for (int i = 0; i < credentials.Count; i++)
+            {
+                var row = credentials[i];
+                int r   = i + 4;
+                bool isEven = i % 2 == 0;
+
+                ws.Cell(r, 1).Value = i + 1;
+                ws.Cell(r, 2).Value = row.FullName;
+                ws.Cell(r, 3).Value = row.UniversityStudentId;
+                ws.Cell(r, 4).Value = row.UniversityEmail;
+                ws.Cell(r, 5).Value = row.TemporaryPassword;
+                ws.Cell(r, 6).Value = row.BatchCode;
+                ws.Cell(r, 7).Value = row.Department;
+
+                // Alternate row shading
+                if (isEven)
+                {
+                    ws.Range(r, 1, r, 7).Style.Fill.BackgroundColor = XLColor.FromHtml("#EBF3FB");
+                }
+
+                // Highlight password cell
+                ws.Cell(r, 5).Style.Font.Bold = true;
+                ws.Cell(r, 5).Style.Font.FontColor = XLColor.DarkRed;
+            }
+
+            // ── Note row at the bottom ────────────────────────────────────────
+            int noteRow = credentials.Count + 5;
+            ws.Cell(noteRow, 1).Value = "⚠  Students must change their password on first login.  This file contains sensitive data — do not share publicly.";
+            ws.Range(noteRow, 1, noteRow, 7).Merge();
+            ws.Cell(noteRow, 1).Style.Font.Italic    = true;
+            ws.Cell(noteRow, 1).Style.Font.FontColor = XLColor.DarkRed;
+            ws.Cell(noteRow, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF2CC");
+
+            // ── Column widths ─────────────────────────────────────────────────
+            ws.Column(1).Width = 5;
+            ws.Column(2).Width = 28;
+            ws.Column(3).Width = 18;
+            ws.Column(4).Width = 36;
+            ws.Column(5).Width = 20;
+            ws.Column(6).Width = 14;
+            ws.Column(7).Width = 22;
+
+            // Freeze header rows
+            ws.SheetView.Freeze(3, 0);
+
+            using var ms = new MemoryStream();
+            workbook.SaveAs(ms);
+            return Task.FromResult(ms.ToArray());
         }
 
         // ── Private helper ────────────────────────────────────────────────────

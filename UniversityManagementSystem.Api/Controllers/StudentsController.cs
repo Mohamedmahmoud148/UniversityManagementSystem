@@ -517,5 +517,38 @@ namespace UniversityManagementSystem.Api.Controllers
             var result = await _excelImportService.ImportStudentsFromExcelAsync(file);
             return Ok(result);
         }
+
+        [HttpPost("import-excel/download-credentials")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> ImportAndDownloadCredentials(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("No file uploaded. Please attach an .xlsx file.");
+            var ext = System.IO.Path.GetExtension(file.FileName);
+            if (!ext.Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
+                return BadRequest($"Invalid file type '{ext}'. Only .xlsx files are accepted.");
+
+            var result = await _excelImportService.ImportStudentsFromExcelAsync(file);
+
+            if (result.ImportedCredentials.Count == 0)
+                return Ok(new { result.TotalRows, result.Imported, result.Skipped, result.Errors, result.Warnings, message = "No students were imported — no credentials file generated." });
+
+            var universityName = await _context.Universities
+                .AsNoTracking()
+                .Select(u => u.Name)
+                .FirstOrDefaultAsync() ?? "University";
+
+            var excelBytes = await _excelImportService.GenerateCredentialsExcelAsync(
+                result.ImportedCredentials, universityName);
+
+            var fileName = $"credentials_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx";
+            Response.Headers.Append("X-Import-Summary",
+                $"imported={result.Imported};skipped={result.Skipped};warnings={result.Warnings.Count}");
+
+            return File(excelBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                fileName);
+        }
     }
 }
