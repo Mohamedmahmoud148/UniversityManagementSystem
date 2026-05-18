@@ -32,6 +32,7 @@
 | [21](./21-Diagrams/README.md) | **System Diagrams** | Everyone — visual reference |
 | [22](./22-Deletion-Framework/README.md) | **Intelligent Deletion Framework** | Backend + Frontend devs |
 | [23](./23-Academic-Architecture-Redesign/README.md) | **Enterprise Academic Architecture Redesign** | All architects |
+| [24](./24-Frontend-Handoff/README.md) | **Frontend Handoff — Registration & GPA System** | Frontend developers |
 | — | [**Randomized Exam Guide**](./RANDOMIZED_EXAM_FRONTEND_GUIDE.md) | Frontend developers |
 
 ---
