@@ -622,7 +622,25 @@ END $$;
             Log.Warning(ex, "Migration workaround 20260518015621 encountered an issue (may be safe to ignore if already applied).");
         }
 
-        // 1b. Ensure legacy databases have the Code column in SystemUsers
+        // 1b. Ensure AddStudentProfileFields migration columns exist (idempotent)
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+ALTER TABLE ""Students"" ADD COLUMN IF NOT EXISTS ""Address""      text NOT NULL DEFAULT '';
+ALTER TABLE ""Students"" ADD COLUMN IF NOT EXISTS ""DateOfBirth""  timestamp with time zone NULL;
+ALTER TABLE ""Students"" ADD COLUMN IF NOT EXISTS ""Gender""       integer NULL;
+ALTER TABLE ""Students"" ADD COLUMN IF NOT EXISTS ""Governorate""  text NOT NULL DEFAULT '';
+ALTER TABLE ""Students"" ADD COLUMN IF NOT EXISTS ""NationalId""   text NOT NULL DEFAULT '';
+ALTER TABLE ""Students"" ADD COLUMN IF NOT EXISTS ""Religion""     text NOT NULL DEFAULT '';
+ALTER TABLE ""Students"" ADD COLUMN IF NOT EXISTS ""StudentType""  integer NOT NULL DEFAULT 0;
+INSERT INTO ""__EFMigrationsHistory""(""MigrationId"", ""ProductVersion"")
+VALUES ('20260518220621_AddStudentProfileFields', '9.0.0')
+ON CONFLICT DO NOTHING;
+            ");
+        }
+        catch (Exception) { /* safe to ignore — columns already exist */ }
+
+        // 1c. Ensure legacy databases have the Code column in SystemUsers
         try
         {
             db.Database.ExecuteSqlRaw(@"

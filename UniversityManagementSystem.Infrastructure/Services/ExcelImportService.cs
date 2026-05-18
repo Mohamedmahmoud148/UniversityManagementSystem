@@ -198,33 +198,46 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 return -1;
             }
 
-            int fullNameCol      = FindCol("fullname", "name", "studentname", "اسم");
-            int batchCodeCol     = FindCol("batchcode", "batch", "دفعة", "الدفعة");
-            int groupCodeCol     = FindCol("groupcode", "group", "مجموعة", "المجموعة");
-            int nationalIdCol    = FindCol("nationalid", "national", "رقمقومي");
-            int phoneCol         = FindCol("phone", "mobile", "tel", "هاتف", "موبايل");
-            int emailCol         = FindCol("email", "personalmail", "mail");
-            int uniStudentIdCol  = FindCol("universitystudentid", "studentid", "studentnumber", "رقمطالب");
-            // CollegeCode & DepartmentCode are informational — Batch already carries this FK chain
-            int collegeCodeCol   = FindCol("collegecode", "college", "كلية", "الكلية");
-            int deptCodeCol      = FindCol("departmentcode", "department", "dept", "قسم", "القسم");
+            // ── Required columns ───────────────────────────────────────────
+            int fullNameCol     = FindCol("fullname", "name", "studentname", "الاسم", "اسم");
+            int nationalIdCol   = FindCol("nationalid", "national", "رقمقومي", "الرقمالقومي");
+            int phoneCol        = FindCol("phone", "mobile", "tel", "هاتف", "موبايل", "تليفون");
+            int batchCodeCol    = FindCol("batchcode", "batch", "دفعة", "الدفعة", "كود الدفعة");
+            int groupCodeCol    = FindCol("groupcode", "group", "مجموعة", "المجموعة");
 
+            // ── Optional columns ───────────────────────────────────────────
+            int emailCol          = FindCol("email", "personalmail", "mail", "ايميل");
+            int uniStudentIdCol   = FindCol("universitystudentid", "studentid", "studentnumber", "رقمطالب", "كودطالب");
+            int collegeCodeCol    = FindCol("collegecode", "college", "كلية", "الكلية");
+            int deptCodeCol       = FindCol("departmentcode", "department", "dept", "قسم", "القسم");
+            int governorateCol    = FindCol("governorate", "gov", "محافظة", "المحافظة");
+            int addressCol        = FindCol("address", "عنوان", "العنوان");
+            int genderCol         = FindCol("gender", "sex", "النوع", "الجنس", "نوع");
+            int dobCol            = FindCol("dateofbirth", "dob", "birthdate", "تاريخالميلاد", "ميلاد");
+            int studentTypeCol    = FindCol("studenttype", "type", "نوعالطالب", "نوع");
+            int religionCol       = FindCol("religion", "الديانة", "ديانة");
 
             // ── 4. Required column check ───────────────────────────────────
             var missing = new List<string>();
-            if (fullNameCol  == -1) missing.Add("FullName");
-            if (batchCodeCol == -1) missing.Add("BatchCode");
-            if (groupCodeCol == -1) missing.Add("GroupCode");
+            if (fullNameCol  == -1) missing.Add("FullName (الاسم)");
+            if (nationalIdCol == -1) missing.Add("NationalId (رقم قومي)");
+            if (phoneCol     == -1) missing.Add("Phone (تليفون)");
+            if (batchCodeCol == -1) missing.Add("BatchCode (كود الدفعة)");
+            if (groupCodeCol == -1) missing.Add("GroupCode (المجموعة)");
 
             if (missing.Count > 0)
                 return Fail(result, $"Required columns not found: {string.Join(", ", missing)}. " +
-                    "Make sure the first row contains headers (FullName, BatchCode, GroupCode).");
+                    "Make sure the first row contains headers.");
 
             // Warn about missing optional columns
-            if (nationalIdCol   == -1) result.Warnings.Add("Optional column 'NationalId' not found — will be left empty.");
-            if (phoneCol        == -1) result.Warnings.Add("Optional column 'Phone' not found — default placeholder will be used.");
-            if (emailCol        == -1) result.Warnings.Add("Optional column 'Email' not found — university email will be auto-generated.");
-            if (uniStudentIdCol == -1) result.Warnings.Add("Optional column 'UniversityStudentId' not found — will be auto-generated.");
+            if (emailCol        == -1) result.Warnings.Add("Column 'Email' not found — university email will be auto-generated.");
+            if (uniStudentIdCol == -1) result.Warnings.Add("Column 'UniversityStudentId' not found — will be auto-generated.");
+            if (governorateCol  == -1) result.Warnings.Add("Column 'Governorate' not found — will be left empty.");
+            if (addressCol      == -1) result.Warnings.Add("Column 'Address' not found — will be left empty.");
+            if (genderCol       == -1) result.Warnings.Add("Column 'Gender' not found — will be left empty.");
+            if (dobCol          == -1) result.Warnings.Add("Column 'DateOfBirth' not found — will be left empty.");
+            if (studentTypeCol  == -1) result.Warnings.Add("Column 'StudentType' not found — will default to Regular.");
+            if (religionCol     == -1) result.Warnings.Add("Column 'Religion' not found — will be left empty.");
 
             // ── 5. Pre-fetch lookup data (eliminate N+1) ───────────────────
             var batchesByCode = await _context.Batches
@@ -268,34 +281,48 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 try
                 {
                     string fullName    = GetCell(row, fullNameCol);
-                    string batchCode   = GetCell(row, batchCodeCol);
-                    string groupCode   = GetCell(row, groupCodeCol);
                     string nationalId  = GetCell(row, nationalIdCol);
                     string rawPhone    = GetCell(row, phoneCol);
+                    string batchCode   = GetCell(row, batchCodeCol);
+                    string groupCode   = GetCell(row, groupCodeCol);
                     string email       = GetCell(row, emailCol);
                     string uniStId     = GetCell(row, uniStudentIdCol);
+                    string governorate = GetCell(row, governorateCol);
+                    string address     = GetCell(row, addressCol);
+                    string genderRaw   = GetCell(row, genderCol);
+                    string dobRaw      = GetCell(row, dobCol);
+                    string typeRaw     = GetCell(row, studentTypeCol);
+                    string religion    = GetCell(row, religionCol);
 
                     // ── 6a. Required field check ──────────────────────────
-                    if (string.IsNullOrWhiteSpace(fullName))
+                    var rowErrors = new List<string>();
+                    if (string.IsNullOrWhiteSpace(fullName))    rowErrors.Add("FullName (الاسم) is empty");
+                    if (string.IsNullOrWhiteSpace(nationalId))  rowErrors.Add("NationalId (رقم قومي) is empty");
+                    if (string.IsNullOrWhiteSpace(rawPhone))    rowErrors.Add("Phone (تليفون) is empty");
+                    if (string.IsNullOrWhiteSpace(batchCode))   rowErrors.Add("BatchCode (كود الدفعة) is empty");
+                    if (string.IsNullOrWhiteSpace(groupCode))   rowErrors.Add("GroupCode (المجموعة) is empty");
+                    if (rowErrors.Count > 0)
                     {
                         result.Skipped++;
-                        result.Errors.Add($"Row {rowNum}: FullName is empty — skipped.");
-                        continue;
-                    }
-                    if (string.IsNullOrWhiteSpace(batchCode))
-                    {
-                        result.Skipped++;
-                        result.Errors.Add($"Row {rowNum}: BatchCode is empty — skipped.");
-                        continue;
-                    }
-                    if (string.IsNullOrWhiteSpace(groupCode))
-                    {
-                        result.Skipped++;
-                        result.Errors.Add($"Row {rowNum}: GroupCode is empty — skipped.");
+                        result.Errors.Add($"Row {rowNum}: {string.Join("; ", rowErrors)} — skipped.");
                         continue;
                     }
 
-                    // ── 6b. Resolve Batch ─────────────────────────────────
+                    // ── 6b. NationalId format (14 digits) ────────────────
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(nationalId, @"^\d{14}$"))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: NationalId '{nationalId}' must be exactly 14 digits — skipped.");
+                        continue;
+                    }
+                    if (existingNationalIds.Contains(nationalId.ToLower()) || batchNationalIds.Contains(nationalId))
+                    {
+                        result.Skipped++;
+                        result.Errors.Add($"Row {rowNum}: NationalId '{nationalId}' already exists — skipped.");
+                        continue;
+                    }
+
+                    // ── 6c. Resolve Batch ─────────────────────────────────
                     if (!batchesByCode.TryGetValue(batchCode, out var batch))
                     {
                         result.Skipped++;
@@ -303,7 +330,21 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         continue;
                     }
 
-                    // ── 6c. Resolve Group ─────────────────────────────────
+                    // ── 6d. Validate CollegeCode / DeptCode if provided ───
+                    string collegeCode = GetCell(row, collegeCodeCol);
+                    string deptCode    = GetCell(row, deptCodeCol);
+                    if (!string.IsNullOrWhiteSpace(collegeCode) &&
+                        !string.Equals(batch.Department.College.Code, collegeCode, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Warnings.Add($"Row {rowNum}: CollegeCode '{collegeCode}' doesn't match batch college '{batch.Department.College.Code}' — batch college used.");
+                    }
+                    if (!string.IsNullOrWhiteSpace(deptCode) &&
+                        !string.Equals(batch.Department.Code, deptCode, StringComparison.OrdinalIgnoreCase))
+                    {
+                        result.Warnings.Add($"Row {rowNum}: DepartmentCode '{deptCode}' doesn't match batch department '{batch.Department.Code}' — batch department used.");
+                    }
+
+                    // ── 6e. Resolve Group ─────────────────────────────────
                     if (!groupsByCode.TryGetValue(groupCode, out var group))
                     {
                         result.Skipped++;
@@ -315,17 +356,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         result.Skipped++;
                         result.Errors.Add($"Row {rowNum}: Group '{groupCode}' does not belong to batch '{batchCode}' — skipped.");
                         continue;
-                    }
-
-                    // ── 6d. NationalId dedup (optional field) ─────────────
-                    if (!string.IsNullOrEmpty(nationalId))
-                    {
-                        if (existingNationalIds.Contains(nationalId.ToLower()) || batchNationalIds.Contains(nationalId))
-                        {
-                            result.Skipped++;
-                            result.Errors.Add($"Row {rowNum}: NationalId '{nationalId}' already exists — skipped.");
-                            continue;
-                        }
                     }
 
                     // ── 6e. UniversityStudentId — auto-generate if missing ─
@@ -358,27 +388,52 @@ namespace UniversityManagementSystem.Infrastructure.Services
                             result.Warnings.Add($"Row {rowNum}: Phone '{rawPhone}' is invalid — using placeholder '01000000000'.");
                     }
 
-                    // ── 6g. Always generate university email from student ID ──────
+                    // ── 6g. Parse optional profile fields ────────────────
+                    Core.Entities.Gender? gender = null;
+                    if (!string.IsNullOrWhiteSpace(genderRaw))
+                    {
+                        var g = genderRaw.Trim().ToLower();
+                        if (g is "male" or "m" or "ذكر" or "1") gender = Core.Entities.Gender.Male;
+                        else if (g is "female" or "f" or "أنثى" or "انثى" or "2") gender = Core.Entities.Gender.Female;
+                        else result.Warnings.Add($"Row {rowNum}: Gender '{genderRaw}' not recognized — left empty.");
+                    }
+
+                    DateTime? dateOfBirth = null;
+                    if (!string.IsNullOrWhiteSpace(dobRaw))
+                    {
+                        if (DateTime.TryParse(dobRaw, out var dob)) dateOfBirth = DateTime.SpecifyKind(dob, DateTimeKind.Utc);
+                        else result.Warnings.Add($"Row {rowNum}: DateOfBirth '{dobRaw}' is invalid — left empty.");
+                    }
+
+                    var studentType = Core.Entities.StudentType.Regular;
+                    if (!string.IsNullOrWhiteSpace(typeRaw))
+                    {
+                        var t = typeRaw.Trim().ToLower();
+                        if (t is "transfer" or "منقول")         studentType = Core.Entities.StudentType.Transfer;
+                        else if (t is "repeating" or "معيد")    studentType = Core.Entities.StudentType.Repeating;
+                        else if (t is "external" or "انتساب")   studentType = Core.Entities.StudentType.External;
+                        else if (t is not "regular" or "منتظم") result.Warnings.Add($"Row {rowNum}: StudentType '{typeRaw}' not recognized — defaulting to Regular.");
+                    }
+
+                    // ── 6h. Auto-generate university email ────────────────
                     var department = batch.Department;
                     var college    = department.College;
                     var university = college.University;
 
-                    // University email is always auto-generated — used for login
                     string universityEmail = $"{uniStId.ToLower()}@{_uniSettings.StudentEmailDomain}";
-                    // Personal email stored separately on the Student record (optional)
-                    string personalEmail = string.IsNullOrWhiteSpace(email) ? "" : email;
+                    string personalEmail   = string.IsNullOrWhiteSpace(email) ? "" : email;
 
-                    // ── 6h. Build entities ────────────────────────────────
+                    // ── 6i. Build entities ────────────────────────────────
                     var systemUser = new SystemUser
                     {
-                        Id              = Ulid.NewUlid(),
-                        FullName        = fullName,
-                        Email           = universityEmail,
-                        UniversityEmail = universityEmail,
-                        NationalId      = nationalId ?? "",
-                        PasswordHash    = BCrypt.Net.BCrypt.HashPassword(_uniSettings.DefaultPassword),
-                        Role            = UserRole.Student,
-                        IsActive        = true,
+                        Id                 = Ulid.NewUlid(),
+                        FullName           = fullName,
+                        Email              = universityEmail,
+                        UniversityEmail    = universityEmail,
+                        NationalId         = nationalId,
+                        PasswordHash       = BCrypt.Net.BCrypt.HashPassword(_uniSettings.DefaultPassword),
+                        Role               = UserRole.Student,
+                        IsActive           = true,
                         MustChangePassword = true
                     };
 
@@ -386,16 +441,23 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     {
                         Id                  = Ulid.NewUlid(),
                         FullName            = fullName,
+                        NationalId          = nationalId,
                         Email               = personalEmail,
-                        UniversityStudentId = uniStId,
                         Phone               = phone,
+                        Governorate         = governorate,
+                        Address             = address,
+                        Gender              = gender,
+                        DateOfBirth         = dateOfBirth,
+                        StudentType         = studentType,
+                        Religion            = religion,
+                        UniversityStudentId = uniStId,
                         UniversityId        = university.Id,
                         CollegeId           = college.Id,
                         DepartmentId        = department.Id,
                         BatchId             = batch.Id,
                         GroupId             = group.Id,
                         IsActive            = true,
-                        RegulationId        = batch.RegulationId,  // inherit regulation from batch
+                        RegulationId        = batch.RegulationId,
                         SystemUser          = systemUser
                     };
 

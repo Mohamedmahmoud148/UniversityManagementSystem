@@ -1,8 +1,23 @@
+using System;
 using System.Collections.Generic;
 using NUlid;
 
 namespace UniversityManagementSystem.Core.Entities
 {
+    public enum StudentType
+    {
+        Regular    = 0,  // منتظم
+        Transfer   = 1,  // منقول
+        Repeating  = 2,  // معيد
+        External   = 3   // انتساب
+    }
+
+    public enum Gender
+    {
+        Male   = 0,
+        Female = 1
+    }
+
     public class Student : BaseEntity
     {
         public string FullName { get; set; } = string.Empty;
@@ -14,12 +29,21 @@ namespace UniversityManagementSystem.Core.Entities
             get => _phone;
             set
             {
-                if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^01[0125][0-9]{8}$"))
+                if (!string.IsNullOrEmpty(value) &&
+                    !System.Text.RegularExpressions.Regex.IsMatch(value, @"^01[0125][0-9]{8}$"))
                     throw new Exceptions.DomainException("Invalid Egyptian phone number.");
                 _phone = value;
             }
         }
-        public string Email { get; set; } = string.Empty; // Personal Email
+
+        public string Email { get; set; } = string.Empty;       // Personal email (optional)
+        public string NationalId { get; set; } = string.Empty;  // Duplicated from SystemUser for quick lookup
+        public string Governorate { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public Gender? Gender { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public StudentType StudentType { get; set; } = StudentType.Regular;
+        public string Religion { get; set; } = string.Empty;
 
         public Ulid UniversityId { get; set; }
         public Ulid CollegeId { get; set; }
@@ -28,9 +52,7 @@ namespace UniversityManagementSystem.Core.Entities
         public Ulid GroupId { get; set; }
         public bool IsActive { get; set; } = true;
 
-        // Foreign Key to SystemUser
         public Ulid SystemUserId { get; set; }
-
         public Ulid? RegulationId { get; set; }
 
         // Navigation Properties
