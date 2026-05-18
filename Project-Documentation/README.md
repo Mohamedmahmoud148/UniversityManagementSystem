@@ -31,6 +31,7 @@
 | [20](./20-AI-Tools-APIs/README.md) | **AI Tools APIs** | Backend + AI engineers |
 | [21](./21-Diagrams/README.md) | **System Diagrams** | Everyone — visual reference |
 | [22](./22-Deletion-Framework/README.md) | **Intelligent Deletion Framework** | Backend + Frontend devs |
+| [23](./23-Academic-Architecture-Redesign/README.md) | **Enterprise Academic Architecture Redesign** | All architects |
 | — | [**Randomized Exam Guide**](./RANDOMIZED_EXAM_FRONTEND_GUIDE.md) | Frontend developers |
 
 ---
