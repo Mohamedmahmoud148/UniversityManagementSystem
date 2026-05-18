@@ -43,14 +43,15 @@ namespace UniversityManagementSystem.Api.Middleware
 
             var statusCode = exception switch
             {
-                UnauthorizedAccessException           => (int)HttpStatusCode.Unauthorized,
-                Core.Exceptions.ForbiddenException    => (int)HttpStatusCode.Forbidden,
-                KeyNotFoundException                  => (int)HttpStatusCode.NotFound,
-                Core.Exceptions.ConflictException     => (int)HttpStatusCode.Conflict,
-                ArgumentException                     => (int)HttpStatusCode.BadRequest,
-                InvalidOperationException             => (int)HttpStatusCode.BadRequest,
-                Core.Exceptions.DomainException       => (int)HttpStatusCode.BadRequest,
-                _                                     => (int)HttpStatusCode.InternalServerError
+                UnauthorizedAccessException                        => (int)HttpStatusCode.Unauthorized,
+                Core.Exceptions.ForbiddenException                 => (int)HttpStatusCode.Forbidden,
+                KeyNotFoundException                               => (int)HttpStatusCode.NotFound,
+                Core.Exceptions.ConflictException                  => (int)HttpStatusCode.Conflict,
+                Microsoft.EntityFrameworkCore.DbUpdateException    => (int)HttpStatusCode.Conflict,
+                ArgumentException                                  => (int)HttpStatusCode.BadRequest,
+                InvalidOperationException                          => (int)HttpStatusCode.BadRequest,
+                Core.Exceptions.DomainException                    => (int)HttpStatusCode.BadRequest,
+                _                                                  => (int)HttpStatusCode.InternalServerError
             };
 
             context.Response.StatusCode = statusCode;
@@ -80,6 +81,8 @@ namespace UniversityManagementSystem.Api.Middleware
                     (int)HttpStatusCode.Unauthorized => "Authentication required.",
                     (int)HttpStatusCode.Forbidden    => "You do not have permission to perform this action.",
                     (int)HttpStatusCode.NotFound     => "The requested resource was not found.",
+                    (int)HttpStatusCode.Conflict when exception is Microsoft.EntityFrameworkCore.DbUpdateException
+                                                     => exception.InnerException?.Message ?? exception.Message,
                     (int)HttpStatusCode.Conflict     => exception.Message,
                     (int)HttpStatusCode.BadRequest   => exception.Message,
                     _                                => "An unexpected error occurred. Please try again later."
