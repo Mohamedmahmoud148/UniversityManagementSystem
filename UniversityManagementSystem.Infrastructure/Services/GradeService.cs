@@ -9,7 +9,8 @@ using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class GradeService(AppDbContext context, IAuditService auditService) : IGradeService
+    public class GradeService(AppDbContext context, IAuditService auditService,
+        IAcademicStatusService academicStatusService) : IGradeService
     {
         private readonly IAuditService _auditService = auditService;
         public async Task<int> CalculateGradesForOfferingAsync(Ulid offeringId, Ulid doctorId)
@@ -95,6 +96,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
 
             await context.SaveChangesAsync();
+
+            // Auto-update persisted GPA for every affected student after finalization
+            foreach (var studentId in enrolledStudentIds)
+                await academicStatusService.RecalculateAsync(studentId);
+
             return processedCount;
         }
 

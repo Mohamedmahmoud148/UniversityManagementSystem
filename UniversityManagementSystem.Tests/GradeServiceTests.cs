@@ -21,8 +21,9 @@ public class GradeServiceTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
         _context = new AppDbContext(options);
-        var auditMock = new Mock<IAuditService>();
-        _sut = new GradeService(_context, auditMock.Object);
+        var auditMock  = new Mock<IAuditService>();
+        var statusMock = new Mock<IAcademicStatusService>();
+        _sut = new GradeService(_context, auditMock.Object, statusMock.Object);
     }
 
     private (SubjectOffering offering, Student student) SeedOfferingWithStudent(

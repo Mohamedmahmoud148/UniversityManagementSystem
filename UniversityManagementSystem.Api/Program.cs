@@ -356,6 +356,8 @@ builder.Services.AddScoped<IMaterialService, MaterialService>();
 
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IDeletionService, DeletionService>();
+builder.Services.AddScoped<IAcademicStatusService, AcademicStatusService>();
+builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IBulkUploadJob, BulkUploadJob>();
 builder.Services.AddScoped<IExcelImportService, ExcelImportService>();
 builder.Services.AddScoped<IStudentFileService, StudentFileService>();

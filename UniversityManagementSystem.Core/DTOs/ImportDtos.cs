@@ -4,12 +4,14 @@ namespace UniversityManagementSystem.Core.DTOs
 {
     public class StudentImportDto
     {
-        public string FullName { get; set; } = string.Empty;
+        public string FullName   { get; set; } = string.Empty;
         public string NationalId { get; set; } = string.Empty;
-        public string Phone { get; set; } = string.Empty;
-        public Ulid BatchId { get; set; }
-        /// <summary>Raw value from column 4 — used as fallback to look up batch by Name or Code.</summary>
-        public string BatchRaw { get; set; } = string.Empty;
+        public string Phone      { get; set; } = string.Empty;
+        public Ulid   BatchId    { get; set; }
+        /// <summary>Raw value — used as fallback to look up batch by Name or Code.</summary>
+        public string BatchRaw   { get; set; } = string.Empty;
+        /// <summary>Group code for assignment. Column C in bulk upload sheet.</summary>
+        public string GroupCode  { get; set; } = string.Empty;
     }
 
     public class DoctorImportDto
@@ -33,7 +35,8 @@ namespace UniversityManagementSystem.Core.DTOs
         /// Temporary password assigned to all imported users during this import.
         /// Only returned once — not retrievable after this response.
         /// </summary>
-        public string TemporaryPassword { get; set; } = "123456";
+        /// <summary>Set by the service from UniversitySettings.DefaultPassword — never hardcoded here.</summary>
+        public string TemporaryPassword { get; set; } = string.Empty;
     }
 
     public class ImportGradesResultDto

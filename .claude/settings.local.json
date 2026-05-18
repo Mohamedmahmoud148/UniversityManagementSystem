@@ -6,12 +6,27 @@
       "Read(//f/fastApi/**)",
       "Read(//f//**)",
       "Bash(Get-Content \"f:\\\\مشروع التخرج\\\\UniversityManagementSystem.Api\\\\Controllers\\\\*.cs\")",
-      "Bash(Select-String -Pattern \"\\\\[Route|public class|public async\")"
+      "Bash(Select-String -Pattern \"\\\\[Route|public class|public async\")",
+      "PowerShell(Get-ChildItem -Path \"f:\\\\مشروع التخرج\" -Directory -Force | ForEach-Object { Write-Host \"`n=== $\\($_.Name\\) ===\" ; Get-ChildItem -Path $_.FullName -Force | Select-Object Name, PSIsContainer })",
+      "Bash(ls -la \"f:\\\\مشروع التخرج\\\\UniversityManagementSystem.Core\\\\\" 2>/dev/null | head -30 || ls -la \"f:\\\\\\\\مشروع التخرج\\\\\\\\UniversityManagementSystem.Core\\\\\\\\\" 2>/dev/null | head -30)",
+      "Bash(find \"f:\\\\\\\\مشروع التخرج\" -maxdepth 3 -type d -name \"*Core*\" -o -name \"*Api*\" -o -name \"*Infrastructure*\")",
+      "Bash(Get-ChildItem -Path \"F:\\\\fastApi\" -Recurse -Force)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Sort-Object FullName)",
+      "Bash(git commit -m ' *)",
+      "Bash(xargs grep -l \"Excel\\\\|xlsx\\\\|import.*student\\\\|bulk.*upload\")",
+      "Bash(xargs grep -l \"class StudentDto\\\\|class CreateStudentDto\\\\|class StudentFilterDto\")",
+      "Bash(xargs grep -l \"StudentDto {\")",
+      "Bash(curl -s -X POST https://universitymanagementsystem-production-e58e.up.railway.app/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@university.edu\",\"password\":\"Admin@123\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(Get-ChildItem -Path \"F:\\\\مشروع التخرج\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)"
     ],
     "additionalDirectories": [
       "f:\\fastApi\\app\\agents",
       "f:\\fastApi\\app\\core",
-      "f:\\fastApi\\app"
+      "f:\\fastApi\\app",
+      "f:\\"
     ]
   }
 }

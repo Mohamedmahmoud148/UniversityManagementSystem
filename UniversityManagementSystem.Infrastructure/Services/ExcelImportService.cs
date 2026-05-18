@@ -109,6 +109,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     };
 
                     newUsers.Add(user);
+                    newStudents.Add(student);
                     existingNationalIds.Add(nationalId);
                     result.Inserted++;
                 }
@@ -117,6 +118,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     result.Failed++;
                     result.Errors.Add($"Row {row.RowNumber()}: {ex.Message}");
                 }
+            }
+
+            // ── BUG FIX: was missing — entities were built but never persisted ──
+            if (newStudents.Count > 0)
+            {
+                _context.Students.AddRange(newStudents);
+                await _context.SaveChangesAsync();
             }
 
             return result;
@@ -419,6 +427,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 await _context.SaveChangesAsync();
             }
 
+            result.TemporaryPassword = _uniSettings.DefaultPassword;
             return result;
         }
 
@@ -513,6 +522,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Where(g => g.SubjectOfferingId == offeringId)
                 .ToDictionaryAsync(g => g.StudentId);
 
+            // Partial strategy: bad rows are skipped, good rows are saved.
+            // All-or-nothing was replaced because one bad row should not rollback 49 correct ones.
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
@@ -577,18 +588,25 @@ namespace UniversityManagementSystem.Infrastructure.Services
                             SubjectOfferingId = offeringId,
                         };
                         _context.Set<StudentGrade>().Add(gradeRecord);
-                        existingGrades[studentId] = gradeRecord; // track it
+                        existingGrades[studentId] = gradeRecord;
                     }
                     else
                     {
+                        // ── IsFinalized guard — never overwrite a finalized grade ──
+                        if (gradeRecord.IsFinalized)
+                        {
+                            result.Skipped++;
+                            result.Errors.Add($"Row {rowNum}: Grade for '{uniId}' is already finalized — skipped.");
+                            continue;
+                        }
                         if (gradeRecord.DeletedAt != null) gradeRecord.DeletedAt = null;
                         _context.Entry(gradeRecord).State = EntityState.Modified;
                     }
 
-                    // Only update if value is present in the sheet
-                    if (midterm.HasValue) gradeRecord.MidtermScore = midterm.Value;
+                    // Only update fields that are present in the sheet (partial update)
+                    if (midterm.HasValue)    gradeRecord.MidtermScore    = midterm.Value;
                     if (coursework.HasValue) gradeRecord.CourseworkScore = coursework.Value;
-                    if (final.HasValue) gradeRecord.FinalExamScore = final.Value;
+                    if (final.HasValue)      gradeRecord.FinalExamScore  = final.Value;
 
                     result.Imported++;
                 }

@@ -51,6 +51,10 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<ScheduleEntry> ScheduleEntries { get; set; } = null!;
         public DbSet<AcademicYear> AcademicYears { get; set; } = null!;
         public DbSet<Semester> Semesters { get; set; } = null!;
+        public DbSet<SubjectPrerequisite> SubjectPrerequisites { get; set; } = null!;
+        public DbSet<AcademicPolicy> AcademicPolicies { get; set; } = null!;
+        public DbSet<StudentAcademicStatus> StudentAcademicStatuses { get; set; } = null!;
+        public DbSet<SubjectOfferingWaitlist> SubjectOfferingWaitlists { get; set; } = null!;
 
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         {
@@ -851,6 +855,77 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .Property(se => se.WeekType)
                 .HasConversion<string>()
                 .HasMaxLength(10);
+
+            // --------------------------------------------------------
+            // SubjectPrerequisite
+            // --------------------------------------------------------
+            modelBuilder.Entity<SubjectPrerequisite>()
+                .HasOne(sp => sp.Subject)
+                .WithMany()
+                .HasForeignKey(sp => sp.SubjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SubjectPrerequisite>()
+                .HasOne(sp => sp.PrerequisiteSubject)
+                .WithMany()
+                .HasForeignKey(sp => sp.PrerequisiteSubjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<SubjectPrerequisite>()
+                .HasIndex(sp => new { sp.SubjectId, sp.PrerequisiteSubjectId })
+                .IsUnique()
+                .HasDatabaseName("IX_SubjectPrerequisites_Subject_Prereq");
+
+            modelBuilder.Entity<SubjectPrerequisite>()
+                .HasIndex(sp => sp.SubjectId)
+                .HasDatabaseName("IX_SubjectPrerequisites_SubjectId");
+
+            // --------------------------------------------------------
+            // AcademicPolicy
+            // --------------------------------------------------------
+            modelBuilder.Entity<AcademicPolicy>()
+                .HasOne(ap => ap.Department)
+                .WithMany()
+                .HasForeignKey(ap => ap.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // --------------------------------------------------------
+            // StudentAcademicStatus (1-to-1 with Student)
+            // --------------------------------------------------------
+            modelBuilder.Entity<StudentAcademicStatus>()
+                .HasOne(s => s.Student)
+                .WithOne()
+                .HasForeignKey<StudentAcademicStatus>(s => s.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StudentAcademicStatus>()
+                .HasIndex(s => s.StudentId)
+                .IsUnique()
+                .HasDatabaseName("IX_StudentAcademicStatuses_StudentId");
+
+            // --------------------------------------------------------
+            // SubjectOfferingWaitlist
+            // --------------------------------------------------------
+            modelBuilder.Entity<SubjectOfferingWaitlist>()
+                .HasOne(w => w.Student)
+                .WithMany()
+                .HasForeignKey(w => w.StudentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SubjectOfferingWaitlist>()
+                .HasOne(w => w.Offering)
+                .WithMany()
+                .HasForeignKey(w => w.SubjectOfferingId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<SubjectOfferingWaitlist>()
+                .HasIndex(w => new { w.StudentId, w.SubjectOfferingId })
+                .IsUnique()
+                .HasDatabaseName("IX_SubjectOfferingWaitlist_Student_Offering");
+
+            modelBuilder.Entity<SubjectOfferingWaitlist>()
+                .HasIndex(w => w.SubjectOfferingId)
+                .HasDatabaseName("IX_SubjectOfferingWaitlist_OfferingId");
         }
 
         // ── Soft Delete Intercept ────────────────────────────────────────────

@@ -40,84 +40,136 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
                 using var stream = await _storageService.DownloadAsync(file.StorageKey);
                 var students = _excelService.ParseStudents(stream);
                 int successCount = 0;
-                int failCount = 0;
+                int failCount    = 0;
+                var errors       = new System.Collections.Generic.List<string>();
+
+                // Pre-fetch all batches and groups once — eliminates N+1 DB calls
+                var batchesByCode = await _context.Batches
+                    .AsNoTracking()
+                    .Include(b => b.Department).ThenInclude(d => d.College).ThenInclude(c => c.University)
+                    .ToDictionaryAsync(b => b.Code, StringComparer.OrdinalIgnoreCase);
+
+                var groupsByCode = await _context.Groups
+                    .AsNoTracking()
+                    .ToDictionaryAsync(g => g.Code, StringComparer.OrdinalIgnoreCase);
+
+                var existingNationalIds = await _context.SystemUsers
+                    .AsNoTracking()
+                    .Where(u => u.NationalId != null && u.NationalId != "")
+                    .Select(u => u.NationalId.ToLower())
+                    .ToHashSetAsync();
+
+                var newUsers    = new System.Collections.Generic.List<SystemUser>();
+                var newStudents = new System.Collections.Generic.List<Student>();
+                int autoCounter = await _context.Students.IgnoreQueryFilters().CountAsync() + 1;
 
                 foreach (var dto in students)
                 {
                     try
                     {
-                        var batch = dto.BatchId != Ulid.Empty
-                            ? await _context.Batches.FindAsync(dto.BatchId)
-                            : await _context.Batches.FirstOrDefaultAsync(b =>
-                                b.Name == dto.BatchRaw || b.Code == dto.BatchRaw);
+                        // Batch lookup
+                        var batch = dto.BatchId != Ulid.Empty && batchesByCode.Values.Any(b => b.Id == dto.BatchId)
+                            ? batchesByCode.Values.First(b => b.Id == dto.BatchId)
+                            : batchesByCode.GetValueOrDefault(dto.BatchRaw);
 
                         if (batch == null)
                         {
                             failCount++;
-                            Console.WriteLine($"BulkUpload Error: Batch '{dto.BatchRaw}' not found in database.");
+                            errors.Add($"Batch '{dto.BatchRaw}' not found.");
                             continue;
                         }
 
-                        var password = _identityService.GenerateSecurePassword();
-                        var email = await _identityService.GenerateUniversityEmailAsync(
-                            dto.FullName.Split(' ')[0],
-                            dto.FullName.Split(' ').Last(),
-                            UserRole.Student);
+                        // Group lookup (now using GroupCode from DTO)
+                        Group? group = null;
+                        if (!string.IsNullOrEmpty(dto.GroupCode))
+                            groupsByCode.TryGetValue(dto.GroupCode, out group);
 
+                        // Dedup
+                        if (!string.IsNullOrEmpty(dto.NationalId) &&
+                            existingNationalIds.Contains(dto.NationalId.ToLower()))
+                        {
+                            failCount++;
+                            errors.Add($"NationalId '{dto.NationalId}' already exists — skipped.");
+                            continue;
+                        }
+
+                        var email    = await _identityService.GenerateUniversityEmailAsync(
+                            dto.FullName.Split(' ')[0],
+                            dto.FullName.Split(' ').LastOrDefault() ?? "Student",
+                            UserRole.Student);
                         var studentId = await _identityService.GenerateStudentIdAsync(batch.Id, batch.DepartmentId);
 
-                        // Use strategy pattern or service method for cleaner transaction handling
-                        using var transaction = await _context.Database.BeginTransactionAsync();
-                        try
+                        var dept = batch.Department;
+                        var user = new SystemUser
                         {
-                            var user = new SystemUser
-                            {
-                                FullName = dto.FullName,
-                                Email = email,
-                                UniversityEmail = email, // Set UniversityEmail on SystemUser
-                                NationalId = dto.NationalId, // Set NationalId on SystemUser
-                                PasswordHash = BCrypt.Net.BCrypt.HashPassword("DefaultPass123!"), // Default password for bulk
-                                Role = UserRole.Student,
-                                // CreatedByUserId = uploaderUserId, // Removed as per instruction's snippet
-                                IsActive = true
-                            };
-                            _context.SystemUsers.Add(user);
-                            await _context.SaveChangesAsync();
+                            Id              = Ulid.NewUlid(),
+                            FullName        = dto.FullName,
+                            Email           = email,
+                            UniversityEmail = email,
+                            NationalId      = string.IsNullOrEmpty(dto.NationalId)
+                                                ? $"AUTO_{autoCounter++:D6}"
+                                                : dto.NationalId,
+                            PasswordHash    = BCrypt.Net.BCrypt.HashPassword("DefaultPass123!"),
+                            Role            = UserRole.Student,
+                            IsActive        = true,
+                            MustChangePassword = true
+                        };
 
-                            var student = new Student
-                            {
-                                FullName = dto.FullName,
-                                Email = "", // Personal Email not in bulk? Or maybe user.Email? Let's leave empty.
-                                Phone = dto.Phone,
-                                UniversityStudentId = studentId,
-                                BatchId = batch.Id,
-                                SystemUserId = user.Id
-                                // UniversityEmail = email, // Removed from Student
-                                // NationalId = dto.NationalId, // Removed from Student
-                            };
-                            _context.Students.Add(student);
-                            await _context.SaveChangesAsync();
-
-                            // user.RelatedEntityId = student.Id; // Removed
-                            // await _context.SaveChangesAsync(); // Removed
-
-                            await transaction.CommitAsync();
-                            successCount++;
-                        }
-                        catch
+                        var student = new Student
                         {
-                            await transaction.RollbackAsync();
-                            throw;
-                        }
+                            Id                  = Ulid.NewUlid(),
+                            FullName            = dto.FullName,
+                            Email               = email,
+                            Phone               = string.IsNullOrEmpty(dto.Phone) ? "01000000000" : dto.Phone,
+                            UniversityStudentId = studentId,
+                            UniversityId        = dept.College?.UniversityId ?? Ulid.Empty,
+                            CollegeId           = dept.CollegeId,
+                            DepartmentId        = dept.Id,
+                            BatchId             = batch.Id,
+                            GroupId             = group?.Id ?? Ulid.Empty,
+                            IsActive            = true,
+                            RegulationId        = batch.RegulationId,
+                            SystemUser          = user
+                        };
+
+                        newUsers.Add(user);
+                        newStudents.Add(student);
+                        if (!string.IsNullOrEmpty(dto.NationalId))
+                            existingNationalIds.Add(dto.NationalId.ToLower());
+                        successCount++;
                     }
-                    catch
+                    catch (Exception ex)
                     {
                         failCount++;
+                        errors.Add($"{dto.FullName}: {ex.Message}");
                     }
                 }
 
-                file.ValidationStatus = "Completed";
-                file.ExtractedDataJson = $"{{ \"success\": {successCount}, \"failed\": {failCount} }}";
+                // Single transaction — not per-row (was 500 transactions before)
+                if (newStudents.Count > 0)
+                {
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        _context.Students.AddRange(newStudents);
+                        await _context.SaveChangesAsync();
+                        await transaction.CommitAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        await transaction.RollbackAsync();
+                        successCount = 0;
+                        errors.Add($"Bulk insert failed: {ex.Message}");
+                    }
+                }
+
+                file.ValidationStatus = errors.Count == 0 ? "Completed" : "CompletedWithErrors";
+                file.ExtractedDataJson = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    success = successCount,
+                    failed  = failCount,
+                    errors  = errors
+                });
                 await _context.SaveChangesAsync();
             }
             catch (Exception ex)
