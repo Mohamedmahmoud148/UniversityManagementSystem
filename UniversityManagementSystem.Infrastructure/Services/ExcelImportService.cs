@@ -358,22 +358,23 @@ namespace UniversityManagementSystem.Infrastructure.Services
                             result.Warnings.Add($"Row {rowNum}: Phone '{rawPhone}' is invalid — using placeholder '01000000000'.");
                     }
 
-                    // ── 6g. Email — auto-generate if missing ──────────────
+                    // ── 6g. Always generate university email from student ID ──────
                     var department = batch.Department;
                     var college    = department.College;
                     var university = college.University;
 
-                    string uniEmail = string.IsNullOrEmpty(email)
-                        ? $"{uniStId.ToLower()}@{_uniSettings.StudentEmailDomain}"
-                        : email;
+                    // University email is always auto-generated — used for login
+                    string universityEmail = $"{uniStId.ToLower()}@{_uniSettings.StudentEmailDomain}";
+                    // Personal email stored separately on the Student record (optional)
+                    string personalEmail = string.IsNullOrWhiteSpace(email) ? "" : email;
 
                     // ── 6h. Build entities ────────────────────────────────
                     var systemUser = new SystemUser
                     {
                         Id              = Ulid.NewUlid(),
                         FullName        = fullName,
-                        Email           = uniEmail,
-                        UniversityEmail = uniEmail,
+                        Email           = universityEmail,
+                        UniversityEmail = universityEmail,
                         NationalId      = nationalId ?? "",
                         PasswordHash    = BCrypt.Net.BCrypt.HashPassword(_uniSettings.DefaultPassword),
                         Role            = UserRole.Student,
@@ -385,7 +386,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     {
                         Id                  = Ulid.NewUlid(),
                         FullName            = fullName,
-                        Email               = uniEmail,
+                        Email               = personalEmail,
                         UniversityStudentId = uniStId,
                         Phone               = phone,
                         UniversityId        = university.Id,
