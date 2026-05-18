@@ -16,6 +16,28 @@ namespace UniversityManagementSystem.Infrastructure.Data
             ("Fourth Year", 4)
         };
 
+        /// <summary>
+        /// Controls whether the demo academic hierarchy (University, College, Department,
+        /// Batch, Groups, Doctor, Student) is seeded on startup.
+        /// Set environment variable SEED_DEMO_DATA=true to enable.
+        /// SuperAdmin is always seeded regardless of this flag (needed for login).
+        /// </summary>
+        private static bool SeedDemoDataEnabled =>
+            string.Equals(
+                Environment.GetEnvironmentVariable("SEED_DEMO_DATA"),
+                "true",
+                StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// When true, ALL seeding (including SuperAdmin) is completely disabled.
+        /// Set DISABLE_SEEDING=true in production/demo Railway environment variable.
+        /// </summary>
+        private static bool SeedingDisabled =>
+            string.Equals(
+                Environment.GetEnvironmentVariable("DISABLE_SEEDING"),
+                "true",
+                StringComparison.OrdinalIgnoreCase);
+
         public static async Task SeedAsync(IServiceProvider serviceProvider)
         {
             using var scope = serviceProvider.CreateScope();
@@ -24,10 +46,17 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .GetRequiredService<ILoggerFactory>()
                 .CreateLogger("DbInitializer");
 
+            // ── DISABLE_SEEDING guard — set env var to completely stop all seeding ──
+            if (SeedingDisabled)
+            {
+                logger.LogInformation("DbInitializer: DISABLE_SEEDING=true — all seeding skipped.");
+                return;
+            }
+
             // Ensure database is created/migrated
             await context.Database.MigrateAsync();
 
-            // Seed SuperAdmins
+            // Seed SuperAdmins — always runs unless DISABLE_SEEDING=true
             if (!await context.SystemUsers.AnyAsync(u => u.Role == UserRole.SuperAdmin))
             {
                 logger.LogInformation("Seeding SuperAdmin...");
@@ -72,7 +101,9 @@ namespace UniversityManagementSystem.Infrastructure.Data
             }
 
             // Seed Academic Hierarchy
-            if (!await context.Universities.AnyAsync())
+            // Only runs when SEED_DEMO_DATA=true AND universities table is empty.
+            // Default (no env var set): skipped — prevents surprise data after manual deletion.
+            if (SeedDemoDataEnabled && !await context.Universities.AnyAsync())
             {
                 logger.LogInformation("Seeding Academic Hierarchy...");
                 var university = new University { Name = "Beni Suef National University" };
@@ -162,7 +193,10 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 logger.LogInformation("Academic Hierarchy and Users seeded successfully.");
             }
 
-            await SeedAcademicYearsAsync(context, logger);
+            // SeedAcademicYearsAsync also only runs when SEED_DEMO_DATA=true.
+            // Without this guard it ran on EVERY startup and recreated deleted AcademicYears.
+            if (SeedDemoDataEnabled)
+                await SeedAcademicYearsAsync(context, logger);
         }
 
         private static async Task SeedAcademicYearsAsync(AppDbContext context, ILogger logger)
