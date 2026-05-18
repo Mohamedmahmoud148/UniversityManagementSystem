@@ -23,15 +23,15 @@ namespace UniversityManagementSystem.Infrastructure.Storage
             // .NET configuration automatically maps R2__AccessKey → R2:AccessKey,
             // so these are already bound via IOptions<R2Settings>.
             // R2Settings.AccessKey/SecretKey are populated from env vars at startup.
+            // Force SigV4 globally for all S3 presigned URL generation (R2 rejects SigV2)
+            Amazon.AWSConfigsS3.UseSignatureVersion4 = true;
+
             var credentials = new BasicAWSCredentials(_settings.AccessKey, _settings.SecretKey);
             var config = new AmazonS3Config
             {
                 ServiceURL = _settings.ServiceUrl,
-                ForcePathStyle = true,       // Required for R2 / non-AWS S3 endpoints
-                SignatureVersion = "4",      // Required for R2 pre-signed URLs
-                AuthenticationRegion = "us-east-1"  // R2 requires us-east-1 for SigV4 signing
-                                                    // (do NOT use 'auto' — the AWS SDK cannot
-                                                    //  generate a valid signature with that value)
+                ForcePathStyle = true,         // Required for R2 / non-AWS S3 endpoints
+                AuthenticationRegion = "auto"  // R2 requires "auto" for SigV4 presigned URLs
             };
 
             _s3 = new AmazonS3Client(credentials, config);
