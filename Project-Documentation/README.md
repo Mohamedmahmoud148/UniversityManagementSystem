@@ -30,6 +30,7 @@
 | [19](./19-Discussion-Preparation/README.md) | **Discussion Preparation** | Committee presentation |
 | [20](./20-AI-Tools-APIs/README.md) | **AI Tools APIs** | Backend + AI engineers |
 | [21](./21-Diagrams/README.md) | **System Diagrams** | Everyone — visual reference |
+| [22](./22-Deletion-Framework/README.md) | **Intelligent Deletion Framework** | Backend + Frontend devs |
 | — | [**Randomized Exam Guide**](./RANDOMIZED_EXAM_FRONTEND_GUIDE.md) | Frontend developers |
 
 ---
@@ -54,6 +55,8 @@ GET    /api/analytics/summary             → Admin dashboard stats
 POST   /api/chat                          → AI conversation
 GET    /health                            → System health check
 WS     /hubs/notifications                → SignalR real-time connection
+POST   /api/deletion/analyze              → [Admin] Analyze delete impact (no data change)
+POST   /api/deletion/execute              → [Admin] Execute delete after confirmation
 ```
 
 ### AI Capabilities

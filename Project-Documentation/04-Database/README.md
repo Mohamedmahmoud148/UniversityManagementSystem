@@ -633,6 +633,41 @@ ComplaintAnalysis (many) ──► ComplaintCluster
 
 ---
 
+## Deletion Architecture
+
+All delete operations are governed by the **Intelligent Deletion Framework** (`/api/deletion/*`).
+Full documentation: [22-Deletion-Framework](../22-Deletion-Framework/README.md)
+
+### Delete Type per Entity Category
+
+| Category | Entities | Delete Strategy |
+|---|---|---|
+| **Never delete** | University, College, Department, Semester, AcademicYear | SoftDelete only — data preserved forever |
+| **Soft delete only** | Student, Doctor, TA, Subject, SubjectOffering, Regulation, Batch | `DeletedAt = now` + `IsActive = false` |
+| **Immutable** | StudentGrade (finalized), AuditLog, Exam (published) | Hard block — no delete ever |
+| **Hard delete OK** | AppNotification, RefreshToken, ChatMessage, AiMemory, ScheduleEntry | Permanent removal safe |
+| **Restricted** | Enrollment, ExamSubmission | Cannot delete while active |
+
+### Risk Levels at a Glance
+
+```
+🟢 Low          → AppNotification, RefreshToken, ChatMessage
+🟡 Medium       → Group, AiMemory, Material, ScheduleEntry
+🟠 High         → Exam, Batch, Regulation, AttendanceSession
+🔴 Critical     → Student, Doctor, Subject, SubjectOffering, Enrollment
+🟣 Catastrophic → University, College, Department, Semester, AcademicYear
+```
+
+### Deletion Order (always leaf-first)
+When resetting or cascading, always delete in this direction:
+```
+ComplaintAnalysis → Exam submissions → Grades → Enrollments
+→ SubjectOfferings → Students → Doctors → SystemUsers
+→ Groups → Batches → Subjects → Departments → Colleges → University
+```
+
+---
+
 ## Database Performance Considerations
 
 ### Indexes (Critical for Query Speed)

@@ -29,6 +29,7 @@ using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
 using UniversityManagementSystem.Infrastructure.Services;
+using UniversityManagementSystem.Infrastructure.Services.Deletion;
 using UniversityManagementSystem.Infrastructure.Jobs;
 using UniversityManagementSystem.Infrastructure.Storage;
 
@@ -354,6 +355,7 @@ builder.Services.AddScoped<IGradeService, GradeService>();
 builder.Services.AddScoped<IMaterialService, MaterialService>();
 
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<IDeletionService, DeletionService>();
 builder.Services.AddScoped<IBulkUploadJob, BulkUploadJob>();
 builder.Services.AddScoped<IExcelImportService, ExcelImportService>();
 builder.Services.AddScoped<IStudentFileService, StudentFileService>();

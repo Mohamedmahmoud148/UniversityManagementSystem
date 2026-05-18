@@ -49,6 +49,8 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<ComplaintCluster> ComplaintClusters { get; set; } = null!;
         public DbSet<AcademicYearDepartment> AcademicYearDepartments { get; set; } = null!;
         public DbSet<ScheduleEntry> ScheduleEntries { get; set; } = null!;
+        public DbSet<AcademicYear> AcademicYears { get; set; } = null!;
+        public DbSet<Semester> Semesters { get; set; } = null!;
 
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         {
