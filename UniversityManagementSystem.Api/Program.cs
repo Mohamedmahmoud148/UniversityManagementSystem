@@ -442,6 +442,10 @@ using (var scope = app.Services.CreateScope())
     {
         var db = services.GetRequiredService<AppDbContext>();
 
+        // Ensure citext extension exists before migrations (required by InitialUlidSchema)
+        try { db.Database.ExecuteSqlRaw("CREATE EXTENSION IF NOT EXISTS citext;"); }
+        catch (Exception) { /* may lack superuser — migration will try again */ }
+
         // 1. Apply any pending EF Core migrations automatically
         db.Database.Migrate();
 
