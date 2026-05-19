@@ -323,6 +323,7 @@ builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IExcelService, ExcelService>();
 builder.Services.AddScoped<IIdentityProvisioningService, IdentityProvisioningService>();
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, UniversityManagementSystem.Api.Hubs.NameIdUserIdProvider>();
 builder.Services.AddSingleton<IRealtimeNotifier, SignalRNotifier>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IAcademicRiskJob, AcademicRiskJob>();
