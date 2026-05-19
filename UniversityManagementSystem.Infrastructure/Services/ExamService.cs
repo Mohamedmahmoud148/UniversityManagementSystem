@@ -562,8 +562,22 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (file == null || file.Length == 0)
                 throw new ArgumentException("File is empty or not provided.");
 
+            // Normalize content type — browsers often send PDFs as application/octet-stream
+            var ext = System.IO.Path.GetExtension(file.FileName).ToLowerInvariant();
+            var contentType = file.ContentType;
+            if (contentType == "application/octet-stream" || string.IsNullOrWhiteSpace(contentType))
+            {
+                contentType = ext switch
+                {
+                    ".pdf"  => "application/pdf",
+                    ".docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    ".doc"  => "application/msword",
+                    _       => contentType
+                };
+            }
+
             using var stream = file.OpenReadStream();
-            var fileStatus = await _fileService.UploadFileStreamAsync(doctorId, stream, file.FileName, file.ContentType, file.Length);
+            var fileStatus = await _fileService.UploadFileStreamAsync(doctorId, stream, file.FileName, contentType, file.Length);
 
             var exam = new Exam
             {
