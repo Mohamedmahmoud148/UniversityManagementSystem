@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using UniversityManagementSystem.Core.Entities;
 using NUlid;
 
@@ -116,5 +117,13 @@ namespace UniversityManagementSystem.Core.DTOs
         /// Defaults to half the pool if not specified.
         /// </summary>
         public int QuestionsPerStudent { get; set; } = 0;
+    }
+
+    public class UploadPdfExamRequest
+    {
+        public string? SubjectOfferingId { get; set; }
+
+        [Required]
+        public IFormFile File { get; set; } = null!;
     }
 }
