@@ -59,9 +59,14 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpPost("upload-pdf")]
         [Authorize(Roles = "Doctor,SuperAdmin")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> UploadPdfExam([FromQuery] string subjectOfferingId, [FromForm] Microsoft.AspNetCore.Http.IFormFile file)
+        public async Task<IActionResult> UploadPdfExam(
+            [FromQuery] string? subjectOfferingId,
+            [FromForm] string? subjectOfferingIdForm,
+            [FromForm] Microsoft.AspNetCore.Http.IFormFile file)
         {
-            if (!Ulid.TryParse(subjectOfferingId, out var offeringId)) return BadRequest("Invalid Offering ID.");
+            var rawId = subjectOfferingId ?? subjectOfferingIdForm ?? string.Empty;
+            if (!Ulid.TryParse(rawId, out var offeringId))
+                return BadRequest("subjectOfferingId is required — send it as a query param (?subjectOfferingId=) or as a form field.");
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
             var doctorId = Ulid.Parse(profileClaim.Value);
