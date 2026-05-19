@@ -27,6 +27,9 @@ namespace UniversityManagementSystem.Core.DTOs
 
     public class CreateExamDto
     {
+        /// <summary>Can be sent in body OR as ?subjectOfferingId= query param — body takes priority.</summary>
+        public string? SubjectOfferingId { get; set; }
+
         [Required]
         public string Title { get; set; } = string.Empty;
 

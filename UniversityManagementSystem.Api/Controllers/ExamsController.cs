@@ -30,9 +30,12 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpPost]
         [Authorize(Roles = "Doctor,SuperAdmin")]
-        public async Task<IActionResult> CreateExam([FromQuery] string subjectOfferingId, [FromBody] CreateExamDto dto)
+        public async Task<IActionResult> CreateExam([FromQuery] string? subjectOfferingId, [FromBody] CreateExamDto dto)
         {
-            if (!Ulid.TryParse(subjectOfferingId, out var offeringId)) return BadRequest("Invalid Offering ID.");
+            // Accept subjectOfferingId from body OR query param (body takes priority)
+            var rawId = dto.SubjectOfferingId ?? subjectOfferingId ?? string.Empty;
+            if (!Ulid.TryParse(rawId, out var offeringId))
+                return BadRequest("subjectOfferingId is required — send it in the request body or as a query parameter.");
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
             var doctorId = Ulid.Parse(profileClaim.Value);
