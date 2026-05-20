@@ -9,6 +9,5 @@
 **/.env
 **/.env.*
 **/appsettings.Development.json
-**/Migrations
 **/TestResults
 **/coverage
