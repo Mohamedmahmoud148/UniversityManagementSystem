@@ -283,5 +283,30 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 TotalSubjects = grades.Count
             };
         }
+
+        public async Task<System.Collections.Generic.IEnumerable<UniversityManagementSystem.Core.DTOs.GradeDto>> GetStudentGradesAsync(Ulid studentId)
+        {
+            var grades = await context.StudentGrades
+                .AsNoTracking()
+                .Include(g => g.SubjectOffering).ThenInclude(so => so.Subject)
+                .Include(g => g.Student)
+                .Where(g => g.StudentId == studentId && g.DeletedAt == null)
+                .OrderByDescending(g => g.CalculatedAt)
+                .ToListAsync();
+
+            return grades.Select(g => new UniversityManagementSystem.Core.DTOs.GradeDto
+            {
+                Id = g.Id,
+                StudentId = g.StudentId,
+                StudentName = g.Student?.FullName ?? string.Empty,
+                SubjectOfferingId = g.SubjectOfferingId,
+                SubjectName = g.SubjectOffering?.Subject?.Name ?? string.Empty,
+                FinalScore = g.FinalScore,
+                GradeLetter = g.GradeLetter,
+                GradePoints = g.GradePoints,
+                IsFinalized = g.IsFinalized,
+                CalculatedAt = g.CalculatedAt
+            });
+        }
     }
 }

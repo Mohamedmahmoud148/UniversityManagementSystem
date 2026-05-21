@@ -20,7 +20,9 @@
       "Bash(curl -s -X POST https://universitymanagementsystem-production-e58e.up.railway.app/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@university.edu\",\"password\":\"Admin@123\"}')",
       "Bash(python3 -m json.tool)",
       "Bash(Get-ChildItem -Path \"F:\\\\مشروع التخرج\" -Recurse -Directory)",
-      "Bash(Select-Object FullName)"
+      "Bash(Select-Object FullName)",
+      "Bash(git rm *)",
+      "Bash(dotnet add *)"
     ],
     "additionalDirectories": [
       "f:\\fastApi\\app\\agents",

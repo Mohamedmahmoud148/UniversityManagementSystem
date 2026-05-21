@@ -113,24 +113,37 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 throw new UnauthorizedAccessException("You are not the instructor for this subject offering.");
 
             // 2. Map DTO to Entity
+            var durationMinutes = dto.DurationMinutes > 0
+                ? dto.DurationMinutes
+                : (int)(dto.EndTime - dto.StartTime).TotalMinutes;
+
             var exam = new Exam
             {
                 Code = await GenerateUniqueExamCodeAsync(),
                 Title = dto.Title,
+                Instructions = dto.Instructions,
                 Type = dto.Type,
                 TotalMarks = dto.Questions.Sum(q => q.Mark),
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,
+                DurationMinutes = durationMinutes,
                 Status = dto.Status,
                 Mode = ExamMode.Structured,
                 CreatedByDoctorId = doctorId,
                 SubjectOfferingId = subjectOfferingId,
+                IsRandomized = dto.IsRandomized,
+                QuestionsPerStudent = dto.QuestionsPerStudent,
+                AllowLateSubmission = dto.AllowLateSubmission,
+                LateSubmissionWindowMinutes = dto.LateSubmissionWindowMinutes,
                 CreatedAt = DateTime.UtcNow,
                 Questions = [.. dto.Questions.Select(q => new ExamQuestion
                 {
                     QuestionText = q.QuestionText,
                     CorrectAnswer = q.CorrectAnswer,
                     Mark = q.Mark,
+                    QuestionType = (QuestionType)q.QuestionType,
+                    OptionsJson = q.Options != null && q.Options.Count > 0
+                        ? System.Text.Json.JsonSerializer.Serialize(q.Options) : null,
                     CreatedAt = DateTime.UtcNow
                 })]
             };
@@ -210,15 +223,21 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     CorrectAnswer = includeCorrectAnswers ? q.CorrectAnswer : null
                 }).ToList();
 
+            var duration = exam.DurationMinutes > 0
+                ? exam.DurationMinutes
+                : (int)(exam.EndTime - exam.StartTime).TotalMinutes;
+
             return new ExamDto
             {
                 Id = exam.Id,
                 Code = exam.Code,
                 Title = exam.Title,
+                Instructions = exam.Instructions,
                 Type = exam.Type.ToString(),
                 TotalMarks = exam.TotalMarks,
                 StartTime = exam.StartTime,
                 EndTime = exam.EndTime,
+                DurationMinutes = duration,
                 Mode = exam.Mode.ToString(),
                 Status = exam.Status.ToString(),
                 FilePath = exam.FilePath,
@@ -227,6 +246,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 SubjectName = exam.SubjectOffering?.Subject?.Name ?? string.Empty,
                 IsRandomized = exam.IsRandomized,
                 QuestionsPerStudent = exam.QuestionsPerStudent,
+                AllowLateSubmission = exam.AllowLateSubmission,
+                LateSubmissionWindowMinutes = exam.LateSubmissionWindowMinutes,
+                QuestionCount = questions.Count,
                 Questions = questions
             };
         }
@@ -624,6 +646,180 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await context.SaveChangesAsync();
 
             return MapToDto(exam);
+        }
+
+        // ── Save Progress (auto-save draft during exam) ──────────────────────
+        public async Task<SaveProgressResponseDto> SaveProgressAsync(Ulid examId, Ulid studentId, SaveProgressDto dto)
+        {
+            var submission = await context.ExamSubmissions
+                .FirstOrDefaultAsync(s => s.ExamId == examId && s.StudentId == studentId);
+
+            if (submission == null)
+            {
+                submission = new ExamSubmission
+                {
+                    ExamId = examId,
+                    StudentId = studentId,
+                    IsCompleted = false,
+                    DraftAnswersJson = System.Text.Json.JsonSerializer.Serialize(dto.Answers),
+                    LastSavedAt = DateTime.UtcNow,
+                    SubmittedAt = DateTime.UtcNow
+                };
+                context.ExamSubmissions.Add(submission);
+            }
+            else
+            {
+                if (submission.IsCompleted)
+                    throw new InvalidOperationException("Exam already submitted — cannot save progress.");
+
+                submission.DraftAnswersJson = System.Text.Json.JsonSerializer.Serialize(dto.Answers);
+                submission.LastSavedAt = DateTime.UtcNow;
+            }
+
+            await context.SaveChangesAsync();
+            return new SaveProgressResponseDto
+            {
+                SavedAt = DateTime.UtcNow,
+                AnswersSaved = dto.Answers.Count,
+                Message = "Progress saved successfully."
+            };
+        }
+
+        // ── Get Exam Session (student opens exam) ────────────────────────────
+        public async Task<ExamSessionDto> GetExamSessionAsync(Ulid examId, Ulid studentId)
+        {
+            var exam = await context.Exams
+                .AsNoTracking()
+                .Include(e => e.Questions)
+                .Include(e => e.SubjectOffering).ThenInclude(so => so.Subject)
+                .FirstOrDefaultAsync(e => e.Id == examId)
+                ?? throw new KeyNotFoundException("Exam not found.");
+
+            var isEnrolled = await context.Enrollments
+                .AsNoTracking()
+                .AnyAsync(e => e.StudentId == studentId && e.SubjectOfferingId == exam.SubjectOfferingId && e.IsActive);
+
+            if (!isEnrolled)
+                throw new UnauthorizedAccessException("You are not enrolled in this subject.");
+
+            if (exam.Status != ExamStatus.Published)
+                throw new UnauthorizedAccessException("Exam is not available yet.");
+
+            var submission = await context.ExamSubmissions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.ExamId == examId && s.StudentId == studentId);
+
+            var now = DateTime.UtcNow;
+            var duration = exam.DurationMinutes > 0
+                ? exam.DurationMinutes
+                : (int)(exam.EndTime - exam.StartTime).TotalMinutes;
+            var secondsRemaining = (int)Math.Max(0, (exam.EndTime - now).TotalSeconds);
+
+            var draftAnswers = new List<ExamAnswerDto>();
+            if (submission?.DraftAnswersJson != null && !submission.IsCompleted)
+            {
+                try { draftAnswers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.DraftAnswersJson) ?? new(); }
+                catch { }
+            }
+
+            var questions = exam.Questions
+                .Where(q => q.DeletedAt == null)
+                .Select(q => new ExamQuestionDto
+                {
+                    Id = q.Id,
+                    QuestionText = q.QuestionText,
+                    Options = q.OptionsJson != null
+                        ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(q.OptionsJson) : null,
+                    QuestionType = q.QuestionType.ToString(),
+                    Mark = q.Mark
+                }).ToList();
+
+            return new ExamSessionDto
+            {
+                ExamId = exam.Id,
+                ExamCode = exam.Code,
+                Title = exam.Title,
+                Instructions = exam.Instructions,
+                DurationMinutes = duration,
+                StartTime = exam.StartTime,
+                EndTime = exam.EndTime,
+                IsSubmitted = submission?.IsCompleted ?? false,
+                SubmittedAt = submission?.IsCompleted == true ? submission.SubmittedAt : null,
+                DraftAnswers = draftAnswers,
+                Questions = questions,
+                SecondsRemaining = secondsRemaining
+            };
+        }
+
+        // ── Analytics ────────────────────────────────────────────────────────
+        public async Task<ExamAnalyticsDto> GetExamAnalyticsAsync(Ulid examId, Ulid doctorId)
+        {
+            var exam = await context.Exams
+                .AsNoTracking()
+                .Include(e => e.Questions)
+                .Include(e => e.SubjectOffering)
+                .FirstOrDefaultAsync(e => e.Id == examId)
+                ?? throw new KeyNotFoundException("Exam not found.");
+
+            if (exam.SubjectOffering.DoctorId != doctorId)
+                throw new UnauthorizedAccessException("Not authorized to view this exam's analytics.");
+
+            var submissions = await context.ExamSubmissions
+                .AsNoTracking()
+                .Where(s => s.ExamId == examId && s.IsCompleted)
+                .ToListAsync();
+
+            var enrolledCount = await context.Enrollments
+                .AsNoTracking()
+                .CountAsync(e => e.SubjectOfferingId == exam.SubjectOfferingId && e.IsActive);
+
+            var gradedSubmissions = submissions.Where(s => s.IsGraded && s.Score.HasValue).ToList();
+            var passThreshold = exam.TotalMarks * 0.5;
+
+            var questionStats = new List<QuestionAnalyticsDto>();
+            foreach (var q in exam.Questions.Where(q => q.DeletedAt == null))
+            {
+                int answered = 0, correct = 0;
+                foreach (var sub in submissions)
+                {
+                    try
+                    {
+                        var answers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(sub.AnswersJson);
+                        var ans = answers?.FirstOrDefault(a => a.QuestionId == q.Id);
+                        if (ans != null)
+                        {
+                            answered++;
+                            if (ans.AnswerText?.Trim().Equals(q.CorrectAnswer?.Trim(), StringComparison.OrdinalIgnoreCase) == true)
+                                correct++;
+                        }
+                    }
+                    catch { }
+                }
+                questionStats.Add(new QuestionAnalyticsDto
+                {
+                    QuestionId = q.Id,
+                    QuestionText = q.QuestionText,
+                    TotalAnswered = answered,
+                    TotalCorrect = correct,
+                    CorrectRate = answered > 0 ? Math.Round((double)correct / answered * 100, 1) : 0
+                });
+            }
+
+            return new ExamAnalyticsDto
+            {
+                ExamId = exam.Id,
+                ExamTitle = exam.Title,
+                TotalEnrolled = enrolledCount,
+                TotalSubmitted = submissions.Count,
+                TotalGraded = gradedSubmissions.Count,
+                TotalPassed = gradedSubmissions.Count(s => s.Score >= passThreshold),
+                TotalFailed = gradedSubmissions.Count(s => s.Score < passThreshold),
+                AverageScore = gradedSubmissions.Count > 0 ? Math.Round(gradedSubmissions.Average(s => s.Score!.Value), 2) : 0,
+                HighestScore = gradedSubmissions.Count > 0 ? gradedSubmissions.Max(s => s.Score!.Value) : 0,
+                LowestScore = gradedSubmissions.Count > 0 ? gradedSubmissions.Min(s => s.Score!.Value) : 0,
+                PassRate = gradedSubmissions.Count > 0 ? Math.Round((double)gradedSubmissions.Count(s => s.Score >= passThreshold) / gradedSubmissions.Count * 100, 1) : 0,
+                QuestionStats = questionStats
+            };
         }
     }
 }

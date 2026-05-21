@@ -248,6 +248,48 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new { message = "Submission graded successfully." });
         }
 
+        // ── Save Progress (auto-save during exam) ────────────────────────────
+        [HttpPost("{id}/save-progress")]
+        [Authorize(Roles = "Student,SuperAdmin")]
+        public async Task<IActionResult> SaveProgress(string id, [FromBody] SaveProgressDto dto)
+        {
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var studentId = Ulid.Parse(profileClaim.Value);
+
+            var result = await examService.SaveProgressAsync(examId, studentId, dto);
+            return Ok(result);
+        }
+
+        // ── Get Exam Session (student opens exam with state) ─────────────────
+        [HttpGet("{id}/session")]
+        [Authorize(Roles = "Student,SuperAdmin")]
+        public async Task<IActionResult> GetExamSession(string id)
+        {
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var studentId = Ulid.Parse(profileClaim.Value);
+
+            var session = await examService.GetExamSessionAsync(examId, studentId);
+            return Ok(session);
+        }
+
+        // ── Exam Analytics (doctor) ──────────────────────────────────────────
+        [HttpGet("{id}/analytics")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
+        public async Task<IActionResult> GetExamAnalytics(string id)
+        {
+            if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var doctorId = Ulid.Parse(profileClaim.Value);
+
+            var analytics = await examService.GetExamAnalyticsAsync(examId, doctorId);
+            return Ok(analytics);
+        }
+
         // ── LEGACY: Restore by internal ULID ──────────────────────────────────
         [HttpPost("{id}/restore")]
         [Authorize(Roles = "Admin,SuperAdmin")]

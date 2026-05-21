@@ -6,7 +6,9 @@
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
       "Read(//f//**)",
-      "Bash(dotnet ef *)"
+      "Bash(dotnet ef *)",
+      "Bash(grep -i \"SignatureVersion\\\\|SigV4\\\\|UseSignature\" /c/Users/Dell/.nuget/packages/awssdk.s3/3.7.307.8/lib/net8.0/AWSSDK.S3.xml 2>/dev/null | head -20)",
+      "Read(//c/Users/Dell/.nuget/packages/awssdk.s3/3.7.307.8/lib/net8.0/**)"
     ]
   }
 }

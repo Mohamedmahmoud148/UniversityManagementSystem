@@ -28,6 +28,13 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task GradeSubmissionAsync(GradeSubmissionDto dto, Ulid doctorId);
         Task<int> AutoGradeExamAsync(Ulid examId, Ulid doctorId); // Returns count of graded submissions
 
+        // Session management
+        Task<SaveProgressResponseDto> SaveProgressAsync(Ulid examId, Ulid studentId, SaveProgressDto dto);
+        Task<ExamSessionDto> GetExamSessionAsync(Ulid examId, Ulid studentId);
+
+        // Analytics
+        Task<ExamAnalyticsDto> GetExamAnalyticsAsync(Ulid examId, Ulid doctorId);
+
         // Admin Overrides
         Task<ExamDto> UpdateExamAsync(Ulid examId, UpdateExamDto dto);
         Task ArchiveExamAsync(Ulid examId);

@@ -28,6 +28,14 @@ namespace UniversityManagementSystem.Core.Entities
         public bool IsRandomized { get; set; } = false;
         /// <summary>How many questions each student sees when IsRandomized=true. 0 = all questions.</summary>
         public int QuestionsPerStudent { get; set; } = 0;
+        /// <summary>Duration in minutes. Derived from EndTime-StartTime if 0. Used for countdown timer.</summary>
+        public int DurationMinutes { get; set; } = 0;
+        /// <summary>Whether late submissions are accepted after EndTime.</summary>
+        public bool AllowLateSubmission { get; set; } = false;
+        /// <summary>Minutes after EndTime that late submissions are accepted. 0 = no late allowed.</summary>
+        public int LateSubmissionWindowMinutes { get; set; } = 0;
+        /// <summary>Exam instructions shown to student before starting.</summary>
+        public string? Instructions { get; set; }
 
         // Navigation Properties
         public Doctor CreatedByDoctor { get; set; } = null!;

@@ -79,5 +79,31 @@ namespace UniversityManagementSystem.Api.Controllers
             await gradeService.InvalidateGradeAsync(gId);
             return NoContent();
         }
+
+        /// <summary>Student views their own grades across all subjects.</summary>
+        [HttpGet("my-grades")]
+        [Authorize(Roles = "Student,SuperAdmin")]
+        public async Task<IActionResult> GetMyGrades()
+        {
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var studentId = Ulid.Parse(profileClaim.Value);
+
+            var grades = await gradeService.GetStudentGradesAsync(studentId);
+            return Ok(grades);
+        }
+
+        /// <summary>Student gets their GPA summary.</summary>
+        [HttpGet("my-gpa")]
+        [Authorize(Roles = "Student,SuperAdmin")]
+        public async Task<IActionResult> GetMyGpa()
+        {
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var studentId = Ulid.Parse(profileClaim.Value);
+
+            var gpa = await gradeService.CalculateStudentGpaAsync(studentId);
+            return Ok(gpa);
+        }
     }
 }

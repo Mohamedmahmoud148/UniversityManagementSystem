@@ -7,6 +7,7 @@ namespace UniversityManagementSystem.Core.Interfaces
     {
         Task<int> CalculateGradesForOfferingAsync(Ulid offeringId, Ulid doctorId);
         Task<UniversityManagementSystem.Core.DTOs.StudentGpaDto> CalculateStudentGpaAsync(Ulid studentId);
+        Task<System.Collections.Generic.IEnumerable<UniversityManagementSystem.Core.DTOs.GradeDto>> GetStudentGradesAsync(Ulid studentId);
 
         // Admin Overrides
         Task<UniversityManagementSystem.Core.DTOs.GradeDto> UpdateGradeAsync(Ulid gradeId, UniversityManagementSystem.Core.DTOs.UpdateGradeDto dto);

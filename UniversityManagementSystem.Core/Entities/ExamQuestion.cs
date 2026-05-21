@@ -6,7 +6,8 @@ namespace UniversityManagementSystem.Core.Entities
     {
         MCQ = 0,
         TrueFalse = 1,
-        Essay = 2
+        Essay = 2,
+        ShortAnswer = 3
     }
 
     public class ExamQuestion : BaseEntity
