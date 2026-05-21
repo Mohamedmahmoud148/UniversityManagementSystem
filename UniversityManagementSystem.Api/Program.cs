@@ -449,6 +449,16 @@ using (var scope = app.Services.CreateScope())
         // 1. Apply any pending EF Core migrations automatically
         db.Database.Migrate();
 
+        // Patch: AddStorageKeyToUploadedFiles migration was empty — add column manually
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+                ALTER TABLE ""UploadedFiles"" ADD COLUMN IF NOT EXISTS ""StorageKey"" text NOT NULL DEFAULT '';
+                ALTER TABLE ""UploadedFiles"" ADD COLUMN IF NOT EXISTS ""StoredFileName"" text NOT NULL DEFAULT '';
+            ");
+        }
+        catch (Exception) { /* column may already exist */ }
+
         // 1a. Ensure AddRegistrationAndAcademicFeatures migration is applied
         // This migration renames AcademicYear→AcademicYears and Semester→Semesters and creates
         // new tables. It can fail if FK names differ in production, so we apply it idempotently.
