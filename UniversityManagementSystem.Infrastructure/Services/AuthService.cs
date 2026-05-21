@@ -86,8 +86,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var expiryDateUnix = long.Parse(validatedToken.Claims.Single(x => x.Type == JwtRegisteredClaimNames.Exp).Value);
             var expiryDateTimeUtc = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(expiryDateUnix);
 
-            if (expiryDateTimeUtc > DateTime.UtcNow)
-                throw new Exception("Token has not expired yet");
+            // Allow refresh even if token hasn't expired yet (proactive refresh from frontend)
+            // if (expiryDateTimeUtc > DateTime.UtcNow)
+            //     throw new Exception("Token has not expired yet");
 
             var jti = validatedToken.Claims.Single(x => x.Type == JwtRegisteredClaimNames.Jti).Value;
             var storedRefreshToken = await _context.RefreshTokens.FirstOrDefaultAsync(x => x.Token == refreshToken);
