@@ -300,7 +300,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route.
         /// </summary>
         [HttpPut("by-code/{code}")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
         public async Task<ActionResult<ExamDto>> UpdateExamByCode(string code, UpdateExamDto dto)
         {
             var userRole   = User.FindFirstValue(ClaimTypes.Role) ?? "Admin";
@@ -331,7 +331,7 @@ namespace UniversityManagementSystem.Api.Controllers
         /// Admin/frontend MUST use this route.
         /// </summary>
         [HttpDelete("by-code/{code}")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
         public async Task<IActionResult> DeleteExamByCode(string code)
         {
             var userRole  = User.FindFirstValue(ClaimTypes.Role) ?? "Admin";
