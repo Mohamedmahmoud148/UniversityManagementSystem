@@ -375,16 +375,25 @@ namespace UniversityManagementSystem.Infrastructure.Services
             ctx["doctorId"]    = doctor.Id.ToString();
             ctx["departmentId"] = doctor.DepartmentId.ToString();
 
-            // Active subject offering IDs assigned to this doctor (last 10)
-            var offeringIds = await _context.SubjectOfferings
+            // Active subject offerings assigned to this doctor (last 10) — include subject name
+            var offerings = await _context.SubjectOfferings
                 .AsNoTracking()
-                .Where(o => o.DoctorId == doctor.Id)
+                .Include(o => o.Subject)
+                .Include(o => o.Batch)
+                .Where(o => o.DoctorId == doctor.Id && o.DeletedAt == null)
                 .OrderByDescending(o => o.CreatedAt)
                 .Take(10)
-                .Select(o => o.Id.ToString())
+                .Select(o => new
+                {
+                    subjectOfferingId = o.Id.ToString(),
+                    subjectName       = o.Subject != null ? o.Subject.Name : "",
+                    subjectCode       = o.Subject != null ? o.Subject.Code : "",
+                    batchName         = o.Batch   != null ? o.Batch.Name  : "",
+                })
                 .ToListAsync();
 
-            ctx["assignedOfferingIds"] = offeringIds;
+            ctx["assignedOfferingIds"] = offerings.Select(o => o.subjectOfferingId).ToList();
+            ctx["assignedOfferings"]   = offerings;
 
             return ctx;
         }
