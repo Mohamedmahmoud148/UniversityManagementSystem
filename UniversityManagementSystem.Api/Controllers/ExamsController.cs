@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UniversityManagementSystem.Core.DTOs;
+using UniversityManagementSystem.Core.DTOs.Ai;
 using UniversityManagementSystem.Core.Interfaces;
 using NUlid;
 
@@ -10,7 +11,7 @@ namespace UniversityManagementSystem.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ExamsController(IExamService examService) : ControllerBase
+    public class ExamsController(IExamService examService, IAiService aiService) : ControllerBase
     {
 
         [HttpGet("by-code/{code}")]
@@ -70,6 +71,54 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var result = await examService.UploadFileExamAsync(offeringId, request.File, doctorId);
             return CreatedAtAction(nameof(GetExam), new { id = result.Id }, result);
+        }
+
+        /// <summary>
+        /// Upload a lecture PDF and get back AI-generated questions (preview only — no exam created).
+        /// The frontend can let the doctor review/edit before calling POST /api/Exams to create the actual exam.
+        /// </summary>
+        [HttpPost("preview-questions-from-pdf")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> PreviewQuestionsFromPdf(
+            [FromForm] IFormFile file,
+            [FromForm] int questionCount = 10,
+            [FromForm] string difficulty = "Medium",
+            [FromForm] string examType = "Final")
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest("PDF file is required.");
+
+            string pdfText;
+            try
+            {
+                using var ms = new System.IO.MemoryStream();
+                await file.CopyToAsync(ms);
+                ms.Position = 0;
+                using var pdf = UglyToad.PdfPig.PdfDocument.Open(ms.ToArray());
+                var sb = new System.Text.StringBuilder();
+                foreach (var page in pdf.GetPages())
+                    sb.AppendLine(page.Text);
+                pdfText = sb.ToString().Trim();
+                if (string.IsNullOrWhiteSpace(pdfText))
+                    pdfText = $"Lecture file: {file.FileName}";
+            }
+            catch
+            {
+                pdfText = $"Lecture file: {file.FileName}";
+            }
+
+            var request = new AiGenerateExamRequestDto
+            {
+                Subject    = file.FileName,
+                Difficulty = difficulty,
+                QuestionCount = questionCount,
+                ExamType   = examType,
+                Topics     = new List<string> { pdfText.Length > 2000 ? pdfText[..2000] : pdfText }
+            };
+
+            var questions = await aiService.GenerateExamAsync(request);
+            return Ok(questions);
         }
 
         [HttpGet("{id}")]
