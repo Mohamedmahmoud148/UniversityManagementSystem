@@ -271,8 +271,9 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<IActionResult> RestoreExamByCode(string code)
         {
             var userRole  = User.FindFirstValue(ClaimTypes.Role) ?? "Admin";
-            var userIdStr = User.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
-            if (userIdStr == null) return Unauthorized("nameid claim not found.");
+            var userIdStr = User.Claims.FirstOrDefault(c => c.Type == "ProfileId")?.Value
+                         ?? User.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+            if (userIdStr == null) return Unauthorized("User ID claim not found.");
             var userId = Ulid.Parse(userIdStr);
 
             var exam = await examService.GetExamByCodeAsync(code, userId, userRole);
@@ -335,8 +336,9 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<IActionResult> DeleteExamByCode(string code)
         {
             var userRole  = User.FindFirstValue(ClaimTypes.Role) ?? "Admin";
-            var userIdStr = User.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
-            if (userIdStr == null) return Unauthorized("nameid claim not found.");
+            var userIdStr = User.Claims.FirstOrDefault(c => c.Type == "ProfileId")?.Value
+                         ?? User.Claims.FirstOrDefault(c => c.Type == "nameid")?.Value;
+            if (userIdStr == null) return Unauthorized("User ID claim not found.");
             var userId = Ulid.Parse(userIdStr);
 
             var exam = await examService.GetExamByCodeAsync(code, userId, userRole);
