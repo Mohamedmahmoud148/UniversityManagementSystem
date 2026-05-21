@@ -460,6 +460,35 @@ using (var scope = app.Services.CreateScope())
         }
         catch (Exception) { /* column may already exist */ }
 
+        // Patch: backfill empty Exam codes
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+                DO $$
+                DECLARE
+                    r RECORD;
+                    seq INT := 1;
+                    yr TEXT := EXTRACT(YEAR FROM NOW())::TEXT;
+                    new_code TEXT;
+                BEGIN
+                    FOR r IN
+                        SELECT ""Id"" FROM ""Exams""
+                        WHERE ""Code"" IS NULL OR ""Code"" = ''
+                        ORDER BY ""CreatedAt""
+                    LOOP
+                        LOOP
+                            new_code := 'EXAM-' || yr || '-' || LPAD(seq::TEXT, 4, '0');
+                            EXIT WHEN NOT EXISTS (SELECT 1 FROM ""Exams"" WHERE ""Code"" = new_code);
+                            seq := seq + 1;
+                        END LOOP;
+                        UPDATE ""Exams"" SET ""Code"" = new_code WHERE ""Id"" = r.""Id"";
+                        seq := seq + 1;
+                    END LOOP;
+                END $$;
+            ");
+        }
+        catch (Exception) { /* safe to ignore if already patched */ }
+
         // 1a. Ensure AddRegistrationAndAcademicFeatures migration is applied
         // This migration renames AcademicYear→AcademicYears and Semester→Semesters and creates
         // new tables. It can fail if FK names differ in production, so we apply it idempotently.

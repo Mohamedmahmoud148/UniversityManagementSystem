@@ -16,6 +16,28 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly IAuditService _auditService = auditService;
         private readonly IAiService _aiService = aiService;
         private readonly IFileService _fileService = fileService;
+
+        private async Task<string> GenerateUniqueExamCodeAsync()
+        {
+            var year = DateTime.UtcNow.Year;
+            var prefix = $"EXAM-{year}-";
+
+            var lastCode = await context.Exams
+                .Where(e => e.Code.StartsWith(prefix))
+                .OrderByDescending(e => e.Code)
+                .Select(e => e.Code)
+                .FirstOrDefaultAsync();
+
+            int next = 1;
+            if (lastCode != null)
+            {
+                var suffix = lastCode.Replace(prefix, "");
+                if (int.TryParse(suffix, out int parsed))
+                    next = parsed + 1;
+            }
+
+            return $"{prefix}{next:D4}";
+        }
         public async Task<Ulid> SubmitExamAsync(Ulid examId, Ulid studentId, ExamSubmissionDto submissionDto)
         {
             // 1. Validate Exam exists & is active
@@ -93,9 +115,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
             // 2. Map DTO to Entity
             var exam = new Exam
             {
+                Code = await GenerateUniqueExamCodeAsync(),
                 Title = dto.Title,
                 Type = dto.Type,
-                TotalMarks = dto.Questions.Sum(q => q.Mark), // Auto-calc total marks from questions
+                TotalMarks = dto.Questions.Sum(q => q.Mark),
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,
                 Status = dto.Status,
@@ -519,6 +542,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             var exam = new Exam
             {
+                Code = await GenerateUniqueExamCodeAsync(),
                 Title = $"{offering.Subject.Name} - AI Generated Draft",
                 Type = ExamType.Final,
                 TotalMarks = questionsDto.Sum(q => q.Mark),
@@ -581,14 +605,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             var exam = new Exam
             {
+                Code = await GenerateUniqueExamCodeAsync(),
                 Title = $"{offering.Subject.Name} - File Based Exam",
                 Type = ExamType.Final,
-                TotalMarks = 100, // Or whatever default is required.
+                TotalMarks = 100,
                 StartTime = DateTime.UtcNow.AddDays(1),
                 EndTime = DateTime.UtcNow.AddDays(1).AddHours(2),
                 Status = ExamStatus.Draft,
                 Mode = ExamMode.File,
-                FilePath = file.FileName, // Or mapped URL depending on FileService return
+                FilePath = file.FileName,
                 CreatedByDoctorId = doctorId,
                 SubjectOfferingId = subjectOfferingId,
                 CreatedAt = DateTime.UtcNow
