@@ -150,9 +150,13 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<ActionResult<IEnumerable<StudentDto>>> GetAll([FromQuery] int page = 1, [FromQuery] int size = 10)
         {
             var cacheKey = $"{StudentListCachePrefix}{page}:size:{size}";
-            var cached = await _cache.GetStringAsync(cacheKey);
-            if (!string.IsNullOrEmpty(cached))
-                return Content(cached, "application/json");
+            try
+            {
+                var cached = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cached))
+                    return Content(cached, "application/json");
+            }
+            catch { }
 
             var list = await _studentService.GetPagedStudentsAsync(page, size);
             var dtos = list.Select(s => new StudentDto
@@ -172,7 +176,7 @@ namespace UniversityManagementSystem.Api.Controllers
             }).ToList();
 
             var json = JsonSerializer.Serialize(dtos);
-            await _cache.SetStringAsync(cacheKey, json, _studentListCacheOpts);
+            try { await _cache.SetStringAsync(cacheKey, json, _studentListCacheOpts); } catch { }
             return Content(json, "application/json");
         }
 

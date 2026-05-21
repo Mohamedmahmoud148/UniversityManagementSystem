@@ -91,27 +91,28 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<RegulationDto>>> GetAll()
         {
-            var cached = await _cache.GetStringAsync(CacheKey);
-            if (!string.IsNullOrEmpty(cached))
+            try
             {
-                try
+                var cached = await _cache.GetStringAsync(CacheKey);
+                if (!string.IsNullOrEmpty(cached))
                 {
-                    return Ok(JsonSerializer.Deserialize<IEnumerable<RegulationDto>>(cached, _jsonOptions));
-                }
-                catch
-                {
-                    // If deserialization fails (e.g. outdated cache schema), ignore and fetch from DB
-                    await _cache.RemoveAsync(CacheKey);
+                    try { return Ok(JsonSerializer.Deserialize<IEnumerable<RegulationDto>>(cached, _jsonOptions)); }
+                    catch { try { await _cache.RemoveAsync(CacheKey); } catch { } }
                 }
             }
+            catch { }
 
             var list = await _service.GetAllAsync();
             var dtos = new List<RegulationDto>();
             foreach (var r in list)
                 dtos.Add(await ToDto(r));
 
-            await _cache.SetStringAsync(CacheKey, JsonSerializer.Serialize(dtos, _jsonOptions),
-                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) });
+            try
+            {
+                await _cache.SetStringAsync(CacheKey, JsonSerializer.Serialize(dtos, _jsonOptions),
+                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) });
+            }
+            catch { }
 
             return Ok(dtos);
         }
@@ -492,7 +493,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
 
             var result = await _service.CreateWithSubjectsAsync(entity, subjects);
-            await _cache.RemoveAsync(CacheKey);
+            try { await _cache.RemoveAsync(CacheKey); } catch { }
 
             return Ok(await ToDto(result));
         }
@@ -537,7 +538,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 return BadRequest("Invalid Regulation ID.");
 
             await _service.DeleteAsync(regId);
-            await _cache.RemoveAsync(CacheKey);
+            try { await _cache.RemoveAsync(CacheKey); } catch { }
             return NoContent();
         }
 
@@ -555,7 +556,7 @@ namespace UniversityManagementSystem.Api.Controllers
                 return NotFound($"Regulation with code '{code}' not found.");
 
             await _service.DeleteAsync(regulation.Id);
-            await _cache.RemoveAsync(CacheKey);
+            try { await _cache.RemoveAsync(CacheKey); } catch { }
             return NoContent();
         }
 
@@ -628,7 +629,7 @@ namespace UniversityManagementSystem.Api.Controllers
             }
 
             await _service.UpdateWithSubjectsAsync(regId, entity, subjects);
-            await _cache.RemoveAsync(CacheKey);
+            try { await _cache.RemoveAsync(CacheKey); } catch { }
             return NoContent();
         }
     }

@@ -84,19 +84,25 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             if (!Ulid.TryParse(batchId, out var bId)) return BadRequest("Invalid Batch ID.");
             var cacheKey = $"{CachePrefix}{batchId}";
-            var cachedData = await _cache.GetStringAsync(cacheKey);
-            if (!string.IsNullOrEmpty(cachedData))
+            try
             {
-                return Ok(JsonSerializer.Deserialize<IEnumerable<SubjectDto>>(cachedData));
+                var cachedData = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedData))
+                    return Ok(JsonSerializer.Deserialize<IEnumerable<SubjectDto>>(cachedData));
             }
+            catch { }
 
             var list = await _service.GetSubjectsByBatchIdAsync(bId);
             var dtos = list.Select(MapToDto);
 
-            await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(dtos), new DistributedCacheEntryOptions
+            try
             {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
-            });
+                await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(dtos), new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+                });
+            }
+            catch { }
 
             return Ok(dtos);
         }
@@ -198,7 +204,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
             // Invalidate relevant batch cache
             if (batchId.HasValue)
-                await _cache.RemoveAsync($"{CachePrefix}{batchId}");
+                try { await _cache.RemoveAsync($"{CachePrefix}{batchId}"); } catch { }
 
             // Need to reload with Includes to map names properly for the response
             var loadedSubject = await _service.GetSubjectByCodeAsync(result.Code);

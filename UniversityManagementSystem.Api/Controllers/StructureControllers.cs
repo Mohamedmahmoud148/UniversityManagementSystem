@@ -134,7 +134,7 @@ namespace UniversityManagementSystem.Api.Controllers
             }
 
             await _service.UpdateUniversityAsync(entity);
-            await _cache.RemoveAsync(StructureCacheKey); // Invalidate full-structure cache
+            try { await _cache.RemoveAsync(StructureCacheKey); } catch { }
             return NoContent();
         }
 
@@ -150,7 +150,7 @@ namespace UniversityManagementSystem.Api.Controllers
             if (entity == null) return NotFound($"University with code '{code}' not found.");
 
             await _service.DeleteUniversityAsync(entity.Id);
-            await _cache.RemoveAsync(StructureCacheKey);
+            try { await _cache.RemoveAsync(StructureCacheKey); } catch { }
             return NoContent();
         }
 
@@ -159,12 +159,16 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<IActionResult> GetFullStructure()
         {
             // Hit Redis first — this query is expensive (6-table join)
-            var cached = await _cache.GetStringAsync(StructureCacheKey);
-            if (!string.IsNullOrEmpty(cached))
+            try
             {
-                _logger.LogDebug("full-structure: served from cache");
-                return Content(cached, "application/json");
+                var cached = await _cache.GetStringAsync(StructureCacheKey);
+                if (!string.IsNullOrEmpty(cached))
+                {
+                    _logger.LogDebug("full-structure: served from cache");
+                    return Content(cached, "application/json");
+                }
             }
+            catch { }
 
             var list = await _context.Universities
                 .AsNoTracking()
@@ -207,7 +211,7 @@ namespace UniversityManagementSystem.Api.Controllers
             var json = JsonSerializer.Serialize(result);
 
             // Store in Redis for 60 minutes
-            await _cache.SetStringAsync(StructureCacheKey, json, _structureCacheOpts);
+            try { await _cache.SetStringAsync(StructureCacheKey, json, _structureCacheOpts); } catch { }
             _logger.LogDebug("full-structure: cached for 60 min");
 
             return Content(json, "application/json");
