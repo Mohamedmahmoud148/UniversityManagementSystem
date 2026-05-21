@@ -255,6 +255,7 @@ builder.Services.AddControllers(options =>
     // fields and any Ulid stored behind `object` emit {Time, Random} objects
     // instead of plain "01JTNQ..." strings.
     options.JsonSerializerOptions.Converters.Add(new UniversityManagementSystem.Api.Converters.UlidJsonConverterFactory());
+    options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
 });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
