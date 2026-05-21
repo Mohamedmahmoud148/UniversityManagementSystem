@@ -213,6 +213,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return new ExamDto
             {
                 Id = exam.Id,
+                Code = exam.Code,
                 Title = exam.Title,
                 Type = exam.Type.ToString(),
                 TotalMarks = exam.TotalMarks,

@@ -10,6 +10,7 @@ namespace UniversityManagementSystem.Core.DTOs
     public class ExamDto
     {
         public Ulid Id { get; set; }
+        public string Code { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Type { get; set; } = string.Empty;
         public int TotalMarks { get; set; }
