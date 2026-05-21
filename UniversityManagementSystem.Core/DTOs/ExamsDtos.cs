@@ -126,4 +126,13 @@ namespace UniversityManagementSystem.Core.DTOs
         [Required]
         public IFormFile File { get; set; } = null!;
     }
+
+    public class PreviewQuestionsFromPdfRequest
+    {
+        [Required]
+        public IFormFile File { get; set; } = null!;
+        public int QuestionCount { get; set; } = 10;
+        public string Difficulty { get; set; } = "Medium";
+        public string ExamType { get; set; } = "Final";
+    }
 }

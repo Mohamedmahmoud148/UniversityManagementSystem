@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.DTOs.Ai;
 using UniversityManagementSystem.Core.Interfaces;
@@ -80,20 +81,16 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpPost("preview-questions-from-pdf")]
         [Authorize(Roles = "Doctor,SuperAdmin")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> PreviewQuestionsFromPdf(
-            [FromForm] IFormFile file,
-            [FromForm] int questionCount = 10,
-            [FromForm] string difficulty = "Medium",
-            [FromForm] string examType = "Final")
+        public async Task<IActionResult> PreviewQuestionsFromPdf([FromForm] PreviewQuestionsFromPdfRequest req)
         {
-            if (file == null || file.Length == 0)
+            if (req.File == null || req.File.Length == 0)
                 return BadRequest("PDF file is required.");
 
             string pdfText;
             try
             {
                 using var ms = new System.IO.MemoryStream();
-                await file.CopyToAsync(ms);
+                await req.File.CopyToAsync(ms);
                 ms.Position = 0;
                 using var pdf = UglyToad.PdfPig.PdfDocument.Open(ms.ToArray());
                 var sb = new System.Text.StringBuilder();
@@ -101,20 +98,20 @@ namespace UniversityManagementSystem.Api.Controllers
                     sb.AppendLine(page.Text);
                 pdfText = sb.ToString().Trim();
                 if (string.IsNullOrWhiteSpace(pdfText))
-                    pdfText = $"Lecture file: {file.FileName}";
+                    pdfText = $"Lecture file: {req.File.FileName}";
             }
             catch
             {
-                pdfText = $"Lecture file: {file.FileName}";
+                pdfText = $"Lecture file: {req.File.FileName}";
             }
 
             var request = new AiGenerateExamRequestDto
             {
-                Subject    = file.FileName,
-                Difficulty = difficulty,
-                QuestionCount = questionCount,
-                ExamType   = examType,
-                Topics     = new List<string> { pdfText.Length > 2000 ? pdfText[..2000] : pdfText }
+                Subject       = req.File.FileName,
+                Difficulty    = req.Difficulty,
+                QuestionCount = req.QuestionCount,
+                ExamType      = req.ExamType,
+                Topics        = new List<string> { pdfText.Length > 2000 ? pdfText[..2000] : pdfText }
             };
 
             var questions = await aiService.GenerateExamAsync(request);
