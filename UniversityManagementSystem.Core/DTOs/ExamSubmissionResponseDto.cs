@@ -12,6 +12,8 @@ namespace UniversityManagementSystem.Core.DTOs
         public DateTime SubmittedAt { get; set; }
         public double? Score { get; set; }
         public bool IsGraded { get; set; }
-        public string AnswersJson { get; set; } = string.Empty; // Optional: include answers if needed by doctor
+        public bool IsCompleted { get; set; }
+        public bool NeedsManualGrading { get; set; }
+        public string AnswersJson { get; set; } = string.Empty;
     }
 }

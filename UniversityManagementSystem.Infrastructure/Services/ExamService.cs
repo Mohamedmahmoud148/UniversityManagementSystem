@@ -51,8 +51,17 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 throw new UnauthorizedAccessException("Exam is not published.");
 
             var currentTime = DateTime.UtcNow;
-            if (currentTime < exam.StartTime || currentTime > exam.EndTime)
-                throw new InvalidOperationException("Exam is not currently active.");
+
+            if (currentTime < exam.StartTime)
+                throw new InvalidOperationException($"Exam has not started yet. Starts at {exam.StartTime:HH:mm} UTC.");
+
+            // Check end time — allow late submission if configured
+            var effectiveEndTime = exam.AllowLateSubmission
+                ? exam.EndTime.AddMinutes(exam.LateSubmissionWindowMinutes)
+                : exam.EndTime;
+
+            if (currentTime > effectiveEndTime)
+                throw new InvalidOperationException("Exam time has ended. Submissions are no longer accepted.");
 
             // 2. Validate Student Enrollment (Active)
             var isEnrolled = await context.Enrollments
@@ -62,26 +71,41 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (!isEnrolled)
                 throw new UnauthorizedAccessException("You are not actively enrolled in this course.");
 
-            // 3. Check for previous submission (Optimistic check)
+            // 3. Check for previous submission — handle draft (save-progress) records
             var existingSubmission = await context.ExamSubmissions
-                .AsNoTracking()
-                .AnyAsync(s => s.ExamId == examId && s.StudentId == studentId);
+                .FirstOrDefaultAsync(s => s.ExamId == examId && s.StudentId == studentId);
 
-            if (existingSubmission)
+            if (existingSubmission != null && existingSubmission.IsCompleted)
                 throw new InvalidOperationException("You have already submitted this exam.");
 
-            // 4. Create Submission
-            var submission = new ExamSubmission
-            {
-                ExamId = examId,
-                StudentId = studentId,
-                SubmittedAt = DateTime.UtcNow,
-                IsGraded = false,
-                Score = null,
-                AnswersJson = System.Text.Json.JsonSerializer.Serialize(submissionDto.Answers)
-            };
+            var answersJson = System.Text.Json.JsonSerializer.Serialize(submissionDto.Answers);
 
-            context.ExamSubmissions.Add(submission);
+            ExamSubmission submission;
+            if (existingSubmission != null)
+            {
+                // Upgrade the in-progress draft to a completed submission
+                existingSubmission.AnswersJson    = answersJson;
+                existingSubmission.SubmittedAt    = DateTime.UtcNow;
+                existingSubmission.IsCompleted    = true;
+                existingSubmission.DraftAnswersJson = null;
+                existingSubmission.LastSavedAt    = DateTime.UtcNow;
+                submission = existingSubmission;
+            }
+            else
+            {
+                // 4. Create fresh submission
+                submission = new ExamSubmission
+                {
+                    ExamId      = examId,
+                    StudentId   = studentId,
+                    SubmittedAt = DateTime.UtcNow,
+                    IsCompleted = true,
+                    IsGraded    = false,
+                    Score       = null,
+                    AnswersJson = answersJson
+                };
+                context.ExamSubmissions.Add(submission);
+            }
 
             try
             {
@@ -301,18 +325,20 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var submissions = await context.ExamSubmissions
                 .AsNoTracking()
                 .Include(s => s.Student)
-                .Where(s => s.ExamId == examId)
+                .Where(s => s.ExamId == examId && s.IsCompleted)
                 .ToListAsync();
 
             return submissions.Select(s => new ExamSubmissionResponseDto
             {
-                Id = s.Id,
-                ExamId = s.ExamId,
-                StudentId = s.StudentId,
+                Id          = s.Id,
+                ExamId      = s.ExamId,
+                StudentId   = s.StudentId,
                 StudentName = s.Student.FullName,
                 SubmittedAt = s.SubmittedAt,
-                Score = s.Score,
-                IsGraded = s.IsGraded,
+                Score       = s.Score,
+                IsGraded    = s.IsGraded,
+                IsCompleted = s.IsCompleted,
+                NeedsManualGrading = s.IsCompleted && !s.IsGraded,
                 AnswersJson = s.AnswersJson
             });
         }
@@ -388,13 +414,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             return new ExamSubmissionResponseDto
             {
-                Id = submission.Id,
-                ExamId = submission.ExamId,
-                StudentId = submission.StudentId,
+                Id          = submission.Id,
+                ExamId      = submission.ExamId,
+                StudentId   = submission.StudentId,
                 StudentName = submission.Student.FullName,
                 SubmittedAt = submission.SubmittedAt,
-                Score = submission.Score,
-                IsGraded = submission.IsGraded,
+                Score       = submission.Score,
+                IsGraded    = submission.IsGraded,
+                IsCompleted = submission.IsCompleted,
+                NeedsManualGrading = submission.IsCompleted && !submission.IsGraded,
                 AnswersJson = submission.AnswersJson
             };
         }
@@ -432,40 +460,52 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 throw new UnauthorizedAccessException("You are not authorized to auto-grade this exam.");
 
             int gradedCount = 0;
+            bool hasEssayOrShortAnswer = exam.Questions.Any(q =>
+                q.QuestionType == QuestionType.Essay || q.QuestionType == QuestionType.ShortAnswer);
 
-            // 2. Loop through submissions
-            foreach (var submission in exam.Submissions)
+            // 2. Loop through COMPLETED submissions only
+            foreach (var submission in exam.Submissions.Where(s => s.IsCompleted))
             {
-                if (submission.IsGraded) continue; // Skip already graded? Or re-grade? Let's re-grade if requested.
-                // Actually, let's re-grade to allow corrections.
-
                 var answers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson);
 
                 if (answers == null || answers.Count == 0)
                 {
-                    submission.Score = 0;
-                    submission.IsGraded = true;
+                    submission.Score    = 0;
+                    submission.IsGraded = !hasEssayOrShortAnswer; // only mark graded if no manual questions
                     gradedCount++;
                     continue;
                 }
 
-                double totalScore = 0;
+                double totalScore    = 0;
+                bool   needsManual   = false;
 
-                foreach (var question in exam.Questions)
+                foreach (var question in exam.Questions.Where(q => q.DeletedAt == null))
                 {
                     var studentAnswer = answers.FirstOrDefault(a => a.QuestionId == question.Id);
-                    if (studentAnswer != null)
+                    if (studentAnswer == null) continue;
+
+                    switch (question.QuestionType)
                     {
-                        // Simple exact match (Case-Insensitive)
-                        if (string.Equals(studentAnswer.AnswerText.Trim(), question.CorrectAnswer.Trim(), StringComparison.OrdinalIgnoreCase))
-                        {
-                            totalScore += question.Mark;
-                        }
+                        case QuestionType.MCQ:
+                        case QuestionType.TrueFalse:
+                            // Exact match (case-insensitive)
+                            if (!string.IsNullOrEmpty(studentAnswer.AnswerText) &&
+                                string.Equals(studentAnswer.AnswerText.Trim(),
+                                              question.CorrectAnswer.Trim(),
+                                              StringComparison.OrdinalIgnoreCase))
+                                totalScore += question.Mark;
+                            break;
+
+                        case QuestionType.Essay:
+                        case QuestionType.ShortAnswer:
+                            // Cannot auto-grade — flag for manual review
+                            needsManual = true;
+                            break;
                     }
                 }
 
-                submission.Score = totalScore;
-                submission.IsGraded = true;
+                submission.Score    = totalScore;
+                submission.IsGraded = !needsManual; // fully graded only if no essay/short-answer
                 gradedCount++;
             }
 
