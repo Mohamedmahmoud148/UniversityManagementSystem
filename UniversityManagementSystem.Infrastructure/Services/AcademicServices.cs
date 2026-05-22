@@ -300,8 +300,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (subject == null) throw new Exception("Subject not found");
             if (doctor == null) throw new Exception("Doctor not found");
 
-            if (subject.DepartmentId != doctor.DepartmentId)
-                throw new Exception("Academic Integrity Violation: Doctor and Subject must belong to the same Department.");
+            // Department check removed — Admin can assign any doctor to any subject
 
             var exists = await _context.SubjectDoctors.AnyAsync(sd => sd.SubjectId == subjectId && sd.DoctorId == doctorId);
             if (!exists)
