@@ -58,22 +58,6 @@ namespace UniversityManagementSystem.Api.Controllers
             return CreatedAtAction(nameof(GetExam), new { id = result.Id }, result);
         }
 
-        [HttpPost("upload-pdf")]
-        [Authorize(Roles = "Doctor,SuperAdmin")]
-        [Consumes("multipart/form-data")]
-        public async Task<IActionResult> UploadPdfExam([FromForm] UploadPdfExamRequest request)
-        {
-            var rawId = request.SubjectOfferingId ?? string.Empty;
-            if (!Ulid.TryParse(rawId, out var offeringId))
-                return BadRequest("subjectOfferingId is required — send it as a query param (?subjectOfferingId=) or as a form field.");
-            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
-            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
-            var doctorId = Ulid.Parse(profileClaim.Value);
-
-            var result = await examService.UploadFileExamAsync(offeringId, request.File, doctorId);
-            return CreatedAtAction(nameof(GetExam), new { id = result.Id }, result);
-        }
-
         /// <summary>
         /// Upload a lecture PDF and get back AI-generated questions (preview only — no exam created).
         /// The frontend can let the doctor review/edit before calling POST /api/Exams to create the actual exam.
