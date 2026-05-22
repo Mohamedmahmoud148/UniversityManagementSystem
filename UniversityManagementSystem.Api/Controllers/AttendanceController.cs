@@ -32,7 +32,7 @@ namespace UniversityManagementSystem.Api.Controllers
             }
             catch (System.UnauthorizedAccessException ex)
             {
-                return Forbid(ex.Message);
+                return StatusCode(403, new { message = ex.Message });
             }
         }
 
