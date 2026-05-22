@@ -111,6 +111,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             int maxAllowedHours = ComputeMaxHours(status.GPA, policy);
 
+            // ── First Year / First Semester bypass ──────────────────────────
+            // A student with NO finalized grades has never completed any semester.
+            // → skip prerequisites, GPA restrictions, and credit-hour cap.
+            bool isFirstYearFirstSemester = passedSubjectIds.Count == 0 && allGrades.Count == 0;
+
             var result = new List<EligibleOfferingDto>();
 
             foreach (var offering in offerings)
@@ -137,9 +142,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 }
 
                 // ── Policy 3: Prerequisites ──────────────────────────────────
-                var subjectPrereqs = prerequisites
-                    .Where(p => p.SubjectId == offering.SubjectId)
-                    .ToList();
+                // BYPASSED for first-year first-semester students (no grades yet)
+                var subjectPrereqs = isFirstYearFirstSemester
+                    ? new List<SubjectPrerequisite>()
+                    : prerequisites.Where(p => p.SubjectId == offering.SubjectId).ToList();
 
                 foreach (var prereq in subjectPrereqs)
                 {
@@ -172,22 +178,28 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
                 if (blockers.Count > 0) goto done;
 
-                // ── Policy 4: GPA-based academic standing ────────────────────
-                if (status.Standing == AcademicStanding.Probation && status.GPA < policy.ProbationGpaThreshold)
-                    warnings.Add($"⚠️ Probation: GPA {status.GPA:F2} < {policy.ProbationGpaThreshold}. Max {policy.ProbationMaxHours} hours.");
-
-                if (status.Standing == AcademicStanding.Warning)
-                    warnings.Add($"⚠️ Academic Warning: GPA {status.GPA:F2}. Max {policy.WarningMaxHours} hours.");
-
-                // ── Policy 5: Credit hours limit ─────────────────────────────
-                int projectedHours = currentSemesterHours + offering.Subject.CreditHours;
-                if (projectedHours > maxAllowedHours)
+                // ── Policy 4 & 5: GPA + credit hours — BYPASSED for first semester ──
+                if (!isFirstYearFirstSemester)
                 {
-                    blockers.Add(
-                        $"Credit hours limit exceeded: {currentSemesterHours} registered + " +
-                        $"{offering.Subject.CreditHours} = {projectedHours} > max {maxAllowedHours} " +
-                        $"(GPA: {status.GPA:F2})");
-                    goto done;
+                    if (status.Standing == AcademicStanding.Probation && status.GPA < policy.ProbationGpaThreshold)
+                        warnings.Add($"⚠️ Probation: GPA {status.GPA:F2} < {policy.ProbationGpaThreshold}. Max {policy.ProbationMaxHours} hours.");
+
+                    if (status.Standing == AcademicStanding.Warning)
+                        warnings.Add($"⚠️ Academic Warning: GPA {status.GPA:F2}. Max {policy.WarningMaxHours} hours.");
+
+                    int projectedHours = currentSemesterHours + offering.Subject.CreditHours;
+                    if (projectedHours > maxAllowedHours)
+                    {
+                        blockers.Add(
+                            $"Credit hours limit exceeded: {currentSemesterHours} registered + " +
+                            $"{offering.Subject.CreditHours} = {projectedHours} > max {maxAllowedHours} " +
+                            $"(GPA: {status.GPA:F2})");
+                        goto done;
+                    }
+                }
+                else
+                {
+                    warnings.Add("First semester — all subjects available with no restrictions.");
                 }
 
                 // ── Policy 6: Capacity check → warn, don't block (waitlist available) ─
