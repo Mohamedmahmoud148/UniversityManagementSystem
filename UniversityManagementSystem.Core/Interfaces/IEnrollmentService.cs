@@ -8,7 +8,7 @@ namespace UniversityManagementSystem.Core.Interfaces
 {
     public interface IEnrollmentService
     {
-        Task EnrollStudentAsync(CreateEnrollmentDto dto);
+        Task EnrollStudentAsync(CreateEnrollmentDto dto, bool skipValidation = false);
         Task UnenrollStudentAsync(Ulid enrollmentId);
         Task<IReadOnlyList<Enrollment>> GetStudentEnrollmentsAsync(Ulid studentId);
         Task<IReadOnlyList<Enrollment>> GetEnrollmentsByOfferingIdAsync(Ulid offeringId);

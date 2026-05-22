@@ -127,5 +127,23 @@ namespace UniversityManagementSystem.Api.Controllers
             await _service.ReactivateEnrollmentAsync(enrollmentId);
             return Ok(new { Message = "Enrollment reactivated successfully." });
         }
+        // ── POST /api/enrollments/{offeringId}/admin-enroll ─────────────────────
+        /// <summary>Admin enrolls any student in any offering — bypasses batch/dept/group checks.</summary>
+        [HttpPost("{offeringId}/admin-enroll")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> AdminEnroll(string offeringId, [FromBody] AdminEnrollDto dto)
+        {
+            if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");
+            if (!Ulid.TryParse(dto.StudentId, out var sId)) return BadRequest("Invalid Student ID.");
+
+            var enrollment = new CreateEnrollmentDto(sId, oId);
+            await _service.EnrollStudentAsync(enrollment, skipValidation: true);
+            return Ok(new { Message = "Student enrolled successfully." });
+        }
+    }
+
+    public class AdminEnrollDto
+    {
+        public string StudentId { get; set; } = string.Empty;
     }
 }

@@ -15,7 +15,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
     {
         private readonly AppDbContext _context = context;
 
-        public async Task EnrollStudentAsync(CreateEnrollmentDto dto)
+        public async Task EnrollStudentAsync(CreateEnrollmentDto dto, bool skipValidation = false)
         {
             var student = await _context.Students
                 .Include(s => s.Department)
@@ -33,18 +33,18 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (student == null) throw new KeyNotFoundException("Student not found");
             if (offering == null) throw new KeyNotFoundException("Subject Offering not found");
 
-            // 1. Validate Department
-            if (student.DepartmentId != offering.DepartmentId)
-                throw new InvalidOperationException($"Academic Integrity: Student (Dept: {student.Department.Name}) cannot enroll in Offering (Dept: {offering.Department.Name}).");
-
-            // 2. Validate Batch
-            if (student.BatchId != offering.BatchId)
-                throw new InvalidOperationException($"Academic Integrity: Student (Batch: {student.Batch.Name}) cannot enroll in Offering (Batch: {offering.Batch.Name}).");
-
-            // 3. Validate Group (If offering is restricted to a group)
-            if (offering.GroupId.HasValue)
+            if (!skipValidation)
             {
-                if (student.GroupId != offering.GroupId.Value)
+                // 1. Validate Department
+                if (student.DepartmentId != offering.DepartmentId)
+                    throw new InvalidOperationException($"Academic Integrity: Student (Dept: {student.Department.Name}) cannot enroll in Offering (Dept: {offering.Department.Name}).");
+
+                // 2. Validate Batch
+                if (student.BatchId != offering.BatchId)
+                    throw new InvalidOperationException($"Academic Integrity: Student (Batch: {student.Batch.Name}) cannot enroll in Offering (Batch: {offering.Batch.Name}).");
+
+                // 3. Validate Group (If offering is restricted to a group)
+                if (offering.GroupId.HasValue && student.GroupId != offering.GroupId.Value)
                     throw new InvalidOperationException($"Academic Integrity: Student (Group: {student.Group.Name}) cannot enroll in Offering (Group: {offering.Group?.Name}).");
             }
 
