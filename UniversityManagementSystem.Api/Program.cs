@@ -224,6 +224,17 @@ builder.Services.AddAuthentication(options =>
         NameClaimType = "nameid"
     };
     options.MapInboundClaims = false;
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                context.Token = accessToken;
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddCors(options =>
@@ -355,9 +366,18 @@ builder.Services.AddScoped<ISemesterService, SemesterService>();
 builder.Services.AddScoped<ISubjectOfferingService, SubjectOfferingService>();
 builder.Services.AddScoped<IGradeService, GradeService>();
 builder.Services.AddScoped<IMaterialService, MaterialService>();
+builder.Services.AddScoped<IRagService, RagService>();
+builder.Services.AddScoped<IRagIndexingJob, RagIndexingJob>();
+
+builder.Services.AddHttpClient("FastApi", client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["FastApiSettings:BaseUrl"] ?? "http://localhost:8000");
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
 
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IDeletionService, DeletionService>();
+builder.Services.AddScoped<IAssignmentService, AssignmentService>();
 builder.Services.AddScoped<IAcademicStatusService, AcademicStatusService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
 builder.Services.AddScoped<IBulkUploadJob, BulkUploadJob>();
@@ -365,6 +385,7 @@ builder.Services.AddScoped<IExcelImportService, ExcelImportService>();
 builder.Services.AddScoped<IStudentFileService, StudentFileService>();
 builder.Services.AddScoped<IEnrollmentUploadService, EnrollmentUploadService>();
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
+builder.Services.AddScoped<IProctoringService, ProctoringService>();
 
 
 
@@ -846,14 +867,19 @@ using (var scope = app.Services.CreateScope())
         Cron.Monthly);
 
     recurringJobManager.AddOrUpdate<IAcademicRiskJob>(
-        "academic-risk-alerts",
-        job => job.RunAsync(),
-        Cron.Daily);
+        "daily-academic-risk-analysis",
+        job => job.RunDailyRiskAnalysisAsync(),
+        "0 6 * * *"); // every day at 06:00 UTC
 
     recurringJobManager.AddOrUpdate<IExamReminderJob>(
         "exam-reminders",
         job => job.RunAsync(),
         "*/30 * * * *"); // every 30 minutes
+
+    recurringJobManager.AddOrUpdate<IRagIndexingJob>(
+        "rag-index-unindexed-materials",
+        job => job.IndexAllUnindexedMaterialsAsync(),
+        Cron.Daily);
 }
 
 app.Run();

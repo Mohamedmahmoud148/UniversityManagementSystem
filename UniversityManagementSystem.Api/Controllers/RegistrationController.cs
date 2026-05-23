@@ -24,10 +24,25 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpGet("eligible-offerings")]
         [Authorize(Roles = "Student")]
         public async Task<ActionResult<ApiResponse<System.Collections.Generic.IReadOnlyList<EligibleOfferingDto>>>> GetEligibleOfferings(
-            [FromQuery] string semesterId)
+            [FromQuery] string? semesterId)
         {
-            if (!Ulid.TryParse(semesterId, out var semId))
-                return BadRequest(ApiResponse<object>.FailureResponse("Invalid semester ID."));
+            Ulid semId;
+            if (!string.IsNullOrEmpty(semesterId))
+            {
+                if (!Ulid.TryParse(semesterId, out semId))
+                    return BadRequest(ApiResponse<object>.FailureResponse("Invalid semester ID."));
+            }
+            else
+            {
+                var today = DateTime.UtcNow;
+                var current = await context.Semesters
+                    .Where(s => s.StartDate <= today && s.EndDate >= today)
+                    .OrderByDescending(s => s.StartDate)
+                    .FirstOrDefaultAsync();
+                if (current == null)
+                    return BadRequest(ApiResponse<object>.FailureResponse("No active semester found. Please provide a semesterId."));
+                semId = current.Id;
+            }
 
             var studentId = userContext.GetProfileId();
             var result    = await registrationService.GetEligibleOfferingsAsync(studentId, semId);

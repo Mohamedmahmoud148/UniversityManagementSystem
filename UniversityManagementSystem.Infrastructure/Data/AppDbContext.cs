@@ -55,6 +55,12 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<AcademicPolicy> AcademicPolicies { get; set; } = null!;
         public DbSet<StudentAcademicStatus> StudentAcademicStatuses { get; set; } = null!;
         public DbSet<SubjectOfferingWaitlist> SubjectOfferingWaitlists { get; set; } = null!;
+        public DbSet<MaterialChunk> MaterialChunks { get; set; } = null!;
+        public DbSet<RagSearchLog> RagSearchLogs { get; set; } = null!;
+        public DbSet<Assignment> Assignments { get; set; } = null!;
+        public DbSet<AssignmentSubmission> AssignmentSubmissions { get; set; } = null!;
+        public DbSet<AcademicRiskScore> AcademicRiskScores { get; set; } = null!;
+        public DbSet<ExamProctoringLog> ExamProctoringLogs { get; set; } = null!;
 
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         {
@@ -926,6 +932,144 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<SubjectOfferingWaitlist>()
                 .HasIndex(w => w.SubjectOfferingId)
                 .HasDatabaseName("IX_SubjectOfferingWaitlist_OfferingId");
+
+            // --------------------------------------------------------
+            // MaterialChunk — RAG Pipeline
+            // --------------------------------------------------------
+            modelBuilder.Entity<MaterialChunk>()
+                .HasOne(c => c.Material)
+                .WithMany()
+                .HasForeignKey(c => c.MaterialId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<MaterialChunk>()
+                .HasIndex(c => c.MaterialId)
+                .HasDatabaseName("IX_MaterialChunks_MaterialId");
+
+            // --------------------------------------------------------
+            // RagSearchLog — search analytics
+            // --------------------------------------------------------
+            modelBuilder.Entity<RagSearchLog>()
+                .HasIndex(l => l.StudentId)
+                .HasDatabaseName("IX_RagSearchLogs_StudentId");
+
+            modelBuilder.Entity<RagSearchLog>()
+                .HasIndex(l => l.CreatedAt)
+                .HasDatabaseName("IX_RagSearchLogs_CreatedAt");
+
+            // --------------------------------------------------------
+            // AcademicRiskScore
+            // --------------------------------------------------------
+            modelBuilder.Entity<AcademicRiskScore>()
+                .HasOne(r => r.Student)
+                .WithMany()
+                .HasForeignKey(r => r.StudentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<AcademicRiskScore>()
+                .HasOne(r => r.SubjectOffering)
+                .WithMany()
+                .HasForeignKey(r => r.SubjectOfferingId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<AcademicRiskScore>()
+                .HasIndex(r => new { r.StudentId, r.SubjectOfferingId })
+                .HasDatabaseName("IX_AcademicRiskScores_Student_Offering");
+
+            modelBuilder.Entity<AcademicRiskScore>()
+                .HasIndex(r => r.RiskLevel)
+                .HasDatabaseName("IX_AcademicRiskScores_RiskLevel");
+
+            modelBuilder.Entity<AcademicRiskScore>()
+                .Property(r => r.RiskLevel)
+                .HasConversion<int>();
+
+            // --------------------------------------------------------
+            // Assignment
+            // --------------------------------------------------------
+            modelBuilder.Entity<Assignment>()
+                .HasOne(a => a.SubjectOffering)
+                .WithMany()
+                .HasForeignKey(a => a.SubjectOfferingId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Assignment>()
+                .HasOne(a => a.Doctor)
+                .WithMany()
+                .HasForeignKey(a => a.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Assignment>()
+                .HasIndex(a => a.Deadline)
+                .HasDatabaseName("IX_Assignments_Deadline");
+
+            modelBuilder.Entity<Assignment>()
+                .HasIndex(a => a.SubjectOfferingId)
+                .HasDatabaseName("IX_Assignments_SubjectOfferingId");
+
+            // --------------------------------------------------------
+            // AssignmentSubmission
+            // --------------------------------------------------------
+            modelBuilder.Entity<AssignmentSubmission>()
+                .HasOne(s => s.Assignment)
+                .WithMany(a => a.Submissions)
+                .HasForeignKey(s => s.AssignmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AssignmentSubmission>()
+                .HasOne(s => s.Student)
+                .WithMany()
+                .HasForeignKey(s => s.StudentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // One submission per student per assignment
+            modelBuilder.Entity<AssignmentSubmission>()
+                .HasIndex(s => new { s.AssignmentId, s.StudentId })
+                .IsUnique()
+                .HasDatabaseName("IX_AssignmentSubmissions_Assignment_Student");
+
+            modelBuilder.Entity<AssignmentSubmission>()
+                .Property(s => s.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            modelBuilder.Entity<AssignmentSubmission>()
+                .HasIndex(s => s.Status)
+                .HasDatabaseName("IX_AssignmentSubmissions_Status");
+
+            // --------------------------------------------------------
+            // ExamProctoringLog — Phase 6
+            // --------------------------------------------------------
+            modelBuilder.Entity<ExamProctoringLog>()
+                .HasOne(l => l.ExamSubmission)
+                .WithMany()
+                .HasForeignKey(l => l.ExamSubmissionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ExamProctoringLog>()
+                .HasOne(l => l.Student)
+                .WithMany()
+                .HasForeignKey(l => l.StudentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<ExamProctoringLog>()
+                .Property(l => l.Status)
+                .HasConversion<string>()
+                .HasMaxLength(20)
+                .IsRequired();
+
+            modelBuilder.Entity<ExamProctoringLog>()
+                .HasIndex(l => l.ExamSubmissionId)
+                .HasDatabaseName("IX_ExamProctoringLogs_SubmissionId");
+
+            modelBuilder.Entity<ExamProctoringLog>()
+                .HasIndex(l => l.ExamId)
+                .HasDatabaseName("IX_ExamProctoringLogs_ExamId");
+
+            modelBuilder.Entity<ExamProctoringLog>()
+                .HasIndex(l => l.StudentId)
+                .HasDatabaseName("IX_ExamProctoringLogs_StudentId");
         }
 
         // ── Soft Delete Intercept ────────────────────────────────────────────

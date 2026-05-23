@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UniversityManagementSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using UniversityManagementSystem.Infrastructure.Data;
 namespace UniversityManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260523024648_AddRagPipeline")]
+    partial class AddRagPipeline
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -112,61 +115,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.HasIndex("DepartmentId");
 
                     b.ToTable("AcademicPolicies");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AcademicRiskScore", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("AiRecommendation")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("AnalyzedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<double>("AttendancePercent")
-                        .HasColumnType("double precision");
-
-                    b.Property<double>("AverageGrade")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("RiskLevel")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("StudentId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("SubjectOfferingId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("RiskLevel")
-                        .HasDatabaseName("IX_AcademicRiskScores_RiskLevel");
-
-                    b.HasIndex("SubjectOfferingId");
-
-                    b.HasIndex("StudentId", "SubjectOfferingId")
-                        .HasDatabaseName("IX_AcademicRiskScores_Student_Offering");
-
-                    b.ToTable("AcademicRiskScores");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AcademicYear", b =>
@@ -367,153 +315,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("AppNotifications");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Assignment", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<bool>("AiGradingEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("AllowLateSubmission")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("Deadline")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("DoctorId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("GradingRubric")
-                        .HasColumnType("text");
-
-                    b.Property<double>("MaxGrade")
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("SubjectOfferingId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Deadline")
-                        .HasDatabaseName("IX_Assignments_Deadline");
-
-                    b.HasIndex("DoctorId");
-
-                    b.HasIndex("SubjectOfferingId")
-                        .HasDatabaseName("IX_Assignments_SubjectOfferingId");
-
-                    b.ToTable("Assignments");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AssignmentSubmission", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("AiFeedback")
-                        .HasColumnType("text");
-
-                    b.Property<string>("AssignmentId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Feedback")
-                        .HasColumnType("text");
-
-                    b.Property<string>("FileUrl")
-                        .HasColumnType("text");
-
-                    b.Property<double?>("Grade")
-                        .HasColumnType("double precision");
-
-                    b.Property<bool>("IsAiGraded")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsHumanReviewed")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsLate")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ReviewedByDoctorId")
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("StorageKey")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Strengths")
-                        .HasColumnType("text");
-
-                    b.Property<string>("StudentId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<DateTime>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("TextAnswer")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Weaknesses")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("IX_AssignmentSubmissions_Status");
-
-                    b.HasIndex("StudentId");
-
-                    b.HasIndex("AssignmentId", "StudentId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_AssignmentSubmissions_Assignment_Student");
-
-                    b.ToTable("AssignmentSubmissions");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AttendanceSession", b =>
@@ -1219,72 +1020,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.HasIndex("SubjectOfferingId");
 
                     b.ToTable("Exams");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ExamProctoringLog", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DoctorNote")
-                        .HasColumnType("text");
-
-                    b.Property<string>("EventsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ExamId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("ExamSubmissionId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<int>("FullscreenExitCount")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("StudentId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<int>("SuspiciousActivityCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TabSwitchCount")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExamId")
-                        .HasDatabaseName("IX_ExamProctoringLogs_ExamId");
-
-                    b.HasIndex("ExamSubmissionId")
-                        .HasDatabaseName("IX_ExamProctoringLogs_SubmissionId");
-
-                    b.HasIndex("StudentId")
-                        .HasDatabaseName("IX_ExamProctoringLogs_StudentId");
-
-                    b.ToTable("ExamProctoringLogs");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ExamQuestion", b =>
@@ -2733,25 +2468,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Navigation("Department");
                 });
 
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AcademicRiskScore", b =>
-                {
-                    b.HasOne("UniversityManagementSystem.Core.Entities.Student", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("UniversityManagementSystem.Core.Entities.SubjectOffering", "SubjectOffering")
-                        .WithMany()
-                        .HasForeignKey("SubjectOfferingId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Student");
-
-                    b.Navigation("SubjectOffering");
-                });
-
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AcademicYear", b =>
                 {
                     b.HasOne("UniversityManagementSystem.Core.Entities.College", "College")
@@ -2813,44 +2529,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Assignment", b =>
-                {
-                    b.HasOne("UniversityManagementSystem.Core.Entities.Doctor", "Doctor")
-                        .WithMany()
-                        .HasForeignKey("DoctorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("UniversityManagementSystem.Core.Entities.SubjectOffering", "SubjectOffering")
-                        .WithMany()
-                        .HasForeignKey("SubjectOfferingId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Doctor");
-
-                    b.Navigation("SubjectOffering");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AssignmentSubmission", b =>
-                {
-                    b.HasOne("UniversityManagementSystem.Core.Entities.Assignment", "Assignment")
-                        .WithMany("Submissions")
-                        .HasForeignKey("AssignmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("UniversityManagementSystem.Core.Entities.Student", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Assignment");
-
-                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AttendanceSession", b =>
@@ -3032,25 +2710,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Navigation("CreatedByDoctor");
 
                     b.Navigation("SubjectOffering");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ExamProctoringLog", b =>
-                {
-                    b.HasOne("UniversityManagementSystem.Core.Entities.ExamSubmission", "ExamSubmission")
-                        .WithMany()
-                        .HasForeignKey("ExamSubmissionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("UniversityManagementSystem.Core.Entities.Student", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ExamSubmission");
-
-                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ExamQuestion", b =>
@@ -3559,11 +3218,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AcademicYear", b =>
                 {
                     b.Navigation("AcademicYearDepartments");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.Assignment", b =>
-                {
-                    b.Navigation("Submissions");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.AttendanceSession", b =>

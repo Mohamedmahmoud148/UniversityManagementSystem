@@ -110,4 +110,71 @@ namespace UniversityManagementSystem.Core.DTOs
         public IReadOnlyList<DepartmentCountDto>      TopDepartments { get; init; } = [];
         public IReadOnlyList<SubjectEnrollmentStatsDto> TopSubjects  { get; init; } = [];
     }
+
+    // ── Phase 4: Dashboard & Advanced Analytics DTOs ─────────────────────────
+
+    public record AttendanceTrendDto(string Week, double AttendancePercent, int TotalSessions, int AttendedSessions);
+
+    public record GradeHistogramBucket(string Range, int Count);
+
+    public record GradeDistributionDto(
+        double ExcellentPercent,
+        double GoodPercent,
+        double AveragePercent,
+        double FailingPercent,
+        List<GradeHistogramBucket> Histogram);
+
+    public record CoursePerformanceDto(
+        string OfferingId,
+        string SubjectName,
+        double AvgGrade,
+        double AttendanceRate,
+        int EnrollmentCount,
+        double PassRate);
+
+    public record StudentPerformanceDto(
+        string SubjectName,
+        double? Grade,
+        double AttendancePercent,
+        string Status);
+
+    public record AtRiskStudentDto
+    {
+        public string StudentId        { get; init; } = string.Empty;
+        public string StudentCode      { get; init; } = string.Empty;
+        public string FullName         { get; init; } = string.Empty;
+        public string DepartmentName   { get; init; } = string.Empty;
+        public double? Gpa             { get; init; }
+        public double AttendanceRate   { get; init; }
+        public int    FailingSubjects  { get; init; }
+        public string RiskLevel        { get; init; } = string.Empty;
+    }
+
+    public record DepartmentComparisonDto(
+        string DepartmentName,
+        double AvgGpa,
+        double PassRate,
+        double AttendanceRate,
+        int StudentCount);
+
+    public record AdminDashboardDto(
+        int TotalStudents,
+        int TotalDoctors,
+        int ActiveCourses,
+        double AvgGpa,
+        double PassRate,
+        int AtRiskCount);
+
+    public record DoctorDashboardDto(
+        int TotalOfferings,
+        int TotalStudents,
+        double AvgAttendance,
+        double AvgGrade,
+        List<CoursePerformanceDto> Offerings);
+
+    public record StudentDashboardDto(
+        double CurrentGpa,
+        double OverallAttendance,
+        int EnrolledCourses,
+        List<StudentPerformanceDto> SubjectDetails);
 }

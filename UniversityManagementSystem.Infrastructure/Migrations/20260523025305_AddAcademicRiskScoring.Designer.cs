@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using UniversityManagementSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using UniversityManagementSystem.Infrastructure.Data;
 namespace UniversityManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260523025305_AddAcademicRiskScoring")]
+    partial class AddAcademicRiskScoring
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1219,72 +1222,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.HasIndex("SubjectOfferingId");
 
                     b.ToTable("Exams");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ExamProctoringLog", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DoctorNote")
-                        .HasColumnType("text");
-
-                    b.Property<string>("EventsJson")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("ExamId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<string>("ExamSubmissionId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<int>("FullscreenExitCount")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("StudentId")
-                        .IsRequired()
-                        .HasMaxLength(26)
-                        .HasColumnType("character varying(26)");
-
-                    b.Property<int>("SuspiciousActivityCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("TabSwitchCount")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExamId")
-                        .HasDatabaseName("IX_ExamProctoringLogs_ExamId");
-
-                    b.HasIndex("ExamSubmissionId")
-                        .HasDatabaseName("IX_ExamProctoringLogs_SubmissionId");
-
-                    b.HasIndex("StudentId")
-                        .HasDatabaseName("IX_ExamProctoringLogs_StudentId");
-
-                    b.ToTable("ExamProctoringLogs");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ExamQuestion", b =>
@@ -3032,25 +2969,6 @@ namespace UniversityManagementSystem.Infrastructure.Migrations
                     b.Navigation("CreatedByDoctor");
 
                     b.Navigation("SubjectOffering");
-                });
-
-            modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ExamProctoringLog", b =>
-                {
-                    b.HasOne("UniversityManagementSystem.Core.Entities.ExamSubmission", "ExamSubmission")
-                        .WithMany()
-                        .HasForeignKey("ExamSubmissionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("UniversityManagementSystem.Core.Entities.Student", "Student")
-                        .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ExamSubmission");
-
-                    b.Navigation("Student");
                 });
 
             modelBuilder.Entity("UniversityManagementSystem.Core.Entities.ExamQuestion", b =>

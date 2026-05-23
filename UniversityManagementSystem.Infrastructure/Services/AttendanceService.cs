@@ -21,7 +21,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             // Validate Authorization
             if (role == UserRole.Doctor.ToString())
             {
-                var isAssigned = await _context.SubjectDoctors.AnyAsync(sd => sd.SubjectId == dto.SubjectId && sd.DoctorId == profileId);
+                var isAssigned = await _context.SubjectOfferings.AnyAsync(so => so.SubjectId == dto.SubjectId && so.DoctorId == profileId)
+                                 || await _context.SubjectDoctors.AnyAsync(sd => sd.SubjectId == dto.SubjectId && sd.DoctorId == profileId);
                 if (!isAssigned) throw new UnauthorizedAccessException("You are not assigned to this subject.");
             }
             else if (role == UserRole.TeachingAssistant.ToString())

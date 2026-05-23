@@ -73,7 +73,7 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("by-offering/{offeringId}")]
-        [Authorize(Roles = "Student,Doctor,Admin,SuperAdmin")]
+        [Authorize(Roles = "Student,Doctor,TeachingAssistant,Admin,SuperAdmin")]
         public async Task<IActionResult> GetMaterialsByOffering(string offeringId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? search = null)
         {
             if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid Offering ID.");

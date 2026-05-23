@@ -22,7 +22,10 @@
       "Bash(Get-ChildItem -Path \"F:\\\\مشروع التخرج\" -Recurse -Directory)",
       "Bash(Select-Object FullName)",
       "Bash(git rm *)",
-      "Bash(dotnet add *)"
+      "Bash(dotnet add *)",
+      "Bash(Get-ChildItem -Path \"f:\\\\مشروع التخرج\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)"
     ],
     "additionalDirectories": [
       "f:\\fastApi\\app\\agents",
