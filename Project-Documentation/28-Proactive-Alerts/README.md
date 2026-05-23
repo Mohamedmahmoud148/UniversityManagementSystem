@@ -1,3 +1,8 @@
+---
+layout: default
+title: "Proactive Alerts"
+---
+
 # Proactive Alerts — Academic Risk Scoring System
 
 > **A daily Hangfire job that calculates academic risk for every student in every active offering, persists scores, and sends bilingual Arabic/English notifications to at-risk students.**

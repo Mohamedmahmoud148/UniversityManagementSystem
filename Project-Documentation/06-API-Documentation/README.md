@@ -1,3 +1,8 @@
+---
+layout: default
+title: "📡 Complete API Reference"
+---
+
 # 📡 Complete API Reference
 
 **Base URL:** `https://your-backend.railway.app`  

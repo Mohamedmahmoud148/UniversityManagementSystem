@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🔧 Backend Architecture"
+---
+
 # 🔧 Backend Architecture — Deep Dive
 
 ## Project Structure

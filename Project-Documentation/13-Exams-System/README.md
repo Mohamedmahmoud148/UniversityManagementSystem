@@ -1,3 +1,8 @@
+---
+layout: default
+title: "Exams System"
+---
+
 # Exams System — Complete Guide
 
 ## Overview

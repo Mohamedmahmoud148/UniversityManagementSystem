@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🏛️ Enterprise Academic Architecture Redesign"
+---
+
 # 🏛️ Enterprise Academic Architecture Redesign
 > **Date:** 2026-05-18  
 > **Status:** Analysis Complete — Implementation Roadmap Active  

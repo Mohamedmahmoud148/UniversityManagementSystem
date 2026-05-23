@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🔍 Database Seed Investigation"
+---
+
 # 🔍 Database Seed Investigation — Root Cause Report
 > **Date:** 2026-05-18  
 > **Severity:** HIGH — Data reappears after manual deletion  

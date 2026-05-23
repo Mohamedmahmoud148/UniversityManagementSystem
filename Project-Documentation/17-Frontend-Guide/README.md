@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🖥️ Frontend Developer Guide"
+---
+
 # 🖥️ Frontend Developer Guide — Complete Integration Manual
 
 > This guide is written specifically for the **frontend developer** who needs to build the UI for this system. Everything you need is here.

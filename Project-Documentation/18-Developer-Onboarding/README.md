@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🚀 Developer Onboarding Guide"
+---
+
 # 🚀 Developer Onboarding Guide
 
 ## Local Development Setup

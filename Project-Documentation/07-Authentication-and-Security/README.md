@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🔐 Authentication & Security"
+---
+
 # 🔐 Authentication & Security — Complete Guide
 
 ## Authentication Architecture

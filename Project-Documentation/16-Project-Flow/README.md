@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🌊 Complete System Flows"
+---
+
 # 🌊 Complete System Flows — Step by Step
 
 ## Flow 1: User Login

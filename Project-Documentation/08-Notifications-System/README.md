@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🔔 Notifications System"
+---
+
 # 🔔 Notifications System — Complete Guide
 
 ## Overview

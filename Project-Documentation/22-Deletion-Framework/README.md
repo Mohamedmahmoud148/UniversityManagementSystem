@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🗑️ Intelligent Deletion Framework"
+---
+
 # 🗑️ Intelligent Deletion Framework — Complete Reference
 
 > **Added:** 2026-05-18  

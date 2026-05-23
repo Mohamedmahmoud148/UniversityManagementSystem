@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🤖 AI System"
+---
+
 # 🤖 AI System — Complete Technical Reference
 
 > **Covers every function, every keyword set, every prompt, every routing rule, every Pydantic model, and every security boundary in the FastAPI AI microservice.**

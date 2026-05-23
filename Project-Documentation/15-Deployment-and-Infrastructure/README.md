@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🚀 Deployment & Infrastructure Guide"
+---
+
 # 🚀 Deployment & Infrastructure Guide
 
 ## Platform: Railway

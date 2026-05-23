@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🎓 University Management System"
+---
+
 # 🎓 University Management System — Project Overview
 
 > **Version:** 1.0 | **Platform:** ASP.NET Core 9 + FastAPI + PostgreSQL  

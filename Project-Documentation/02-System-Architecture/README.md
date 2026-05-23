@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🏗️ System Architecture"
+---
+
 # 🏗️ System Architecture — Deep Dive
 
 ## Clean Architecture Overview

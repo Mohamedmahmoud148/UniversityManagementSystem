@@ -1,3 +1,8 @@
+---
+layout: default
+title: "👥 Role-Based System"
+---
+
 # 👥 Role-Based System — Complete Guide
 
 ## Overview

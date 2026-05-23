@@ -1,10 +1,9 @@
 theme: jekyll-theme-cayman
 title: "University Management System"
-description: "AI-Powered University ERP Platform — ASP.NET Core 9 · FastAPI · PostgreSQL · SignalR"
+description: "AI-Powered University ERP Platform — ASP.NET Core 9 · FastAPI · PostgreSQL · SignalR · Hangfire · Claude AI"
 url: "https://mohamedmahmoud148.github.io"
 baseurl: "/UniversityManagementSystem"
 
-# Jekyll settings
 markdown: kramdown
 highlighter: rouge
 
@@ -13,34 +12,19 @@ kramdown:
   syntax_highlighter: rouge
   hard_wrap: false
 
-# Include all markdown files in subdirectories
+# Tell Jekyll to process README.md files as pages
 include:
   - "Project-Documentation"
 
-# Exclude non-doc files from Pages build
 exclude:
   - "UniversityManagementSystem.Api/"
   - "UniversityManagementSystem.Core/"
   - "UniversityManagementSystem.Infrastructure/"
   - "UniversityManagementSystem.Tests/"
   - "*.sln"
-  - "*.csproj"
   - ".claude/"
   - ".gitignore"
   - "Dockerfile"
-  - "docker-compose.yml"
   - "node_modules/"
-
-plugins:
-  - jekyll-relative-links
-
-relative_links:
-  enabled: true
-  collections: true
-
-defaults:
-  - scope:
-      path: ""
-      type: "pages"
-    values:
-      layout: "default"
+  - "app/"
+  - "requirements.txt"

@@ -1,3 +1,8 @@
+---
+layout: default
+title: "RAG System"
+---
+
 # RAG System — Retrieval-Augmented Generation for Course Materials
 
 > **Allows students and doctors to ask questions answered strictly from uploaded course material content — no hallucination, grounded answers, cited sources.**

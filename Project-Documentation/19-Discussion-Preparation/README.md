@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🎤 Graduation Committee Discussion Preparation"
+---
+
 # 🎤 Graduation Committee Discussion Preparation
 
 ## What Makes This Project Special — Your Pitch

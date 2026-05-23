@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🎓 Frontend Handoff"
+---
+
 # 🎓 Frontend Handoff — Academic ERP Smart Registration & GPA System
 > **Date:** 2026-05-18  
 > **For:** Frontend Development Team  

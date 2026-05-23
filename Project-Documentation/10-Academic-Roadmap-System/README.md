@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🗺️ Academic Roadmap System"
+---
+
 # 🗺️ Academic Roadmap System — Complete Guide
 
 ## What Is It?

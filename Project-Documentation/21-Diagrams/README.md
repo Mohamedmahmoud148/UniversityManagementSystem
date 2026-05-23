@@ -1,3 +1,8 @@
+---
+layout: default
+title: "System Diagrams"
+---
+
 # System Diagrams
 
 All architectural and flow diagrams for the University Management System.

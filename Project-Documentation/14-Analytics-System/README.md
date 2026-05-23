@@ -1,3 +1,8 @@
+---
+layout: default
+title: "📊 Analytics System"
+---
+
 # 📊 Analytics System — Complete Guide
 
 ## Overview

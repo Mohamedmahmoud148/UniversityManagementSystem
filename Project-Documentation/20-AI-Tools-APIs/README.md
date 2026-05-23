@@ -1,3 +1,8 @@
+---
+layout: default
+title: "AI Tools APIs"
+---
+
 # AI Tools APIs
 
 ## Overview

@@ -1,3 +1,8 @@
+---
+layout: default
+title: "📋 Regulations System"
+---
+
 # 📋 Regulations System — Complete Guide
 
 ## What Is a Regulation?

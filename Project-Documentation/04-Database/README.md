@@ -1,3 +1,8 @@
+---
+layout: default
+title: "🗄️ Database Architecture"
+---
+
 # 🗄️ Database Architecture — Complete Reference
 
 ## Overview

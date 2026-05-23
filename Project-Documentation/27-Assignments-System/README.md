@@ -1,3 +1,8 @@
+---
+layout: default
+title: "Assignments System + AI Auto-Grading"
+---
+
 # Assignments System + AI Auto-Grading
 
 > **Doctors create assignments with optional AI grading; students submit text or files; AI grades against a rubric; doctors approve or override.**
