@@ -229,6 +229,7 @@ VALID_INTENTS = {
     "cv_analysis",          # Analyze student CV for skills + recommendations
     "academic_advice",      # Personalized GPA/course recommendations
     "material_explanation", # Explain/summarize real course material from backend
+    "material_qa",          # RAG-powered Q&A grounded strictly in course material chunks
     "backend_api_query",    # Query any university data via dynamic backend routing
 }
 
@@ -268,6 +269,23 @@ _EXAM_ACTION_VERBS_EN: frozenset[str] = frozenset({
 ```python
 _EXAM_TARGET_WORDS_EN: frozenset[str] = frozenset({"exam", "test", "quiz", "assessment"})
 ```
+
+#### Material Q&A Keywords (`_MATERIAL_QA_KEYWORDS`)
+
+```python
+_MATERIAL_QA_KEYWORDS: frozenset[str] = frozenset({
+    # Arabic — course-grounded questions
+    "من المحاضرة", "من المادة", "في المحاضرة", "في المادة",
+    "اللي في المحاضرة", "اللي في المادة", "من ملف",
+    # English — course-grounded questions
+    "explain from lecture", "explain from material", "from the lecture",
+    "from the material", "from lecture", "from material",
+    "according to the lecture", "based on the lecture",
+    "what does the lecture say", "what does the material say",
+})
+```
+
+---
 
 #### Arabic Exam Keywords (`_EXAM_KEYWORDS_AR`)
 
@@ -705,6 +723,15 @@ if plan.intent == "general_chat" and _detect_backend_query(agent_input.message):
     plan.intent = "backend_api_query"
     plan.goal_summary = "Query dynamic backend APIs to answer the user request."
 ```
+
+**Override 3 — RAG material Q&A:**
+```python
+if plan.intent == "general_chat" and _detect_material_qa(agent_input.message):
+    plan.intent = "material_qa"
+    plan.goal_summary = "Answer question grounded strictly in course material chunks via RAG."
+```
+
+`_detect_material_qa()` fires when the message contains any phrase from `_MATERIAL_QA_KEYWORDS` (substring match on lowercased message). This ensures course-specific questions always route to the MaterialQAModule rather than general chat.
 
 If the LLM correctly identified a specific intent (not `general_chat`), Layer-2 does NOT fire.
 
@@ -1572,3 +1599,165 @@ Already-known fields (no API call needed):
 | Endpoint validation | `validate_endpoint()` | Hallucinated endpoints |
 | JWT forwarding | `backend_client` | Role violations |
 | general_chat → steps=[] | `_parse_plan()` | Unauthorized tool calls |
+
+---
+
+## 11. RAG Pipeline — Retrieval-Augmented Generation for Course Materials
+
+**Files:** `app/services/chunker.py`, `app/services/embedding_service.py`, `app/services/vector_store.py`, `app/modules/material_qa.py`, `app/api/routes/rag.py`
+
+The RAG pipeline allows students and doctors to ask questions that are answered **strictly from the content of uploaded course materials**, preventing any hallucination or off-topic responses.
+
+### 11.1 Index Flow (triggered by .NET RagController or daily RagIndexingJob)
+
+```
+Doctor uploads Material (PDF/file)
+        │
+        ▼
+POST /api/rag/index  (FastAPI)
+        │
+        ▼
+chunker.py — chunk_text()
+  ├── Split text into 500-token chunks
+  └── 100-token overlap between consecutive chunks
+        │
+        ▼
+embedding_service.py — embed_chunks()
+  ├── Primary: OpenAI text-embedding-3-small (1536 dimensions)
+  └── Fallback: TF-IDF sparse vector (if OPENAI_API_KEY unavailable)
+        │
+        ▼
+vector_store.py — upsert_chunks()
+  └── ChromaDB PersistentClient
+      └── collection: "university_materials"
+          └── metadata: {materialId, chunkIndex, tokenCount}
+```
+
+### 11.2 Query Flow (student asks a course question)
+
+```
+Student message: "اشرحلي مفهوم الـ Recursion من المحاضرة"
+        │
+        ▼
+PlannerAgent — intent: "material_qa"   (Layer-2 Override 3)
+        │
+        ▼
+MaterialQAModule.run()
+        │
+        ├── Embed user query (text-embedding-3-small)
+        │
+        ├── vector_store.search()
+        │     ├── Cosine similarity against "university_materials" collection
+        │     ├── Filter by materialId or offeringId (from academic_context)
+        │     └── Return top-K chunks (default K=5)
+        │
+        ├── Build grounded context from retrieved chunks
+        │
+        └── LLM call with strict prompt:
+              "Answer ONLY from the provided context chunks.
+               If the answer is not in the chunks, say so explicitly.
+               Cite the source chunk index in your answer."
+        │
+        ▼
+AgentOutput — narrative cites source chunk, no hallucination
+```
+
+### 11.3 Components
+
+#### EmbeddingService (`app/services/embedding_service.py`)
+- **Primary:** `openai.embeddings.create(model="text-embedding-3-small")` — 1536-dimensional vectors
+- **Fallback:** TF-IDF sparse vectors when OpenAI API is unavailable
+- **Similarity:** `cosine_similarity(query_vec, chunk_vec)` — scores range 0.0–1.0
+- **Threshold:** Chunks scoring below 0.3 are discarded before LLM injection
+
+#### VectorStore (`app/services/vector_store.py`)
+- **Client:** `chromadb.PersistentClient(path="./chroma_data")`
+- **Collection:** `"university_materials"` (created at startup if missing)
+- **Operations:** `upsert_chunks(material_id, chunks, embeddings)`, `search(query_embedding, top_k, filter)`, `delete_material(material_id)`
+- **Metadata stored per chunk:** `materialId`, `chunkIndex`, `tokenCount`, `offeringId`
+
+#### Chunker (`app/services/chunker.py`)
+- **Function:** `chunk_text(text: str, max_tokens: int = 500, overlap: int = 100) -> list[str]`
+- **Strategy:** Splits on sentence boundaries where possible; falls back to hard token split
+- **Output:** List of text chunks ready for embedding
+
+#### MaterialQAModule (`app/modules/material_qa.py`)
+- **Intent handled:** `"material_qa"`
+- **Strict grounding prompt:** Only answers from retrieved chunks; explicitly refuses to guess when context is insufficient
+- **Source citation:** Each answer includes the chunk indices used (e.g., "وفقاً للمحاضرة — الجزء 3")
+- **Anti-hallucination enforcement:** Prompt instructs the model: "If the information is not present in the provided context, respond: لم أجد هذه المعلومة في المحاضرات المتاحة"
+
+### 11.4 .NET Integration (RagController)
+
+| Endpoint | Role | Description |
+|----------|------|-------------|
+| `POST /api/rag/index/{materialId}` | Doctor, Admin | Trigger indexing of a specific material |
+| `GET /api/rag/status/{materialId}` | Doctor, Admin | Get indexing status (IndexingStatusDto) |
+| `POST /api/rag/search` | Student, Doctor, TA, Admin | Semantic search (RagSearchRequest → RagSearchResponse) |
+| `GET /api/rag/search/offering/{offeringId}` | Student, Doctor | Search within a specific offering's materials |
+| `DELETE /api/rag/index/{materialId}` | Doctor, Admin | Delete all chunks for a material |
+
+### 11.5 FastAPI RAG Routes (`app/api/routes/rag.py`)
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/rag/index` | Accepts chunks + metadata, embeds, upserts to ChromaDB |
+| `POST /api/rag/search` | Embeds query, returns top-K chunks with similarity scores |
+| `DELETE /api/rag/material/{id}` | Removes all vectors for a material from ChromaDB |
+| `GET /api/rag/stats` | Returns total chunk count and collection metadata |
+
+### 11.6 Deployment Notes
+
+- **Required env var:** `OPENAI_API_KEY` (for text-embedding-3-small; TF-IDF fallback activates automatically if absent)
+- **Python package:** `chromadb>=0.4.0` and `numpy>=1.26.0` in `requirements.txt`
+- **Persistence:** ChromaDB stores data in `./chroma_data` directory — must be a persistent volume in production
+- **Daily job:** `RagIndexingJob` (Hangfire) runs daily to index any materials uploaded since the last run, using `IRagIndexingJob.IndexAllUnindexedMaterialsAsync()`
+
+---
+
+## 12. AI Auto-Grading
+
+**File:** `app/api/routes/ai_grading.py`
+
+The AI auto-grading endpoint provides rubric-based LLM scoring of student assignment submissions. It is called by the .NET `AssignmentService` when `AiGradingEnabled = true` on an assignment.
+
+### 12.1 Endpoint
+
+```
+POST /api/ai/grade-submission
+```
+
+**Input payload:**
+```json
+{
+  "submission_text": "Student's full written answer",
+  "assignment_title": "Assignment 1 — Sorting Algorithms",
+  "description": "Explain merge sort and compare it with quicksort",
+  "rubric": "Award up to 40 pts for correctness, 30 for clarity, 30 for comparison depth",
+  "max_grade": 100
+}
+```
+
+**Output:**
+```json
+{
+  "score": 82.5,
+  "feedback": "Good explanation of merge sort. Quicksort comparison was superficial.",
+  "strengths": ["Clear step-by-step merge sort walkthrough", "Correct time complexity analysis"],
+  "weaknesses": ["Quicksort space complexity not discussed", "No code examples provided"],
+  "confidence": 0.88
+}
+```
+
+### 12.2 Prompt Principles
+
+- **Rubric-bound scoring:** The LLM is instructed to score each rubric dimension independently and sum the result; it cannot award more than `max_grade`
+- **Structured JSON output:** Response format is enforced as `{"type": "json_object"}` — no free-form text returned
+- **No hallucination:** Prompt explicitly states: "Base your evaluation ONLY on what the student wrote. Do not assume knowledge the student did not demonstrate."
+- **Confidence field:** LLM estimates its own certainty (0.0–1.0); low-confidence scores are flagged for mandatory human review
+- **Human override:** `IsHumanReviewed` flag on `AssignmentSubmission` — doctor can always override the AI score via `GradeAssignmentSubmissionDto`
+
+### 12.3 RBAC
+- Endpoint is called **server-to-server** (from .NET backend to FastAPI) — not exposed directly to users
+- Doctor triggers grading via `POST /api/assignments/{id}/submissions/{submissionId}/ai-grade` on the .NET side
+- Students see only the final `Grade` and `AiFeedback` fields after doctor approval

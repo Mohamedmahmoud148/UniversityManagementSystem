@@ -273,6 +273,205 @@ var result = items.Select(i => new { ...counts.GetValueOrDefault(i.Id, 0) })
 
 ---
 
+---
+
+## Phase 4 Dashboard Endpoints (DashboardController)
+
+Nine new endpoints were added to provide role-scoped analytics dashboards. These complement the existing `/api/analytics/*` endpoints with richer, pre-aggregated dashboard views.
+
+### 7. GET /api/analytics/attendance/trends
+**Role:** Doctor, Admin  
+**Query:** `?offeringId=&weeks=8` (default 8 weeks)
+
+Returns week-by-week attendance percentage for a subject offering.
+
+```json
+[
+  { "weekStart": "2026-03-01", "weekEnd": "2026-03-07", "attendancePercent": 87.5, "sessionCount": 2 },
+  { "weekStart": "2026-03-08", "weekEnd": "2026-03-14", "attendancePercent": 72.0, "sessionCount": 2 }
+]
+```
+
+---
+
+### 8. GET /api/analytics/grades/distribution
+**Role:** Doctor, Admin  
+**Query:** `?offeringId=`
+
+Returns grade letter distribution for a subject offering as a histogram.
+
+```json
+{
+  "offeringId": "01H...",
+  "subjectName": "Data Structures",
+  "totalStudents": 55,
+  "histogram": [
+    { "gradeLetter": "A", "count": 10, "percent": 18.2 },
+    { "gradeLetter": "B", "count": 18, "percent": 32.7 },
+    { "gradeLetter": "C", "count": 15, "percent": 27.3 },
+    { "gradeLetter": "D", "count": 7,  "percent": 12.7 },
+    { "gradeLetter": "F", "count": 5,  "percent": 9.1 }
+  ],
+  "averageScore": 72.4
+}
+```
+
+---
+
+### 9. GET /api/analytics/at-risk-students
+**Role:** Admin  
+**Query:** `?departmentId=` (optional)
+
+Returns students flagged as at-risk (Medium/High/Critical) from `AcademicRiskScores`.
+
+```json
+[
+  {
+    "studentId": "01H...",
+    "studentName": "Ahmed Ali",
+    "riskLevel": "High",
+    "attendancePercent": 58.0,
+    "averageGrade": 51.5,
+    "subjectName": "Algorithms",
+    "aiRecommendation": "يجب على الطالب تحسين الحضور وطلب ساعات مكتبية — Attendance critical."
+  }
+]
+```
+
+---
+
+### 10. GET /api/analytics/course-performance
+**Role:** Admin  
+**Query:** `?semesterId=`
+
+Returns performance metrics per subject offering for a semester.
+
+```json
+[
+  {
+    "offeringId":      "01H...",
+    "subjectName":     "Data Structures",
+    "doctorName":      "Dr. Ahmed",
+    "enrolledCount":   55,
+    "averageGrade":    74.2,
+    "passRate":        89.1,
+    "attendanceAvg":   81.3
+  }
+]
+```
+
+---
+
+### 11. GET /api/analytics/student/{studentId}/performance
+**Role:** Admin, Doctor (own students), Student (own data)
+
+Returns full performance profile for a specific student.
+
+```json
+{
+  "studentId":         "01H...",
+  "studentName":       "Ahmed Ali",
+  "overallGpa":        3.1,
+  "totalCreditHours":  87,
+  "attendanceAvg":     78.5,
+  "riskLevel":         "Low",
+  "subjectPerformance": [
+    { "subjectName": "Data Structures", "grade": "B", "score": 83.0, "attendance": 85.0 }
+  ]
+}
+```
+
+---
+
+### 12. GET /api/analytics/department/comparison
+**Role:** Admin, SuperAdmin
+
+Compares key metrics across all departments.
+
+```json
+[
+  {
+    "departmentId":   "01H...",
+    "departmentName": "Computer Science",
+    "avgGpa":         3.15,
+    "avgAttendance":  79.2,
+    "atRiskPercent":  12.4,
+    "passRate":       91.0
+  }
+]
+```
+
+---
+
+### 13. GET /api/analytics/dashboard/admin
+**Role:** Admin, SuperAdmin
+
+Single endpoint that aggregates the full admin dashboard in one call.
+
+```json
+{
+  "systemSummary":       { ...same as /api/analytics/summary... },
+  "atRiskCount":         47,
+  "avgSystemGpa":        2.98,
+  "avgSystemAttendance": 76.5,
+  "topRiskDepartments":  [ { "departmentName": "...", "atRiskCount": 12 } ],
+  "recentAlerts":        [ { "studentName": "...", "riskLevel": "Critical", "subject": "..." } ]
+}
+```
+
+---
+
+### 14. GET /api/analytics/dashboard/doctor
+**Role:** Doctor  
+**Query:** `?doctorId=` (Admin can pass any doctorId; Doctor sees own data)
+
+Doctor-scoped dashboard showing performance across all the doctor's offerings.
+
+```json
+{
+  "doctorName":     "Dr. Ahmed Mohamed",
+  "totalOfferings": 4,
+  "totalStudents":  180,
+  "avgAttendance":  77.3,
+  "avgGrade":       73.1,
+  "atRiskStudents": 15,
+  "offerings": [
+    {
+      "offeringId":    "01H...",
+      "subjectName":   "Data Structures",
+      "enrolledCount": 55,
+      "avgAttendance": 81.0,
+      "avgGrade":      74.2
+    }
+  ]
+}
+```
+
+---
+
+### 15. GET /api/analytics/dashboard/student
+**Role:** Student (JWT-identified, no param needed)
+
+Student self-service dashboard showing their own academic standing.
+
+```json
+{
+  "studentName":       "Ahmed Ali",
+  "gpa":               3.1,
+  "creditHoursCompleted": 87,
+  "creditHoursTotal":  140,
+  "attendanceAvg":     79.5,
+  "riskLevel":         "Low",
+  "currentSemester": {
+    "subjects": [
+      { "subjectName": "Algorithms", "attendancePercent": 88.0, "currentGrade": 82.5 }
+    ]
+  }
+}
+```
+
+---
+
 ## Future Analytics Ideas (Not Yet Implemented)
 
 | Feature | How to Build |

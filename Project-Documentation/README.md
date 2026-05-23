@@ -33,6 +33,9 @@
 | [22](./22-Deletion-Framework/README.md) | **Intelligent Deletion Framework** | Backend + Frontend devs |
 | [23](./23-Academic-Architecture-Redesign/README.md) | **Enterprise Academic Architecture Redesign** | All architects |
 | [24](./24-Frontend-Handoff/README.md) | **Frontend Handoff — Registration & GPA System** | Frontend developers |
+| [26](./26-RAG-System/README.md) | **RAG System — Course Material Q&A** | AI engineers, Backend devs |
+| [27](./27-Assignments-System/README.md) | **Assignments System + AI Auto-Grading** | Backend + Frontend devs |
+| [28](./28-Proactive-Alerts/README.md) | **Proactive Alerts — Academic Risk Scoring** | Backend devs, committee |
 | — | [**Randomized Exam Guide**](./RANDOMIZED_EXAM_FRONTEND_GUIDE.md) | Frontend developers |
 
 ---
@@ -59,6 +62,15 @@ GET    /health                            → System health check
 WS     /hubs/notifications                → SignalR real-time connection
 POST   /api/deletion/analyze              → [Admin] Analyze delete impact (no data change)
 POST   /api/deletion/execute              → [Admin] Execute delete after confirmation
+POST   /api/rag/search                    → AI-powered semantic search over course materials
+POST   /api/assignments                   → [Doctor] Create assignment with optional AI grading
+POST   /api/assignments/{id}/submit       → [Student] Submit assignment (text + file)
+GET    /api/risk/dashboard                → [Admin] At-risk student overview across all offerings
+GET    /api/risk/at-risk-students         → [Doctor/Admin] Students at risk per offering
+POST   /api/proctoring/event              → [Student] Record exam proctoring event
+GET    /api/proctoring/exam/{examId}/summary → [Doctor] Proctoring summary for an exam
+GET    /api/analytics/dashboard/admin     → Full admin analytics dashboard
+GET    /api/analytics/dashboard/doctor    → Doctor-scoped analytics dashboard
 ```
 
 ### AI Capabilities
@@ -68,11 +80,13 @@ POST   /api/deletion/execute              → [Admin] Execute delete after confi
 | "سجلني في المواد" | Calls POST /api/enrollments/auto-enroll |
 | "اعمل امتحان" | Calls POST /api/exams/generate-ai |
 | "كام طالب في كل قسم؟" | Calls GET /api/analytics/student-count-by-department |
+| "اشرحلي المحاضرة دي" | Retrieves material chunks via RAG → grounded answer citing source |
 
 ### Background Jobs
 | Job | When | What |
 |-----|------|------|
-| AcademicRiskJob | Daily midnight | Alert students with GPA < 2.0 |
+| AcademicRiskJob | Daily 6 AM | Full risk scoring per student/offering — attendance% + avg grade → RiskLevel, sends Arabic bilingual notifications |
+| RagIndexingJob | Daily | Indexes all un-indexed course materials: chunk → embed → store in ChromaDB |
 | ExamReminderJob | Every 30 min | Remind students of upcoming exams |
 | ComplaintIntelligenceJob | Daily/Weekly/Monthly | AI complaint analysis reports |
 
@@ -84,10 +98,10 @@ POST   /api/deletion/execute              → [Admin] Execute delete after confi
 Browser/App
     │
     ├──── REST API ────────────► .NET Backend (ASP.NET Core 9)
-    │                                 ├── 28 Controllers
-    │                                 ├── 33 Services  
-    │                                 ├── PostgreSQL (42 tables)
-    │                                 ├── Hangfire (6 background jobs)
+    │                                 ├── 34 Controllers
+    │                                 ├── 40+ Services  
+    │                                 ├── PostgreSQL (50+ tables)
+    │                                 ├── Hangfire (8 background jobs)
     │                                 └── Cloudflare R2 (files)
     │
     ├──── AI Chat ────────────► FastAPI (Python)
@@ -101,4 +115,4 @@ Browser/App
 
 ---
 
-*Generated: 2026-05-16 | Version: 1.0*
+*Generated: 2026-05-23 | Version: 2.0 — 6-Phase AI Upgrade (RAG, Alerts, Assignments, Dashboards, Memory, Proctoring)*

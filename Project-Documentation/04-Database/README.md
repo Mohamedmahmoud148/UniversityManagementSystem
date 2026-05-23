@@ -6,7 +6,8 @@
 **ORM:** Entity Framework Core 9  
 **ID Format:** ULID (all primary keys)  
 **Soft Deletes:** All entities via `DeletedAt` timestamp  
-**Migrations:** EF Core code-first migrations
+**Migrations:** EF Core code-first migrations (31 total as of 2026-05-23)  
+**Tables:** 50+ (including 6 new tables from the Phase 1–6 AI upgrade)
 
 ---
 
@@ -76,6 +77,18 @@ SystemUser (1) ──► Complaint (many)
 
 Complaint (1) ──► ComplaintAnalysis (1:1)
 ComplaintAnalysis (many) ──► ComplaintCluster
+
+Material (1) ──► MaterialChunk (many)  [CASCADE delete — Phase 1 RAG]
+
+RagSearchLog (standalone log)          [Phase 1 RAG]
+
+Student (1) ──► AcademicRiskScore (many) ──► SubjectOffering  [Phase 2 Alerts]
+
+SubjectOffering (1) ──► Assignment (many) ──► Doctor  [Phase 3 Assignments]
+Assignment (1) ──► AssignmentSubmission (many) ──► Student
+  └── UNIQUE constraint: (AssignmentId, StudentId)
+
+ExamSubmission (1) ──► ExamProctoringLog (1:1) ──► Student  [Phase 6 Proctoring]
 ```
 
 ---
@@ -630,6 +643,122 @@ ComplaintAnalysis (many) ──► ComplaintCluster
 | `ApiCalled` | text | Which backend API was called |
 | `Success` | bool | |
 | `DurationMs` | int | |
+
+---
+
+### `MaterialChunks` Table
+**Purpose:** Stores text chunks extracted from course materials for RAG (Retrieval-Augmented Generation). Added in migration `AddRagPipeline`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `Id` | ULID | PK |
+| `MaterialId` | ULID | FK → Materials (CASCADE delete) |
+| `ChunkIndex` | int | Position of this chunk within the material (0-based) |
+| `Content` | text | Raw text content of the chunk (approx. 500 tokens) |
+| `Embedding` | text | JSON-serialized float array (1536-dimensional OpenAI embedding) |
+| `TokenCount` | int | Actual token count of this chunk |
+
+---
+
+### `RagSearchLogs` Table
+**Purpose:** Audit log of student RAG search queries. Added in migration `AddRagPipeline`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `Id` | ULID | PK |
+| `StudentId` | ULID | Who searched |
+| `Query` | text | The search question |
+| `RetrievedChunkIds` | text | JSON array of chunk IDs returned |
+| `ResponseSummary` | text? | AI-generated answer summary |
+| `CreatedAt` | datetime | When the search occurred |
+
+---
+
+### `AcademicRiskScores` Table
+**Purpose:** Per-student risk assessment per subject offering. Upserted daily by `AcademicRiskJob`. Added in migration `AddAcademicRiskScoring`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `Id` | ULID | PK |
+| `StudentId` | ULID | FK → Students (RESTRICT) |
+| `SubjectOfferingId` | ULID | FK → SubjectOfferings (RESTRICT) |
+| `AttendancePercent` | float | Calculated attendance percentage |
+| `AverageGrade` | float | Average grade score for this offering |
+| `RiskLevel` | int | enum: Low=0, Medium=1, High=2, Critical=3 |
+| `AiRecommendation` | text? | Arabic bilingual recommendation text |
+| `AnalyzedAt` | datetime | When this assessment was computed |
+
+**Risk Level Formula:**
+- `Critical`: attendance < 50% OR average grade < 40
+- `High`: attendance < 65% OR average grade < 55
+- `Medium`: attendance < 75% OR average grade < 65
+- `Low`: all metrics within acceptable range
+
+---
+
+### `Assignments` Table
+**Purpose:** Assignments created by doctors for a subject offering. Added in migration `AddAssignmentsSystem`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `Id` | ULID | PK |
+| `Title` | text | Assignment title |
+| `Description` | text | Full assignment instructions |
+| `SubjectOfferingId` | ULID | FK → SubjectOfferings (RESTRICT) |
+| `DoctorId` | ULID | FK → Doctors (RESTRICT) |
+| `Deadline` | datetime | Submission deadline |
+| `MaxGrade` | float | Maximum achievable grade |
+| `AllowLateSubmission` | bool | Whether late submissions are accepted |
+| `AiGradingEnabled` | bool | Whether AI auto-grading is enabled |
+| `GradingRubric` | text? | Rubric text sent to the AI grader |
+| `CreatedAt` | datetime | |
+
+---
+
+### `AssignmentSubmissions` Table
+**Purpose:** Student submissions for assignments, with AI and human grading fields. Added in migration `AddAssignmentsSystem`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `Id` | ULID | PK |
+| `AssignmentId` | ULID | FK → Assignments (CASCADE) |
+| `StudentId` | ULID | FK → Students (RESTRICT) |
+| `TextAnswer` | text? | Written answer text |
+| `FileUrl` | text? | Submitted file URL (R2) |
+| `StorageKey` | text? | R2 storage key |
+| `SubmittedAt` | datetime | Submission timestamp |
+| `IsLate` | bool | Whether submitted after deadline |
+| `Status` | int | enum: Submitted=0, UnderReview=1, Graded=2, Rejected=3 |
+| `Grade` | float? | Final grade (human-confirmed) |
+| `Feedback` | text? | Doctor feedback text |
+| `AiFeedback` | text? | AI-generated feedback |
+| `Strengths` | text? | AI-identified strengths (JSON array) |
+| `Weaknesses` | text? | AI-identified weaknesses (JSON array) |
+| `IsAiGraded` | bool | Whether AI grading was applied |
+| `IsHumanReviewed` | bool | Whether doctor has reviewed the AI grade |
+| `ReviewedByDoctorId` | ULID? | FK → Doctors who reviewed |
+
+**Constraint:** UNIQUE on (`AssignmentId`, `StudentId`) — one submission per student per assignment.
+
+---
+
+### `ExamProctoringLogs` Table
+**Purpose:** Records browser behavior events during online exam sessions. Added in migration `AddProctoringAndAnalytics`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `Id` | ULID | PK |
+| `ExamSubmissionId` | ULID | FK → ExamSubmissions (RESTRICT) |
+| `StudentId` | ULID | FK → Students (RESTRICT) |
+| `ExamId` | ULID | FK → Exams |
+| `TabSwitchCount` | int | Number of times student switched tabs |
+| `FullscreenExitCount` | int | Number of times student exited fullscreen |
+| `SuspiciousActivityCount` | int | Total suspicious event count |
+| `EventsJson` | text | Full JSON log of all proctoring events |
+| `Status` | int | enum: Clean=0, Suspicious=1, Flagged=2 |
+| `DoctorNote` | text? | Doctor's note when manually flagging |
+
+**Auto-flag rule:** `ProctoringService.RecordEventAsync()` automatically sets `Status = Flagged` if `TabSwitchCount > 5`.
 
 ---
 
