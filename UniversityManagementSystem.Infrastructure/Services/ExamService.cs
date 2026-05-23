@@ -590,18 +590,26 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (offering.DoctorId != doctorId)
                 throw new UnauthorizedAccessException("You are not the instructor for this offering.");
 
-            var structuredRequest = new UniversityManagementSystem.Core.DTOs.Ai.AiGenerateExamRequestDto
+            // Use pre-generated questions from FastAPI if provided (avoids double AI call).
+            List<CreateExamQuestionDto> questionsDto;
+            if (request.PreGeneratedQuestions != null && request.PreGeneratedQuestions.Count > 0)
             {
-                Subject = offering.Subject.Name,
-                Department = offering.Subject.Department?.Name ?? "General",
-                Batch = offering.Subject.Batch?.Name ?? "General",
-                Difficulty = request.Difficulty,
-                QuestionCount = request.QuestionCount,
-                ExamType = request.ExamType,
-                Topics = request.Topics
-            };
-
-            var questionsDto = await _aiService.GenerateExamAsync(structuredRequest);
+                questionsDto = request.PreGeneratedQuestions;
+            }
+            else
+            {
+                var structuredRequest = new UniversityManagementSystem.Core.DTOs.Ai.AiGenerateExamRequestDto
+                {
+                    Subject = offering.Subject.Name,
+                    Department = offering.Subject.Department?.Name ?? "General",
+                    Batch = offering.Subject.Batch?.Name ?? "General",
+                    Difficulty = request.Difficulty,
+                    QuestionCount = request.QuestionCount,
+                    ExamType = request.ExamType,
+                    Topics = request.Topics
+                };
+                questionsDto = await _aiService.GenerateExamAsync(structuredRequest);
+            }
 
             var exam = new Exam
             {

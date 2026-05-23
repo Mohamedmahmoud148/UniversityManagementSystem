@@ -134,6 +134,12 @@ namespace UniversityManagementSystem.Core.DTOs
         /// Defaults to half the pool if not specified.
         /// </summary>
         public int QuestionsPerStudent { get; set; } = 0;
+
+        /// <summary>
+        /// Pre-generated questions from FastAPI. When provided, the backend skips
+        /// the second AI call and persists these questions directly — avoids double billing.
+        /// </summary>
+        public List<CreateExamQuestionDto>? PreGeneratedQuestions { get; set; }
     }
 
     public class UploadPdfExamRequest
