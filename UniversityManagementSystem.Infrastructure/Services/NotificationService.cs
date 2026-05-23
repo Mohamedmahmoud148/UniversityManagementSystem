@@ -72,16 +72,17 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
             else
             {
-                var notification = new AppNotification
+                var allUserIds = await _context.SystemUsers.Select(u => u.Id).ToListAsync();
+                var notifications = allUserIds.Select(uid => new AppNotification
                 {
-                    UserId = Ulid.Empty,
+                    UserId = uid,
                     Title = dto.Title,
                     Message = dto.Message,
                     IsRead = false,
                     ActionUrl = dto.ActionUrl,
                     CreatedAt = DateTime.UtcNow
-                };
-                _context.AppNotifications.Add(notification);
+                }).ToList();
+                _context.AppNotifications.AddRange(notifications);
                 await _context.SaveChangesAsync();
             }
 
