@@ -1,23 +1,154 @@
-name: Deploy to Railway
+# ============================================================
+#  University Management System — CI/CD Pipeline
+#  Jobs:
+#    1. build-check   — dotnet build (fast gate)
+#    2. deploy-railway — push to Railway (backend)
+#    3. deploy-pages  — build & publish GitHub Pages (docs)
+#
+#  Runs on every push to main.
+#  Pages job only runs when docs-related files change.
+# ============================================================
+
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:        # allow manual trigger from GitHub UI
 
+# ── Concurrency: cancel in-flight runs on the same branch ──
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ── Top-level permissions (least-privilege) ─────────────────
+permissions:
+  contents: read            # read repo code
+
+# ============================================================
+#  JOB 1 — Build Check (.NET)
+#  Quick gate: fail fast before deploying broken code.
+# ============================================================
 jobs:
-  deploy:
-    name: Deploy
+  build-check:
+    name: "🔨 .NET Build Check"
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build solution
+        run: dotnet build --no-restore --configuration Release -v q
+
+  # ============================================================
+  #  JOB 2 — Deploy to Railway
+  #  Only runs after build-check passes.
+  # ============================================================
+  deploy-railway:
+    name: "🚂 Deploy to Railway"
+    runs-on: ubuntu-latest
+    needs: build-check         # wait for build gate
+    if: github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: read
+
+    environment:
+      name: production
+      url: https://universitymanagementsystem-production-e58e.up.railway.app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (Railway CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
+      - name: Validate Railway token
+        run: |
+          if [ -z "${{ secrets.RAILWAY_TOKEN }}" ]; then
+            echo "❌ RAILWAY_TOKEN secret is not set"
+            exit 1
+          fi
+          echo "✅ RAILWAY_TOKEN is present"
+
       - name: Deploy to Railway
-        run: railway up --detach
+        run: railway up --detach --no-git-ignore
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        timeout-minutes: 10
+
+  # ============================================================
+  #  JOB 3 — Build & Deploy GitHub Pages
+  #  Triggers on any push to main (docs always stay in sync).
+  #  Uses the official GitHub Pages actions — no git CLI calls,
+  #  which is exactly what causes exit code 128.
+  # ============================================================
+  deploy-pages:
+    name: "📚 Deploy GitHub Pages"
+    runs-on: ubuntu-latest
+    # Does NOT depend on build-check — docs can deploy even if
+    # backend has a compile warning, to keep docs always live.
+
+    # ── CRITICAL: these permissions are required for Pages ───
+    permissions:
+      contents: read
+      pages: write            # upload pages artifact
+      id-token: write         # verify deployment origin (OIDC)
+
+    # One Pages deployment at a time
+    concurrency:
+      group: pages-deployment
+      cancel-in-progress: false   # don't cancel — let it finish
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      # ── 1. Checkout full history for Jekyll ───────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0      # full history so Jekyll gets correct dates
+
+      # ── 2. Configure GitHub Pages ─────────────────────────
+      - name: Setup GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      # ── 3. Build with Jekyll ──────────────────────────────
+      - name: Build with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./          # build from repo root
+          destination: ./_site
+
+      # ── 4. Upload artifact ────────────────────────────────
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+      # ── 5. Deploy to GitHub Pages ─────────────────────────
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
