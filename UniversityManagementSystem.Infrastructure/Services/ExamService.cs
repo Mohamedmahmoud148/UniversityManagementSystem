@@ -845,6 +845,33 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await _auditService.LogAsync("SoftDelete", "Exam", examId.ToString(), oldValues, null, null);
         }
 
+        public async Task<List<CreateExamQuestionDto>> PreviewAiQuestionsAsync(Ulid offeringId, PreviewAiQuestionsDto dto, Ulid doctorId)
+        {
+            var offering = await context.Set<SubjectOffering>()
+                .AsNoTracking()
+                .Include(so => so.Subject)
+                    .ThenInclude(s => s.Department)
+                .Include(so => so.Subject.Batch)
+                .FirstOrDefaultAsync(so => so.Id == offeringId)
+                ?? throw new KeyNotFoundException($"SubjectOffering {offeringId} not found.");
+
+            if (offering.DoctorId != doctorId)
+                throw new UnauthorizedAccessException("You are not the instructor for this offering.");
+
+            var aiRequest = new UniversityManagementSystem.Core.DTOs.Ai.AiGenerateExamRequestDto
+            {
+                Subject    = offering.Subject.Name,
+                Department = offering.Subject.Department?.Name ?? "General",
+                Batch      = offering.Subject.Batch?.Name ?? "General",
+                Difficulty = dto.Difficulty,
+                QuestionCount = dto.QuestionCount,
+                ExamType   = dto.ExamType,
+                Topics     = dto.Topics,
+            };
+
+            return await _aiService.GenerateExamAsync(aiRequest);
+        }
+
         public async Task<ExamDto> GenerateAiExamAsync(CreateAiExamRequest request, Ulid doctorId)
         {
             var offering = await context.Set<SubjectOffering>()

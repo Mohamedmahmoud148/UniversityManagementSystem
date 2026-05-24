@@ -153,6 +153,15 @@ namespace UniversityManagementSystem.Core.DTOs
         public IFormFile File { get; set; } = null!;
     }
 
+    /// <summary>Request to preview AI-generated questions without creating an exam.</summary>
+    public class PreviewAiQuestionsDto
+    {
+        public string Difficulty { get; set; } = "Medium";
+        public int QuestionCount { get; set; } = 10;
+        public string ExamType { get; set; } = "Final";
+        public List<string> Topics { get; set; } = new();
+    }
+
     public class PreviewQuestionsFromPdfRequest
     {
         [Required]

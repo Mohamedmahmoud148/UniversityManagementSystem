@@ -12,6 +12,7 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<ExamDto?> GetExamByCodeAsync(string code, Ulid userId, string userRole);
         Task<Ulid> SubmitExamAsync(Ulid examId, Ulid studentId, ExamSubmissionDto submissionDto);
         Task<ExamDto> GenerateAiExamAsync(CreateAiExamRequest request, Ulid doctorId);
+        Task<List<CreateExamQuestionDto>> PreviewAiQuestionsAsync(Ulid offeringId, PreviewAiQuestionsDto dto, Ulid doctorId);
         Task<ExamDto> UploadFileExamAsync(Ulid subjectOfferingId, Microsoft.AspNetCore.Http.IFormFile file, Ulid doctorId);
 
         // Queries

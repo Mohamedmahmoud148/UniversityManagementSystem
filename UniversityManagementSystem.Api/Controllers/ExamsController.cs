@@ -59,6 +59,30 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         /// <summary>
+        /// Preview AI-generated questions for a subject offering (no exam created).
+        /// Returns List&lt;CreateExamQuestionDto&gt; — frontend shows them in the structured form for review.
+        /// </summary>
+        [HttpPost("offerings/{offeringId}/preview-ai-questions")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
+        public async Task<IActionResult> PreviewAiQuestions(string offeringId, [FromBody] PreviewAiQuestionsDto dto)
+        {
+            if (!Ulid.TryParse(offeringId, out var oId)) return BadRequest("Invalid offering ID.");
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var doctorId = Ulid.Parse(profileClaim.Value);
+
+            try
+            {
+                var questions = await examService.PreviewAiQuestionsAsync(oId, dto, doctorId);
+                if (questions == null || questions.Count == 0)
+                    return Ok(new List<CreateExamQuestionDto>());
+                return Ok(questions);
+            }
+            catch (KeyNotFoundException ex)         { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException)     { return Forbid(); }
+        }
+
+        /// <summary>
         /// Upload a lecture PDF and get back AI-generated questions (preview only — no exam created).
         /// The frontend can let the doctor review/edit before calling POST /api/Exams to create the actual exam.
         /// </summary>
