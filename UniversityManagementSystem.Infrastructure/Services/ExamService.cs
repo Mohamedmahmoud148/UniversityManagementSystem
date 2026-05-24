@@ -126,14 +126,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
         }
 
         /// <summary>
-        /// Resolves q.CorrectAnswer to the actual option text regardless of how it was stored:
+        /// Resolves any raw answer string to the actual option text:
         ///   "0"/"1"/"2"/"3" (index) → options[n]
         ///   "A"/"B"/"C"/"D" (letter) → options[n]
-        ///   anything else   → treated as the literal correct text already
+        ///   anything else   → treated as the literal option text already
+        /// Used for both CorrectAnswer and student AnswerText so both sides
+        /// are normalised before comparison.
         /// </summary>
-        private static string ResolveCorrectText(ExamQuestion q)
+        private static string ResolveToOptionText(ExamQuestion q, string? raw)
         {
-            var raw = q.CorrectAnswer?.Trim() ?? string.Empty;
+            raw = raw?.Trim() ?? string.Empty;
             if (string.IsNullOrEmpty(raw)) return raw;
 
             List<string>? options = null;
@@ -145,11 +147,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             if (options == null || options.Count == 0) return raw;
 
-            // numeric index: "0", "1", "2", "3"
             if (int.TryParse(raw, out int idx) && idx >= 0 && idx < options.Count)
                 return options[idx];
 
-            // letter: "A", "B", "C", "D"
             if (raw.Length == 1)
             {
                 int letterIdx = char.ToUpperInvariant(raw[0]) - 'A';
@@ -157,8 +157,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     return options[letterIdx];
             }
 
-            return raw; // already the option text
+            return raw;
         }
+
+        private static string ResolveCorrectText(ExamQuestion q) => ResolveToOptionText(q, q.CorrectAnswer);
 
         /// <summary>Grades all MCQ/TrueFalse answers in a submission immediately. Mutates submission in-place.</summary>
         private static void _AutoGradeMcq(Exam exam, ExamSubmission submission)
@@ -177,8 +179,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     continue;
                 var ans = answers.FirstOrDefault(a => a.QuestionId == q.Id);
                 var correctText = ResolveCorrectText(q);
+                var studentText = ResolveToOptionText(q, ans?.AnswerText);
                 if (ans != null &&
-                    string.Equals(ans.AnswerText?.Trim(), correctText, StringComparison.OrdinalIgnoreCase))
+                    string.Equals(studentText, correctText, StringComparison.OrdinalIgnoreCase))
                     score += q.Mark;
             }
 
@@ -546,7 +549,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 if (q.QuestionType == QuestionType.MCQ || q.QuestionType == QuestionType.TrueFalse)
                 {
                     var ans = studentAnswers.FirstOrDefault(a => a.QuestionId == q.Id);
-                    if (ans != null && string.Equals(ans.AnswerText?.Trim(), ResolveCorrectText(q), StringComparison.OrdinalIgnoreCase))
+                    if (ans != null && string.Equals(ResolveToOptionText(q, ans.AnswerText), ResolveCorrectText(q), StringComparison.OrdinalIgnoreCase))
                         total += q.Mark;
                 }
                 else // Essay / ShortAnswer
@@ -566,14 +569,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<IEnumerable<ExamDto>> GetStudentEnrolledExamsAsync(Ulid studentId)
         {
-            // 1. Get Offerings student is enrolled in
             var enrolledOfferingIds = await context.Enrollments
                 .AsNoTracking()
                 .Where(e => e.StudentId == studentId && e.IsActive)
                 .Select(e => e.SubjectOfferingId)
                 .ToListAsync();
 
-            // 2. Get Exams for these offerings
             var exams = await context.Exams
                 .AsNoTracking()
                 .Include(e => e.SubjectOffering)
@@ -582,7 +583,19 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .OrderBy(e => e.StartTime)
                 .ToListAsync();
 
-            return exams.Select(e => MapToDto(e));
+            var examIds = exams.Select(e => e.Id).ToList();
+            var submittedExamIds = await context.ExamSubmissions
+                .AsNoTracking()
+                .Where(s => s.StudentId == studentId && s.IsCompleted && examIds.Contains(s.ExamId))
+                .Select(s => s.ExamId)
+                .ToHashSetAsync();
+
+            return exams.Select(e =>
+            {
+                var dto = MapToDto(e);
+                dto.HasSubmitted = submittedExamIds.Contains(e.Id);
+                return dto;
+            });
         }
 
         public async Task<ExamDto> GetStudentVariantAsync(Ulid examId, Ulid studentId)
@@ -649,8 +662,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     if (q.QuestionType == QuestionType.MCQ || q.QuestionType == QuestionType.TrueFalse)
                     {
                         var correctText = ResolveCorrectText(q);
+                        var studentText = ResolveToOptionText(q, text);
                         isCorrect = !string.IsNullOrEmpty(text) &&
-                            string.Equals(text.Trim(), correctText, StringComparison.OrdinalIgnoreCase);
+                            string.Equals(studentText, correctText, StringComparison.OrdinalIgnoreCase);
                         earned = isCorrect == true ? q.Mark : 0;
                     }
 
@@ -740,9 +754,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     {
                         case QuestionType.MCQ:
                         case QuestionType.TrueFalse:
-                            // Exact match (case-insensitive)
                             if (!string.IsNullOrEmpty(studentAnswer.AnswerText) &&
-                                string.Equals(studentAnswer.AnswerText.Trim(),
+                                string.Equals(ResolveToOptionText(question, studentAnswer.AnswerText),
                                               ResolveCorrectText(question),
                                               StringComparison.OrdinalIgnoreCase))
                                 totalScore += question.Mark;

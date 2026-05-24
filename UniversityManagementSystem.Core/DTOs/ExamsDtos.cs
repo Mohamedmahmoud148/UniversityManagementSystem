@@ -30,6 +30,9 @@ namespace UniversityManagementSystem.Core.DTOs
         public int LateSubmissionWindowMinutes { get; set; }
         public int QuestionCount { get; set; }
         public List<ExamQuestionDto> Questions { get; set; } = new();
+
+        /// <summary>Populated only in student-facing endpoints. Null for doctor/admin views.</summary>
+        public bool? HasSubmitted { get; set; }
     }
 
     public class CreateExamDto
