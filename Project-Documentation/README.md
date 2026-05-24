@@ -36,6 +36,9 @@
 | [26](./26-RAG-System/README.md) | **RAG System — Course Material Q&A** | AI engineers, Backend devs |
 | [27](./27-Assignments-System/README.md) | **Assignments System + AI Auto-Grading** | Backend + Frontend devs |
 | [28](./28-Proactive-Alerts/README.md) | **Proactive Alerts — Academic Risk Scoring** | Backend devs, committee |
+| [29](./29-API-Reference/index.md) | **API Reference — Complete Endpoint List** | Frontend developers, testers |
+| [30](./30-Feature-Guide/index.md) | **Feature Guide — "I want to do X, how?"** | Frontend developers |
+| [31](./31-What-Makes-Us-Different/index.md) | **What Makes Us Different** | Committee, presentations |
 | — | [**Randomized Exam Guide**](./RANDOMIZED_EXAM_FRONTEND_GUIDE.md) | Frontend developers |
 
 ---
