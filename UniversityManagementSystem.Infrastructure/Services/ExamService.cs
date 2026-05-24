@@ -40,9 +40,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
         }
         public async Task<Ulid> SubmitExamAsync(Ulid examId, Ulid studentId, ExamSubmissionDto submissionDto)
         {
-            // 1. Validate Exam exists & is active
+            // 1. Validate Exam exists & is active — include Questions for immediate grading
             var exam = await context.Exams
-                .AsNoTracking()
+                .Include(e => e.Questions)
                 .Include(e => e.SubjectOffering)
                 .FirstOrDefaultAsync(e => e.Id == examId)
                 ?? throw new KeyNotFoundException($"Exam with ID {examId} not found.");
@@ -107,21 +107,46 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 context.ExamSubmissions.Add(submission);
             }
 
+            // Auto-grade MCQ / TrueFalse immediately
+            _AutoGradeMcq(exam, submission);
+
             try
             {
                 await context.SaveChangesAsync();
             }
             catch (DbUpdateException ex)
             {
-                // Handle concurrent submission attempts
-                if (ex.InnerException != null && ex.InnerException.Message.Contains("IX_ExamSubmissions_ExamId_StudentId")) // Check for specific index violation if possible, or generic
-                {
+                if (ex.InnerException != null && ex.InnerException.Message.Contains("IX_ExamSubmissions_ExamId_StudentId"))
                     throw new InvalidOperationException("You have already submitted this exam.");
-                }
-                throw; // Re-throw if it's another error
+                throw;
             }
 
             return submission.Id;
+        }
+
+        /// <summary>Grades all MCQ/TrueFalse answers in a submission immediately. Mutates submission in-place.</summary>
+        private static void _AutoGradeMcq(Exam exam, ExamSubmission submission)
+        {
+            List<ExamAnswerDto> answers;
+            try { answers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson) ?? new(); }
+            catch { answers = new(); }
+
+            bool hasEssay = exam.Questions.Any(q =>
+                q.QuestionType == QuestionType.Essay || q.QuestionType == QuestionType.ShortAnswer);
+
+            double score = 0;
+            foreach (var q in exam.Questions.Where(q => q.DeletedAt == null))
+            {
+                if (q.QuestionType != QuestionType.MCQ && q.QuestionType != QuestionType.TrueFalse)
+                    continue;
+                var ans = answers.FirstOrDefault(a => a.QuestionId == q.Id);
+                if (ans != null &&
+                    string.Equals(ans.AnswerText?.Trim(), q.CorrectAnswer?.Trim(), StringComparison.OrdinalIgnoreCase))
+                    score += q.Mark;
+            }
+
+            submission.Score    = score;
+            submission.IsGraded = !hasEssay;
         }
 
         public async Task<ExamDto> CreateExamAsync(Ulid subjectOfferingId, CreateExamDto dto, Ulid doctorId)
@@ -561,27 +586,57 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return MapToDto(exam, includeCorrectAnswers: false, filteredQuestions: filtered);
         }
 
-        public async Task<ExamSubmissionResponseDto?> GetStudentSubmissionAsync(Ulid examId, Ulid studentId)
+        public async Task<StudentSubmissionResultDto?> GetStudentSubmissionAsync(Ulid examId, Ulid studentId)
         {
             var submission = await context.ExamSubmissions
                 .AsNoTracking()
-                .Include(s => s.Student) // Include for consistency, though we know the student
+                .Include(s => s.Exam).ThenInclude(e => e.Questions)
                 .FirstOrDefaultAsync(s => s.ExamId == examId && s.StudentId == studentId);
 
             if (submission == null) return null;
 
-            return new ExamSubmissionResponseDto
+            List<ExamAnswerDto> studentAnswers;
+            try { studentAnswers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson) ?? new(); }
+            catch { studentAnswers = new(); }
+
+            var answerResults = submission.Exam.Questions
+                .Where(q => q.DeletedAt == null)
+                .Select(q =>
+                {
+                    var ans = studentAnswers.FirstOrDefault(a => a.QuestionId == q.Id);
+                    var text = ans?.AnswerText ?? string.Empty;
+                    bool? isCorrect = null;
+                    double earned = 0;
+
+                    if (q.QuestionType == QuestionType.MCQ || q.QuestionType == QuestionType.TrueFalse)
+                    {
+                        isCorrect = !string.IsNullOrEmpty(text) &&
+                            string.Equals(text.Trim(), q.CorrectAnswer?.Trim(), StringComparison.OrdinalIgnoreCase);
+                        earned = isCorrect == true ? q.Mark : 0;
+                    }
+
+                    return new StudentAnswerResultDto
+                    {
+                        QuestionId  = q.Id,
+                        AnswerText  = text,
+                        IsCorrect   = isCorrect,
+                        EarnedMarks = earned,
+                    };
+                }).ToList();
+
+            double totalMarks = submission.Exam.TotalMarks;
+            double? pct = submission.Score.HasValue && totalMarks > 0
+                ? Math.Round(submission.Score.Value / totalMarks * 100, 1) : null;
+
+            return new StudentSubmissionResultDto
             {
-                Id          = submission.Id,
-                ExamId      = submission.ExamId,
-                StudentId   = submission.StudentId,
-                StudentName = submission.Student.FullName,
-                SubmittedAt        = submission.SubmittedAt,
-                Score              = submission.Score,
-                TotalMarks         = 0,
-                IsGraded           = submission.IsGraded,
-                IsCompleted        = submission.IsCompleted,
-                NeedsManualGrading = submission.IsCompleted && !submission.IsGraded,
+                SubmissionId = submission.Id,
+                TotalScore   = submission.Score,
+                TotalMarks   = totalMarks,
+                Percentage   = pct,
+                IsGraded     = submission.IsGraded,
+                SubmittedAt  = submission.SubmittedAt,
+                Answers      = answerResults,
             };
         }
 

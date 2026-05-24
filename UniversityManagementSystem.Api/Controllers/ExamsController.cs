@@ -243,12 +243,9 @@ namespace UniversityManagementSystem.Api.Controllers
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
             var studentId = Ulid.Parse(profileClaim.Value);
 
-            var submission = await examService.GetStudentSubmissionAsync(examId, studentId);
-
-            if (submission == null)
-                return NotFound("No submission found for this exam.");
-
-            return Ok(submission);
+            var result = await examService.GetStudentSubmissionAsync(examId, studentId);
+            if (result == null) return NotFound("No submission found for this exam.");
+            return Ok(result);
         }
 
         [HttpPost("grade-submission")]

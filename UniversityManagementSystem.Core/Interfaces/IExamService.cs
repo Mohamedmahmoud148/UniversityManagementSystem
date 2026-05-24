@@ -19,7 +19,7 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<IEnumerable<ExamDto>> GetExamsByOfferingAsync(Ulid offeringId, Ulid doctorId);
         Task<IEnumerable<ExamSubmissionResponseDto>> GetExamSubmissionsAsync(Ulid examId, Ulid doctorId);
         Task<IEnumerable<ExamDto>> GetStudentEnrolledExamsAsync(Ulid studentId);
-        Task<ExamSubmissionResponseDto?> GetStudentSubmissionAsync(Ulid examId, Ulid studentId);
+        Task<StudentSubmissionResultDto?> GetStudentSubmissionAsync(Ulid examId, Ulid studentId);
 
         // Randomized exam — returns the student's personal question subset
         Task<ExamDto> GetStudentVariantAsync(Ulid examId, Ulid studentId);

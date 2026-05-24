@@ -52,6 +52,26 @@ namespace UniversityManagementSystem.Core.DTOs
         public string? ProfessorComment  { get; set; }
     }
 
+    // ── Student's own submission result ──────────────────────────────────────
+    public class StudentSubmissionResultDto
+    {
+        public Ulid     SubmissionId { get; set; }
+        public double?  TotalScore   { get; set; }
+        public double   TotalMarks   { get; set; }
+        public double?  Percentage   { get; set; }
+        public bool     IsGraded     { get; set; }
+        public DateTime SubmittedAt  { get; set; }
+        public List<StudentAnswerResultDto> Answers { get; set; } = new();
+    }
+
+    public class StudentAnswerResultDto
+    {
+        public Ulid    QuestionId  { get; set; }
+        public string  AnswerText  { get; set; } = string.Empty;
+        public bool?   IsCorrect   { get; set; }   // null for Essay until graded
+        public double  EarnedMarks { get; set; }
+    }
+
     // ── Grade a single essay question ─────────────────────────────────────────
     public class GradeQuestionDto
     {
