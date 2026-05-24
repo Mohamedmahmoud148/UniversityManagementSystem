@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Infrastructure.Services;
 using NUlid;
 
 namespace UniversityManagementSystem.Api.Controllers
@@ -10,10 +12,11 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class ChatController(IChatService chatService, ISystemUserResolver systemUserResolver) : ControllerBase
+    public class ChatController(IChatService chatService, ISystemUserResolver systemUserResolver, IAiInputSanitizer sanitizer) : ControllerBase
     {
         private readonly IChatService _chatService = chatService;
         private readonly ISystemUserResolver _systemUserResolver = systemUserResolver;
+        private readonly IAiInputSanitizer _sanitizer = sanitizer;
 
         [HttpPost("conversations")]
         public async Task<IActionResult> CreateConversation([FromBody] CreateConversationDto dto)
@@ -40,8 +43,15 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpPost("messages")]
+        [EnableRateLimiting("AiPolicy")]
         public async Task<IActionResult> SendMessage([FromBody] SendMessageDto dto)
         {
+            var (isSafe, reason) = _sanitizer.Validate(dto.Message ?? string.Empty);
+            if (!isSafe)
+                return BadRequest(new { message = reason });
+
+            dto.Message = _sanitizer.Sanitize(dto.Message ?? string.Empty);
+
             Ulid userId = await _systemUserResolver.ResolveSystemUserIdAsync(User);
             var role = User.FindFirstValue("role") ?? User.FindFirstValue(ClaimTypes.Role) ?? "student";
             var profileId = User.FindFirstValue("ProfileId");

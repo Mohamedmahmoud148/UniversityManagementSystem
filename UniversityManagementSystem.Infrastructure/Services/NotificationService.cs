@@ -1,17 +1,25 @@
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
+using UniversityManagementSystem.Core.Events;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
 using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class NotificationService(AppDbContext context, IAuditService auditService, IRealtimeNotifier realtimeNotifier) : INotificationService
+    public class NotificationService(
+        AppDbContext context,
+        IAuditService auditService,
+        IPublishEndpoint publishEndpoint,
+        ILogger<NotificationService> logger) : INotificationService
     {
         private readonly AppDbContext _context = context;
         private readonly IAuditService _auditService = auditService;
-        private readonly IRealtimeNotifier _realtime = realtimeNotifier;
+        private readonly IPublishEndpoint _bus = publishEndpoint;
+        private readonly ILogger<NotificationService> _logger = logger;
 
         public async Task<IEnumerable<NotificationDto>> GetUserNotificationsAsync(Ulid userId, bool unreadOnly = false)
         {
@@ -59,9 +67,21 @@ namespace UniversityManagementSystem.Infrastructure.Services
             _context.AppNotifications.Add(notification);
             await _context.SaveChangesAsync();
 
-            // Push real-time via SignalR (fire-and-forget — DB is source of truth)
-            try { await _realtime.PushToUserAsync(userId.ToString(), title, message, actionUrl); }
-            catch { /* SignalR failure must not break the DB write */ }
+            // DB persisted — now publish event for async SignalR delivery via consumer
+            try
+            {
+                await _bus.Publish(new NotificationCreatedEvent
+                {
+                    UserId = userId,
+                    Title = title,
+                    Message = message,
+                    ActionUrl = actionUrl
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[NotificationService] Failed to publish NotificationCreatedEvent for user {UserId}. DB record is safe.", userId);
+            }
         }
 
         public async Task SendAdminNotificationAsync(CreateAdminNotificationDto dto)
@@ -153,13 +173,20 @@ namespace UniversityManagementSystem.Infrastructure.Services
             _context.AppNotifications.AddRange(notifications);
             await _context.SaveChangesAsync();
 
-            // Push real-time to each student
-            var pushTasks = studentSystemUserIds.Select(uid =>
-            {
-                try { return _realtime.PushToUserAsync(uid.ToString(), title, message, actionUrl); }
-                catch { return Task.CompletedTask; }
-            });
-            await Task.WhenAll(pushTasks);
+            // Publish events for async SignalR delivery via consumer
+            var publishTasks = studentSystemUserIds.Select(uid =>
+                _bus.Publish(new NotificationCreatedEvent
+                {
+                    UserId = uid,
+                    Title = title,
+                    Message = message,
+                    ActionUrl = actionUrl
+                }).ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                        _logger.LogWarning("[NotificationService] Failed to publish event for user {UserId}", uid);
+                }));
+            await Task.WhenAll(publishTasks);
 
             return studentSystemUserIds.Count;
         }

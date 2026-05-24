@@ -30,6 +30,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
         // ── Public interface ─────────────────────────────────────────────────
 
         [AutomaticRetry(Attempts = 2)]
+        [DisableConcurrentExecution(timeoutInSeconds: 3600)]
         public async Task RunDailyRiskAnalysisAsync()
         {
             _logger.LogInformation("AcademicRiskJob — RunDailyRiskAnalysisAsync started at {Time}", DateTime.UtcNow);

@@ -21,6 +21,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
         private readonly ILogger<ExamReminderJob> _logger = logger;
 
         [AutomaticRetry(Attempts = 2)]
+        [DisableConcurrentExecution(timeoutInSeconds: 1800)]
         public async Task RunAsync()
         {
             var now = DateTime.UtcNow;

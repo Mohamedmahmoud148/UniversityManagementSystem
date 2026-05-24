@@ -1070,6 +1070,34 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<ExamProctoringLog>()
                 .HasIndex(l => l.StudentId)
                 .HasDatabaseName("IX_ExamProctoringLogs_StudentId");
+
+            // --------------------------------------------------------
+            // Performance Indexes — Phase 7
+            // --------------------------------------------------------
+
+            // AppNotifications: primary query path is user's unread notifications sorted by date
+            modelBuilder.Entity<AppNotification>()
+                .HasIndex(n => new { n.UserId, n.CreatedAt })
+                .HasDatabaseName("IX_AppNotifications_UserId_CreatedAt");
+
+            modelBuilder.Entity<AppNotification>()
+                .HasIndex(n => new { n.UserId, n.IsRead })
+                .HasDatabaseName("IX_AppNotifications_UserId_IsRead");
+
+            // StudentAttendance: fast lookup by student across all sessions
+            modelBuilder.Entity<StudentAttendance>()
+                .HasIndex(sa => sa.StudentId)
+                .HasDatabaseName("IX_StudentAttendances_StudentId");
+
+// Enrollment: fast lookup by student
+            modelBuilder.Entity<Enrollment>()
+                .HasIndex(e => e.StudentId)
+                .HasDatabaseName("IX_Enrollments_StudentId");
+
+            // Conversations: fast lookup by user
+            modelBuilder.Entity<Conversation>()
+                .HasIndex(c => c.UserId)
+                .HasDatabaseName("IX_Conversations_UserId");
         }
 
         // ── Soft Delete Intercept ────────────────────────────────────────────

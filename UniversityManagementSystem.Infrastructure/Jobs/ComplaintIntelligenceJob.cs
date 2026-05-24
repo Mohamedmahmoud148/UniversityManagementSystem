@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NUlid;
@@ -115,6 +116,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
             }
         }
 
+        [DisableConcurrentExecution(timeoutInSeconds: 1800)]
         public async Task GenerateDailyReportAsync()
         {
             _logger.LogInformation("Generating daily complaint intelligence report");
@@ -129,6 +131,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
             }
         }
 
+        [DisableConcurrentExecution(timeoutInSeconds: 1800)]
         public async Task GenerateWeeklyReportAsync()
         {
             _logger.LogInformation("Generating weekly complaint intelligence report");
@@ -143,6 +146,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
             }
         }
 
+        [DisableConcurrentExecution(timeoutInSeconds: 1800)]
         public async Task GenerateMonthlyReportAsync()
         {
             _logger.LogInformation("Generating monthly complaint intelligence report");

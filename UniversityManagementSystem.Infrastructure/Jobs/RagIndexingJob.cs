@@ -24,6 +24,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
         /// <inheritdoc/>
         [AutomaticRetry(Attempts = 1)]
+        [DisableConcurrentExecution(timeoutInSeconds: 3600)]
         public async Task IndexAllUnindexedMaterialsAsync()
         {
             _logger.LogInformation("RagIndexingJob: scanning for unindexed materials");

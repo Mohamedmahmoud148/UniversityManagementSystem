@@ -122,6 +122,7 @@ builder.Services.AddHangfireServer();
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<AttendanceConsumer>();
+    x.AddConsumer<UniversityManagementSystem.Infrastructure.Consumers.NotificationConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -180,6 +181,19 @@ builder.Services.AddRateLimiter(options =>
 
     // Sensitive auth endpoints (refresh-token, change-password): 10 per min per user
     options.AddPolicy("SensitiveAuthPolicy", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User?.Identity?.Name
+                          ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                          ?? "unknown",
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+
+    // AI endpoints: 10 requests per minute per user to prevent abuse
+    options.AddPolicy("AiPolicy", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.User?.Identity?.Name
                           ?? httpContext.Connection.RemoteIpAddress?.ToString()
@@ -338,6 +352,7 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, UniversityManagementSystem.Api.Hubs.NameIdUserIdProvider>();
 builder.Services.AddSingleton<IRealtimeNotifier, SignalRNotifier>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddSingleton<UniversityManagementSystem.Infrastructure.Services.IAiInputSanitizer, UniversityManagementSystem.Infrastructure.Services.AiInputSanitizer>();
 builder.Services.AddScoped<IAcademicRiskJob, AcademicRiskJob>();
 builder.Services.AddScoped<IExamReminderJob, ExamReminderJob>();
 builder.Services.AddScoped<IRegulationService, RegulationService>();
