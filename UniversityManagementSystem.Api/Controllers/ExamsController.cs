@@ -302,8 +302,7 @@ namespace UniversityManagementSystem.Api.Controllers
             var exam = await examService.GetExamByCodeAsync(code, userId, userRole);
             if (exam == null) return NotFound($"Exam with code '{code}' not found.");
 
-            if (!Ulid.TryParse(exam.Id.ToString(), out var examId)) return BadRequest("Could not resolve Exam ID.");
-            await examService.RestoreExamAsync(examId);
+            await examService.RestoreExamAsync(exam.Id);
             return NoContent();
         }
 
@@ -335,8 +334,7 @@ namespace UniversityManagementSystem.Api.Controllers
             var exam = await examService.GetExamByCodeAsync(code, userId, userRole);
             if (exam == null) return NotFound($"Exam with code '{code}' not found.");
 
-            if (!Ulid.TryParse(exam.Id.ToString(), out var examId)) return BadRequest("Could not resolve Exam ID.");
-            var result = await examService.UpdateExamAsync(examId, dto);
+            var result = await examService.UpdateExamAsync(exam.Id, dto);
             return Ok(result);
         }
 
@@ -367,8 +365,7 @@ namespace UniversityManagementSystem.Api.Controllers
             var exam = await examService.GetExamByCodeAsync(code, userId, userRole);
             if (exam == null) return NotFound($"Exam with code '{code}' not found.");
 
-            if (!Ulid.TryParse(exam.Id.ToString(), out var examId)) return BadRequest("Could not resolve Exam ID.");
-            await examService.DeleteExamAsync(examId);
+            await examService.DeleteExamAsync(exam.Id);
             return NoContent();
         }
 
