@@ -124,6 +124,41 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return submission.Id;
         }
 
+        /// <summary>
+        /// Resolves q.CorrectAnswer to the actual option text regardless of how it was stored:
+        ///   "0"/"1"/"2"/"3" (index) → options[n]
+        ///   "A"/"B"/"C"/"D" (letter) → options[n]
+        ///   anything else   → treated as the literal correct text already
+        /// </summary>
+        private static string ResolveCorrectText(ExamQuestion q)
+        {
+            var raw = q.CorrectAnswer?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(raw)) return raw;
+
+            List<string>? options = null;
+            if (!string.IsNullOrEmpty(q.OptionsJson))
+            {
+                try { options = System.Text.Json.JsonSerializer.Deserialize<List<string>>(q.OptionsJson); }
+                catch { }
+            }
+
+            if (options == null || options.Count == 0) return raw;
+
+            // numeric index: "0", "1", "2", "3"
+            if (int.TryParse(raw, out int idx) && idx >= 0 && idx < options.Count)
+                return options[idx];
+
+            // letter: "A", "B", "C", "D"
+            if (raw.Length == 1)
+            {
+                int letterIdx = char.ToUpperInvariant(raw[0]) - 'A';
+                if (letterIdx >= 0 && letterIdx < options.Count)
+                    return options[letterIdx];
+            }
+
+            return raw; // already the option text
+        }
+
         /// <summary>Grades all MCQ/TrueFalse answers in a submission immediately. Mutates submission in-place.</summary>
         private static void _AutoGradeMcq(Exam exam, ExamSubmission submission)
         {
@@ -140,8 +175,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 if (q.QuestionType != QuestionType.MCQ && q.QuestionType != QuestionType.TrueFalse)
                     continue;
                 var ans = answers.FirstOrDefault(a => a.QuestionId == q.Id);
+                var correctText = ResolveCorrectText(q);
                 if (ans != null &&
-                    string.Equals(ans.AnswerText?.Trim(), q.CorrectAnswer?.Trim(), StringComparison.OrdinalIgnoreCase))
+                    string.Equals(ans.AnswerText?.Trim(), correctText, StringComparison.OrdinalIgnoreCase))
                     score += q.Mark;
             }
 
@@ -430,8 +466,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                             studentIndex = options.FindIndex(o => string.Equals(o, studentText, StringComparison.OrdinalIgnoreCase));
                         if (studentIndex < 0) studentIndex = null;
 
+                        var correctText2 = ResolveCorrectText(q);
                         isCorrect = !string.IsNullOrEmpty(studentText) &&
-                            string.Equals(studentText.Trim(), q.CorrectAnswer.Trim(), StringComparison.OrdinalIgnoreCase);
+                            string.Equals(studentText.Trim(), correctText2, StringComparison.OrdinalIgnoreCase);
                         awarded = isCorrect == true ? q.Mark : 0;
                     }
                     // Essay — awarded computed separately via GradeQuestion
@@ -508,7 +545,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 if (q.QuestionType == QuestionType.MCQ || q.QuestionType == QuestionType.TrueFalse)
                 {
                     var ans = studentAnswers.FirstOrDefault(a => a.QuestionId == q.Id);
-                    if (ans != null && string.Equals(ans.AnswerText?.Trim(), q.CorrectAnswer.Trim(), StringComparison.OrdinalIgnoreCase))
+                    if (ans != null && string.Equals(ans.AnswerText?.Trim(), ResolveCorrectText(q), StringComparison.OrdinalIgnoreCase))
                         total += q.Mark;
                 }
                 else // Essay / ShortAnswer
@@ -610,8 +647,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
                     if (q.QuestionType == QuestionType.MCQ || q.QuestionType == QuestionType.TrueFalse)
                     {
+                        var correctText = ResolveCorrectText(q);
                         isCorrect = !string.IsNullOrEmpty(text) &&
-                            string.Equals(text.Trim(), q.CorrectAnswer?.Trim(), StringComparison.OrdinalIgnoreCase);
+                            string.Equals(text.Trim(), correctText, StringComparison.OrdinalIgnoreCase);
                         earned = isCorrect == true ? q.Mark : 0;
                     }
 
@@ -704,7 +742,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                             // Exact match (case-insensitive)
                             if (!string.IsNullOrEmpty(studentAnswer.AnswerText) &&
                                 string.Equals(studentAnswer.AnswerText.Trim(),
-                                              question.CorrectAnswer.Trim(),
+                                              ResolveCorrectText(question),
                                               StringComparison.OrdinalIgnoreCase))
                                 totalScore += question.Mark;
                             break;
@@ -1053,7 +1091,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         if (ans != null)
                         {
                             answered++;
-                            if (ans.AnswerText?.Trim().Equals(q.CorrectAnswer?.Trim(), StringComparison.OrdinalIgnoreCase) == true)
+                            if (ans.AnswerText?.Trim().Equals(ResolveCorrectText(q), StringComparison.OrdinalIgnoreCase) == true)
                                 correct++;
                         }
                     }
