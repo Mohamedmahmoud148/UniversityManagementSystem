@@ -18,16 +18,30 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<QrCodeResponseDto> CreateSessionAsync(CreateAttendanceSessionDto dto, Ulid profileId, string role)
         {
+            // Resolve SubjectId: frontend may send SubjectOfferingId — look it up
+            var subjectId = dto.SubjectId;
+            if (dto.SubjectOfferingId.HasValue)
+            {
+                var offering = await _context.SubjectOfferings
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(so => so.Id == dto.SubjectOfferingId.Value);
+                if (offering != null) subjectId = offering.SubjectId;
+            }
+
             // Validate Authorization
             if (role == UserRole.Doctor.ToString())
             {
-                var isAssigned = await _context.SubjectOfferings.AnyAsync(so => so.SubjectId == dto.SubjectId && so.DoctorId == profileId)
-                                 || await _context.SubjectDoctors.AnyAsync(sd => sd.SubjectId == dto.SubjectId && sd.DoctorId == profileId);
+                var isAssigned =
+                    await _context.SubjectOfferings.AnyAsync(so =>
+                        (so.SubjectId == subjectId || so.Id == dto.SubjectOfferingId) && so.DoctorId == profileId)
+                    || await _context.SubjectDoctors.AnyAsync(sd =>
+                        sd.SubjectId == subjectId && sd.DoctorId == profileId);
                 if (!isAssigned) throw new UnauthorizedAccessException("You are not assigned to this subject.");
             }
             else if (role == UserRole.TeachingAssistant.ToString())
             {
-                var isAssigned = await _context.SubjectAssistants.AnyAsync(sa => sa.SubjectId == dto.SubjectId && sa.TeachingAssistantId == profileId);
+                var isAssigned = await _context.SubjectAssistants.AnyAsync(sa =>
+                    sa.SubjectId == subjectId && sa.TeachingAssistantId == profileId);
                 if (!isAssigned) throw new UnauthorizedAccessException("You are not assigned to this subject.");
             }
             // Admin/SuperAdmin can bypass or we restrict them too? Usually Admin can do anything.
@@ -37,7 +51,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             var session = new AttendanceSession
             {
-                SubjectId = dto.SubjectId,
+                SubjectId = subjectId,
                 SessionDate = dto.SessionDate,
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,

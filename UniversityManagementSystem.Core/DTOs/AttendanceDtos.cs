@@ -6,10 +6,11 @@ namespace UniversityManagementSystem.Core.DTOs
 {
     public class CreateAttendanceSessionDto
     {
-        public Ulid SubjectId { get; set; }
+        public Ulid  SubjectId         { get; set; }
+        public Ulid? SubjectOfferingId { get; set; }
         public DateTime SessionDate { get; set; }
-        public TimeSpan StartTime { get; set; }
-        public TimeSpan EndTime { get; set; }
+        public TimeSpan StartTime   { get; set; }
+        public TimeSpan EndTime     { get; set; }
     }
 
     public class QrCodeResponseDto
