@@ -115,7 +115,7 @@ namespace UniversityManagementSystem.Api.Controllers
                         collegeId      = s.CollegeId.ToString(),
                         collegeName    = s.College?.Name,
                         regulationId   = s.RegulationId?.ToString(),
-                        regulationName = s.Regulation?.Name,
+                        regulationName = s.Regulation?.Title,
                     };
             }
             else if (role == "Doctor" || role == "TeachingAssistant")
