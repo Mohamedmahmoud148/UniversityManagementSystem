@@ -1,17 +1,20 @@
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController(IAuthService authService, IUserContextService userContext) : ControllerBase
+    public class AuthController(IAuthService authService, IUserContextService userContext, AppDbContext context) : ControllerBase
     {
         private readonly IAuthService _authService = authService;
         private readonly IUserContextService _userContext = userContext;
+        private readonly AppDbContext _context = context;
 
         [AllowAnonymous]
         [HttpPost("login")]
@@ -62,9 +65,29 @@ namespace UniversityManagementSystem.Api.Controllers
 
         [HttpGet("me")]
         [Authorize]
-        public IActionResult GetMe()
+        public async Task<IActionResult> GetMe()
         {
-            return Ok(User.Claims.Select(c => new { c.Type, c.Value }));
+            var userId = _userContext.GetUserId();
+            var user = await _context.SystemUsers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null) return NotFound("User not found.");
+
+            var profileId = User.Claims.FirstOrDefault(c => c.Type == "ProfileId")?.Value;
+            var role = User.Claims.FirstOrDefault(c => c.Type == "role")?.Value
+                    ?? User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
+
+            return Ok(new
+            {
+                userId = user.Id.ToString(),
+                fullName = user.FullName,
+                email = user.Email,
+                universityEmail = user.UniversityEmail,
+                role,
+                profileId,
+                isActive = user.IsActive,
+                mustChangePassword = user.MustChangePassword,
+            });
         }
 
         [HttpPost("register/student")]
