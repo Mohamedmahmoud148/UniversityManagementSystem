@@ -458,7 +458,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     if (correctIndex < 0) correctIndex = null;
 
                     var studentAns = studentAnswers.FirstOrDefault(a => a.QuestionId == q.Id);
-                    string? studentText = studentAns?.AnswerText;
+                    // Resolve raw stored value (index/letter) to option text for display
+                    string? studentText = (q.QuestionType == QuestionType.MCQ || q.QuestionType == QuestionType.TrueFalse)
+                        ? ResolveToOptionText(q, studentAns?.AnswerText)
+                        : studentAns?.AnswerText;
 
                     int? studentIndex = null;
                     bool? isCorrect = null;
@@ -668,10 +671,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         earned = isCorrect == true ? q.Mark : 0;
                     }
 
+                    // Resolve raw stored value (index/letter) to option text for display
+                    var displayText = (q.QuestionType == QuestionType.MCQ || q.QuestionType == QuestionType.TrueFalse)
+                        ? ResolveToOptionText(q, text)
+                        : text;
+
                     return new StudentAnswerResultDto
                     {
                         QuestionId  = q.Id,
-                        AnswerText  = text,
+                        AnswerText  = displayText,
                         IsCorrect   = isCorrect,
                         EarnedMarks = earned,
                     };
