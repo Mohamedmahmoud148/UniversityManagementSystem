@@ -45,6 +45,42 @@ namespace UniversityManagementSystem.Api.Controllers
         private readonly IDistributedCache _cache = cache;
         private readonly IUserContextService _userContext = userContext;
 
+        // ── GET /api/students/me ─────────────────────────────────────────────
+        [HttpGet("me")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetMyProfile()
+        {
+            var userId = _userContext.GetUserId();
+            var student = await _context.Students
+                .AsNoTracking()
+                .Include(s => s.Batch)
+                .Include(s => s.Group)
+                .Include(s => s.Department)
+                .Include(s => s.College)
+                .FirstOrDefaultAsync(s => s.SystemUserId == userId);
+
+            if (student == null) return NotFound("Student profile not found.");
+
+            return Ok(new
+            {
+                student.Id,
+                student.Code,
+                student.FullName,
+                student.Email,
+                student.Phone,
+                student.UniversityStudentId,
+                student.IsActive,
+                student.BatchId,
+                BatchName      = student.Batch      != null ? student.Batch.Name      : null,
+                student.GroupId,
+                GroupName      = student.Group      != null ? student.Group.Name      : null,
+                student.DepartmentId,
+                DepartmentName = student.Department != null ? student.Department.Name : null,
+                student.CollegeId,
+                CollegeName    = student.College    != null ? student.College.Name    : null,
+            });
+        }
+
         // ── GET /api/students/search?q= ──────────────────────────────────────
         [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string? q)
