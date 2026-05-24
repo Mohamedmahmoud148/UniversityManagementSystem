@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.DTOs.Ai;
 using UniversityManagementSystem.Core.Interfaces;
@@ -12,7 +13,7 @@ namespace UniversityManagementSystem.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ExamsController(IExamService examService, IAiService aiService) : ControllerBase
+    public class ExamsController(IExamService examService, IAiService aiService, ILogger<ExamsController> logger) : ControllerBase
     {
 
         [HttpGet("by-code/{code}")]
@@ -160,6 +161,11 @@ namespace UniversityManagementSystem.Api.Controllers
                 return BadRequest("Exam ID mismatch.");
 
             dto.ExamId = examId;
+
+            logger.LogInformation(
+                "SubmitExam: examId={ExamId} studentId={StudentId} answerCount={Count} raw={Raw}",
+                examId, studentId, dto.Answers?.Count ?? 0,
+                System.Text.Json.JsonSerializer.Serialize(dto.Answers));
 
             var submissionId = await examService.SubmitExamAsync(examId, studentId, dto);
             return CreatedAtAction(nameof(GetExam), new { id }, new { submissionId, message = "Exam submitted successfully." });
