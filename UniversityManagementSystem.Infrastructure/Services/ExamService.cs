@@ -564,11 +564,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .FirstOrDefaultAsync(e => e.Id == examId)
                 ?? throw new KeyNotFoundException($"Exam {examId} not found.");
 
-            // Safety check: Cannot delete if submissions exist
-            if (exam.Submissions.Any())
-                throw new InvalidOperationException("Cannot delete exam because it already has student submissions.");
-
             var oldValues = System.Text.Json.JsonSerializer.Serialize(new { exam.Title, exam.DeletedAt });
+
+            // Delete all submissions first, then soft-delete the exam
+            if (exam.Submissions.Any())
+            {
+                foreach (var sub in exam.Submissions)
+                    sub.DeletedAt = DateTime.UtcNow;
+            }
 
             exam.DeletedAt = DateTime.UtcNow;
             context.Entry(exam).State = EntityState.Modified;
