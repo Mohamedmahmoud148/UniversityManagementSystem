@@ -73,20 +73,101 @@ namespace UniversityManagementSystem.Api.Controllers
                 .FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null) return NotFound("User not found.");
 
-            var profileId = User.Claims.FirstOrDefault(c => c.Type == "ProfileId")?.Value;
             var role = User.Claims.FirstOrDefault(c => c.Type == "role")?.Value
                     ?? User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
 
+            object? profile = null;
+
+            if (role == "Student")
+            {
+                var s = await _context.Students
+                    .AsNoTracking()
+                    .Include(x => x.Batch)
+                    .Include(x => x.Group)
+                    .Include(x => x.Department)
+                    .Include(x => x.College)
+                    .Include(x => x.Regulation)
+                    .FirstOrDefaultAsync(x => x.SystemUserId == userId);
+
+                if (s != null)
+                    profile = new
+                    {
+                        profileId      = s.Id.ToString(),
+                        code           = s.Code,
+                        fullName       = s.FullName,
+                        email          = s.Email,
+                        phone          = s.Phone,
+                        nationalId     = s.NationalId,
+                        governorate    = s.Governorate,
+                        address        = s.Address,
+                        gender         = s.Gender?.ToString(),
+                        dateOfBirth    = s.DateOfBirth,
+                        studentType    = s.StudentType.ToString(),
+                        religion       = s.Religion,
+                        universityStudentId = s.UniversityStudentId,
+                        isActive       = s.IsActive,
+                        batchId        = s.BatchId.ToString(),
+                        batchName      = s.Batch?.Name,
+                        groupId        = s.GroupId.ToString(),
+                        groupName      = s.Group?.Name,
+                        departmentId   = s.DepartmentId.ToString(),
+                        departmentName = s.Department?.Name,
+                        collegeId      = s.CollegeId.ToString(),
+                        collegeName    = s.College?.Name,
+                        regulationId   = s.RegulationId?.ToString(),
+                        regulationName = s.Regulation?.Name,
+                    };
+            }
+            else if (role == "Doctor" || role == "TeachingAssistant")
+            {
+                var d = await _context.Doctors
+                    .AsNoTracking()
+                    .Include(x => x.Department)
+                    .ThenInclude(x => x.College)
+                    .FirstOrDefaultAsync(x => x.SystemUserId == userId);
+
+                if (d != null)
+                    profile = new
+                    {
+                        profileId          = d.Id.ToString(),
+                        code               = d.Code,
+                        fullName           = d.FullName,
+                        email              = d.Email,
+                        phone              = d.Phone,
+                        universityStaffId  = d.UniversityStaffId,
+                        departmentId       = d.DepartmentId.ToString(),
+                        departmentName     = d.Department?.Name,
+                        collegeName        = d.Department?.College?.Name,
+                    };
+            }
+            else if (role == "Admin" || role == "SuperAdmin")
+            {
+                var a = await _context.Admins
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.SystemUserId == userId);
+
+                if (a != null)
+                    profile = new
+                    {
+                        profileId  = a.Id.ToString(),
+                        code       = a.Code,
+                        fullName   = a.FullName,
+                        email      = a.Email,
+                        phone      = a.Phone,
+                    };
+            }
+
             return Ok(new
             {
-                userId = user.Id.ToString(),
-                fullName = user.FullName,
-                email = user.Email,
-                universityEmail = user.UniversityEmail,
+                userId             = user.Id.ToString(),
+                fullName           = user.FullName,
+                email              = user.Email,
+                universityEmail    = user.UniversityEmail,
+                nationalId         = user.NationalId,
                 role,
-                profileId,
-                isActive = user.IsActive,
+                isActive           = user.IsActive,
                 mustChangePassword = user.MustChangePassword,
+                profile,
             });
         }
 
