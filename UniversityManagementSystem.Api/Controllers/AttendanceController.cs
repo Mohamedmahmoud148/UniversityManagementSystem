@@ -51,11 +51,20 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         [HttpGet("student/{studentId}/report")]
-        [Authorize(Roles = "Doctor,TeachingAssistant,SuperAdmin,Admin")]
+        [Authorize(Roles = "Doctor,TeachingAssistant,SuperAdmin,Admin,Student")]
         public async Task<IActionResult> GetReport(string studentId, [FromQuery] string subjectId)
         {
             if (!Ulid.TryParse(studentId, out var sId)) return BadRequest("Invalid Student ID.");
             if (!Ulid.TryParse(subjectId, out var subId)) return BadRequest("Invalid Subject ID.");
+
+            var roleClaim = User.FindFirst("role")?.Value;
+            if (roleClaim == "Student")
+            {
+                var profileIdClaim = User.FindFirst("ProfileId");
+                if (profileIdClaim == null || !Ulid.TryParse(profileIdClaim.Value, out var profileId) || profileId != sId)
+                    return StatusCode(403, new { message = "Students can only view their own attendance report." });
+            }
+
             var report = await _attendanceService.GetStudentAttendanceAsync(sId, subId);
             return Ok(report);
         }

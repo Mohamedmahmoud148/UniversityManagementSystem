@@ -87,8 +87,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
         {
             // Note: We still do a read to validate the session exists and is active
             // to provide immediate feedback to the student if the QR is invalid.
-            var session = await _context.AttendanceSessions
-                .FirstOrDefaultAsync(s => s.Id == dto.SessionId && s.QrCodeContent == dto.QrContent && s.IsActive);
+            var hasQr = !string.IsNullOrWhiteSpace(dto.QrContent);
+            var session = hasQr
+                ? await _context.AttendanceSessions
+                    .FirstOrDefaultAsync(s => s.QrCodeContent == dto.QrContent && s.IsActive)
+                : await _context.AttendanceSessions
+                    .FirstOrDefaultAsync(s => s.Id == dto.SessionId && s.IsActive);
 
             if (session == null) return false;
 
