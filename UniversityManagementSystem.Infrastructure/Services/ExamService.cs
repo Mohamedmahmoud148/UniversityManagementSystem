@@ -23,6 +23,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var prefix = $"EXAM-{year}-";
 
             var lastCode = await context.Exams
+                .IgnoreQueryFilters()
                 .Where(e => e.Code.StartsWith(prefix))
                 .OrderByDescending(e => e.Code)
                 .Select(e => e.Code)
