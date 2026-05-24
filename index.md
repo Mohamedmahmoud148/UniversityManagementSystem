@@ -47,6 +47,9 @@ title: University Management System
 | 26 | [RAG System](Project-Documentation/26-RAG-System/) | 🆕 Retrieval-Augmented Generation pipeline |
 | 27 | [Assignments System](Project-Documentation/27-Assignments-System/) | 🆕 Assignments + AI auto-grading |
 | 28 | [Proactive Alerts](Project-Documentation/28-Proactive-Alerts/) | 🆕 Academic risk scoring + notifications |
+| 29 | [API Reference — Full Endpoint List](Project-Documentation/29-API-Reference/) | 🆕 All 33 controllers, roles, request/response |
+| 30 | [Feature Guide — "How to do X"](Project-Documentation/30-Feature-Guide/) | 🆕 Step-by-step guide for every feature |
+| 31 | [What Makes Us Different](Project-Documentation/31-What-Makes-Us-Different/) | 🆕 Comparison vs typical university systems |
 
 ---
 
