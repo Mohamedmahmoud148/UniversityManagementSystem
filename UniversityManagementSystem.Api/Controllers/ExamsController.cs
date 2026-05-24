@@ -16,7 +16,7 @@ namespace UniversityManagementSystem.Api.Controllers
     {
 
         [HttpGet("by-code/{code}")]
-        [Authorize(Roles = "Admin, Doctor, Student,SuperAdmin")]
+        [Authorize(Roles = "Admin,Doctor,Student,SuperAdmin")]
         public async Task<IActionResult> GetByCode(string code)
         {
             var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId")?.Value;
@@ -107,17 +107,17 @@ namespace UniversityManagementSystem.Api.Controllers
         public async Task<IActionResult> GetExam(string id)
         {
             if (!Ulid.TryParse(id, out var examId)) return BadRequest("Invalid Exam ID.");
-            var userRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
 
-            // Extract userId based on role: ProfileId for Doctor/Student, nameid for Admin
+            // Try both full URI and short "role" claim types — JWT providers differ
+            var userRole = User.FindFirstValue(ClaimTypes.Role)
+                        ?? User.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
+            if (string.IsNullOrEmpty(userRole)) return Unauthorized("Role claim not found.");
+
             string claimType = (userRole == "Doctor" || userRole == "Student") ? "ProfileId" : "nameid";
             var userIdClaim = User.Claims.FirstOrDefault(c => c.Type == claimType);
-
-            if (userIdClaim == null)
-                return Unauthorized($"{claimType} claim not found.");
+            if (userIdClaim == null) return Unauthorized($"{claimType} claim not found.");
 
             var userId = Ulid.Parse(userIdClaim.Value);
-
             var result = await examService.GetExamByIdAsync(examId, userId, userRole);
             return Ok(result);
         }
@@ -188,6 +188,28 @@ namespace UniversityManagementSystem.Api.Controllers
             var doctorId = Ulid.Parse(profileClaim.Value);
 
             var submissions = await examService.GetExamSubmissionsAsync(examId, doctorId);
+            return Ok(submissions);
+        }
+
+        /// <summary>
+        /// [PREFERRED] Get all submissions + results for an exam by its public Code.
+        /// </summary>
+        [HttpGet("by-code/{code}/results")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
+        public async Task<IActionResult> GetExamResultsByCode(string code)
+        {
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var doctorId = Ulid.Parse(profileClaim.Value);
+
+            var userRole = User.FindFirstValue(ClaimTypes.Role)
+                        ?? User.Claims.FirstOrDefault(c => c.Type == "role")?.Value
+                        ?? "Doctor";
+
+            var exam = await examService.GetExamByCodeAsync(code, doctorId, userRole);
+            if (exam == null) return NotFound($"Exam with code '{code}' not found.");
+
+            var submissions = await examService.GetExamSubmissionsAsync(exam.Id, doctorId);
             return Ok(submissions);
         }
 
