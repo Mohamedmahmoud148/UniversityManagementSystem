@@ -187,8 +187,13 @@ namespace UniversityManagementSystem.Api.Controllers
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
             var doctorId = Ulid.Parse(profileClaim.Value);
 
-            var submissions = await examService.GetExamSubmissionsAsync(examId, doctorId);
-            return Ok(submissions);
+            try
+            {
+                var submissions = await examService.GetExamSubmissionsAsync(examId, doctorId);
+                return Ok(submissions);
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
         }
 
         /// <summary>
@@ -206,11 +211,15 @@ namespace UniversityManagementSystem.Api.Controllers
                         ?? User.Claims.FirstOrDefault(c => c.Type == "role")?.Value
                         ?? "Doctor";
 
-            var exam = await examService.GetExamByCodeAsync(code, doctorId, userRole);
-            if (exam == null) return NotFound($"Exam with code '{code}' not found.");
+            try
+            {
+                var exam = await examService.GetExamByCodeAsync(code, doctorId, userRole);
+                if (exam == null) return NotFound($"Exam with code '{code}' not found.");
 
-            var submissions = await examService.GetExamSubmissionsAsync(exam.Id, doctorId);
-            return Ok(submissions);
+                var submissions = await examService.GetExamSubmissionsAsync(exam.Id, doctorId);
+                return Ok(submissions);
+            }
+            catch (UnauthorizedAccessException) { return Forbid(); }
         }
 
         [HttpGet("my-enrolled-exams")]
@@ -400,8 +409,35 @@ namespace UniversityManagementSystem.Api.Controllers
             if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
             var doctorId = Ulid.Parse(profileClaim.Value);
 
-            var count = await examService.AutoGradeExamAsync(examId, doctorId);
-            return Ok(new { message = $"Auto-grading complete. {count} submissions processed." });
+            try
+            {
+                var count = await examService.AutoGradeExamAsync(examId, doctorId);
+                return Ok(new { message = $"Auto-grading complete. {count} submissions processed." });
+            }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+        }
+
+        /// <summary>[PREFERRED] Auto-grade all MCQ/TF submissions for an exam by its public Code.</summary>
+        [HttpPost("by-code/{code}/auto-grade")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
+        public async Task<IActionResult> AutoGradeExamByCode(string code)
+        {
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var doctorId = Ulid.Parse(profileClaim.Value);
+
+            var userRole = User.FindFirstValue(ClaimTypes.Role)
+                        ?? User.Claims.FirstOrDefault(c => c.Type == "role")?.Value ?? "Doctor";
+
+            try
+            {
+                var exam = await examService.GetExamByCodeAsync(code, doctorId, userRole);
+                if (exam == null) return NotFound($"Exam with code '{code}' not found.");
+
+                var count = await examService.AutoGradeExamAsync(exam.Id, doctorId);
+                return Ok(new { message = $"Auto-grading complete. {count} submissions processed." });
+            }
+            catch (UnauthorizedAccessException) { return Forbid(); }
         }
     }
 }

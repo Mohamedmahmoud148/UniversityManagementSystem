@@ -315,6 +315,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         {
             var exam = await context.Exams
                 .AsNoTracking()
+                .Include(e => e.Questions)
                 .Include(e => e.SubjectOffering)
                 .FirstOrDefaultAsync(e => e.Id == examId)
                 ?? throw new KeyNotFoundException($"Exam with ID {examId} not found.");
@@ -328,19 +329,176 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Where(s => s.ExamId == examId && s.IsCompleted)
                 .ToListAsync();
 
-            return submissions.Select(s => new ExamSubmissionResponseDto
+            var questions = exam.Questions.Where(q => q.DeletedAt == null).ToList();
+            int mcqCount = questions.Count(q => q.QuestionType == QuestionType.MCQ || q.QuestionType == QuestionType.TrueFalse);
+            int essayCount = questions.Count(q => q.QuestionType == QuestionType.Essay || q.QuestionType == QuestionType.ShortAnswer);
+
+            return submissions.Select(s =>
             {
-                Id          = s.Id,
-                ExamId      = s.ExamId,
-                StudentId   = s.StudentId,
-                StudentName = s.Student.FullName,
-                SubmittedAt = s.SubmittedAt,
-                Score       = s.Score,
-                IsGraded    = s.IsGraded,
-                IsCompleted = s.IsCompleted,
-                NeedsManualGrading = s.IsCompleted && !s.IsGraded,
-                AnswersJson = s.AnswersJson
+                double? pct = s.Score.HasValue && exam.TotalMarks > 0
+                    ? Math.Round(s.Score.Value / exam.TotalMarks * 100, 1) : null;
+
+                return new ExamSubmissionResponseDto
+                {
+                    Id                   = s.Id,
+                    ExamId               = s.ExamId,
+                    StudentId            = s.StudentId,
+                    StudentName          = s.Student.FullName,
+                    StudentCode          = s.Student.Code,
+                    SubmittedAt          = s.SubmittedAt,
+                    DurationSpentMinutes = null,   // no StartedAt on entity
+                    Score                = s.Score,
+                    TotalMarks           = exam.TotalMarks,
+                    Percentage           = pct,
+                    IsGraded             = s.IsGraded,
+                    IsCompleted          = s.IsCompleted,
+                    IsFlagged            = false,
+                    NeedsManualGrading   = s.IsCompleted && !s.IsGraded,
+                    AutoGradedMcqCount   = mcqCount,
+                    PendingEssayCount    = s.IsGraded ? 0 : essayCount,
+                };
             });
+        }
+
+        public async Task<SubmissionDetailDto> GetSubmissionDetailAsync(Ulid submissionId, Ulid doctorId)
+        {
+            var submission = await context.ExamSubmissions
+                .AsNoTracking()
+                .Include(s => s.Student)
+                .Include(s => s.Exam)
+                    .ThenInclude(e => e.Questions)
+                .Include(s => s.Exam)
+                    .ThenInclude(e => e.SubjectOffering)
+                .FirstOrDefaultAsync(s => s.Id == submissionId)
+                ?? throw new KeyNotFoundException($"Submission {submissionId} not found.");
+
+            if (submission.Exam.SubjectOffering.DoctorId != doctorId)
+                throw new UnauthorizedAccessException("You are not authorized to view this submission.");
+
+            List<ExamAnswerDto> studentAnswers;
+            try { studentAnswers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson) ?? new(); }
+            catch { studentAnswers = new(); }
+
+            var answerDetails = submission.Exam.Questions
+                .Where(q => q.DeletedAt == null)
+                .Select(q =>
+                {
+                    var options = q.OptionsJson != null
+                        ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(q.OptionsJson)
+                        : null;
+
+                    int? correctIndex = options != null
+                        ? options.FindIndex(o => string.Equals(o, q.CorrectAnswer, StringComparison.OrdinalIgnoreCase))
+                        : null;
+                    if (correctIndex < 0) correctIndex = null;
+
+                    var studentAns = studentAnswers.FirstOrDefault(a => a.QuestionId == q.Id);
+                    string? studentText = studentAns?.AnswerText;
+
+                    int? studentIndex = null;
+                    bool? isCorrect = null;
+                    double awarded = 0;
+
+                    if (q.QuestionType == QuestionType.MCQ || q.QuestionType == QuestionType.TrueFalse)
+                    {
+                        if (options != null && !string.IsNullOrEmpty(studentText))
+                            studentIndex = options.FindIndex(o => string.Equals(o, studentText, StringComparison.OrdinalIgnoreCase));
+                        if (studentIndex < 0) studentIndex = null;
+
+                        isCorrect = !string.IsNullOrEmpty(studentText) &&
+                            string.Equals(studentText.Trim(), q.CorrectAnswer.Trim(), StringComparison.OrdinalIgnoreCase);
+                        awarded = isCorrect == true ? q.Mark : 0;
+                    }
+                    // Essay — awarded computed separately via GradeQuestion
+
+                    return new SubmissionAnswerDetailDto
+                    {
+                        QuestionId         = q.Id,
+                        QuestionText       = q.QuestionText,
+                        QuestionType       = q.QuestionType.ToString(),
+                        Marks              = q.Mark,
+                        Options            = options,
+                        CorrectIndex       = correctIndex,
+                        StudentAnswerIndex = studentIndex,
+                        StudentAnswerText  = studentText,
+                        IsCorrect          = isCorrect,
+                        AwardedScore       = awarded,
+                        ProfessorComment   = null,
+                    };
+                }).ToList();
+
+            return new SubmissionDetailDto
+            {
+                SubmissionId = submission.Id,
+                StudentName  = submission.Student.FullName,
+                StudentCode  = submission.Student.Code,
+                SubmittedAt  = submission.SubmittedAt,
+                Score        = submission.Score,
+                TotalMarks   = submission.Exam.TotalMarks,
+                IsGraded     = submission.IsGraded,
+                Answers      = answerDetails,
+            };
+        }
+
+        public async Task GradeQuestionAsync(Ulid submissionId, GradeQuestionDto dto, Ulid doctorId)
+        {
+            var submission = await context.ExamSubmissions
+                .Include(s => s.Exam)
+                    .ThenInclude(e => e.Questions)
+                .Include(s => s.Exam)
+                    .ThenInclude(e => e.SubjectOffering)
+                .FirstOrDefaultAsync(s => s.Id == submissionId)
+                ?? throw new KeyNotFoundException($"Submission {submissionId} not found.");
+
+            if (submission.Exam.SubjectOffering.DoctorId != doctorId)
+                throw new UnauthorizedAccessException("You are not authorized to grade this submission.");
+
+            var question = submission.Exam.Questions.FirstOrDefault(q => q.Id == dto.QuestionId)
+                ?? throw new KeyNotFoundException($"Question {dto.QuestionId} not found in exam.");
+
+            if (dto.Score < 0 || dto.Score > question.Mark)
+                throw new InvalidOperationException($"Score must be between 0 and {question.Mark}.");
+
+            // Rebuild answers list with updated score for this question stored in a side-table
+            // Since ExamSubmission has no per-question scores table, we keep a GradingJson
+            // We store per-question grades in a simple JSON dict on the submission
+            var gradingDict = new System.Collections.Generic.Dictionary<string, double>();
+            if (!string.IsNullOrEmpty(submission.GradingJson))
+            {
+                try { gradingDict = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, double>>(submission.GradingJson) ?? new(); }
+                catch { }
+            }
+            gradingDict[dto.QuestionId.ToString()] = dto.Score;
+            submission.GradingJson = System.Text.Json.JsonSerializer.Serialize(gradingDict);
+
+            // Recompute total score: MCQ/TF auto-graded + manually graded essays
+            List<ExamAnswerDto> studentAnswers;
+            try { studentAnswers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson) ?? new(); }
+            catch { studentAnswers = new(); }
+
+            double total = 0;
+            bool anyEssayPending = false;
+            foreach (var q in submission.Exam.Questions.Where(q => q.DeletedAt == null))
+            {
+                if (q.QuestionType == QuestionType.MCQ || q.QuestionType == QuestionType.TrueFalse)
+                {
+                    var ans = studentAnswers.FirstOrDefault(a => a.QuestionId == q.Id);
+                    if (ans != null && string.Equals(ans.AnswerText?.Trim(), q.CorrectAnswer.Trim(), StringComparison.OrdinalIgnoreCase))
+                        total += q.Mark;
+                }
+                else // Essay / ShortAnswer
+                {
+                    if (gradingDict.TryGetValue(q.Id.ToString(), out var essayScore))
+                        total += essayScore;
+                    else
+                        anyEssayPending = true;
+                }
+            }
+
+            submission.Score = total;
+            submission.IsGraded = !anyEssayPending;
+
+            await context.SaveChangesAsync();
         }
 
         public async Task<IEnumerable<ExamDto>> GetStudentEnrolledExamsAsync(Ulid studentId)
@@ -418,12 +576,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 ExamId      = submission.ExamId,
                 StudentId   = submission.StudentId,
                 StudentName = submission.Student.FullName,
-                SubmittedAt = submission.SubmittedAt,
-                Score       = submission.Score,
-                IsGraded    = submission.IsGraded,
-                IsCompleted = submission.IsCompleted,
+                SubmittedAt        = submission.SubmittedAt,
+                Score              = submission.Score,
+                TotalMarks         = 0,
+                IsGraded           = submission.IsGraded,
+                IsCompleted        = submission.IsCompleted,
                 NeedsManualGrading = submission.IsCompleted && !submission.IsGraded,
-                AnswersJson = submission.AnswersJson
             };
         }
 

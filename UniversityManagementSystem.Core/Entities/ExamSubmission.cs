@@ -14,6 +14,9 @@ namespace UniversityManagementSystem.Core.Entities
         public string? DraftAnswersJson { get; set; }
         public DateTime? LastSavedAt { get; set; }
 
+        /// <summary>JSON dict of { questionId: awardedScore } for per-question manual grading.</summary>
+        public string? GradingJson { get; set; }
+
         public Ulid ExamId { get; set; }
         public Ulid StudentId { get; set; }
 
