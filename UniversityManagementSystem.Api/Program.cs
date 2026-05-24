@@ -822,8 +822,7 @@ ADD COLUMN IF NOT EXISTS ""FileId"" character varying(26) NULL;
         try
         {
             db.Database.ExecuteSqlRaw(@"
-DROP TABLE IF EXISTS ""ScheduleEntries"";
-CREATE TABLE ""ScheduleEntries"" (
+CREATE TABLE IF NOT EXISTS ""ScheduleEntries"" (
     ""Id""                 character varying(26) NOT NULL,
     ""Code""               text NOT NULL DEFAULT '',
     ""SubjectOfferingId""  character varying(26) NOT NULL,
