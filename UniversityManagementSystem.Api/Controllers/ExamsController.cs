@@ -290,6 +290,44 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(new { message = "Submission graded successfully." });
         }
 
+        // ── View full submission detail (doctor sees each answer + correct answer) ──
+        [HttpGet("submissions/{submissionId}")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
+        public async Task<IActionResult> GetSubmissionDetail(string submissionId)
+        {
+            if (!Ulid.TryParse(submissionId, out var subId)) return BadRequest("Invalid submission ID.");
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var doctorId = Ulid.Parse(profileClaim.Value);
+
+            try
+            {
+                var detail = await examService.GetSubmissionDetailAsync(subId, doctorId);
+                return Ok(detail);
+            }
+            catch (KeyNotFoundException ex)       { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException)   { return Forbid(); }
+        }
+
+        // ── Grade a single essay question manually ────────────────────────────────
+        [HttpPost("submissions/{submissionId}/grade-question")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
+        public async Task<IActionResult> GradeQuestion(string submissionId, [FromBody] GradeQuestionDto dto)
+        {
+            if (!Ulid.TryParse(submissionId, out var subId)) return BadRequest("Invalid submission ID.");
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var doctorId = Ulid.Parse(profileClaim.Value);
+
+            try
+            {
+                await examService.GradeQuestionAsync(subId, dto, doctorId);
+                return Ok(new { message = "Question graded successfully." });
+            }
+            catch (KeyNotFoundException ex)       { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException)   { return Forbid(); }
+        }
+
         // ── Save Progress (auto-save during exam) ────────────────────────────
         [HttpPost("{id}/save-progress")]
         [Authorize(Roles = "Student,SuperAdmin")]
