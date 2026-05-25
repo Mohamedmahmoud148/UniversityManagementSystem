@@ -3,6 +3,8 @@ using NUlid;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
@@ -11,11 +13,29 @@ using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
+    // Converts Ulid ↔ string for internal JSON storage (AnswersJson, DraftAnswersJson).
+    // The MVC pipeline has UlidJsonConverterFactory, but JsonSerializer calls inside
+    // services use default options which would serialize Ulid as a {Time,Random} object.
+    file sealed class UlidStringConverter : JsonConverter<Ulid>
+    {
+        public override Ulid Read(ref Utf8JsonReader reader, Type t, JsonSerializerOptions o)
+            => Ulid.Parse(reader.GetString()!);
+        public override void Write(Utf8JsonWriter writer, Ulid value, JsonSerializerOptions o)
+            => writer.WriteStringValue(value.ToString());
+    }
+
     public class ExamService(AppDbContext context, IAuditService auditService, IAiService aiService, IFileService fileService) : IExamService
     {
         private readonly IAuditService _auditService = auditService;
         private readonly IAiService _aiService = aiService;
         private readonly IFileService _fileService = fileService;
+
+        // Use these options for ALL internal Serialize/Deserialize involving Ulid fields.
+        private static readonly JsonSerializerOptions _jsonOpts = new()
+        {
+            PropertyNameCaseInsensitive = true,
+            Converters = { new UlidStringConverter() }
+        };
 
         private async Task<string> GenerateUniqueExamCodeAsync()
         {
@@ -79,7 +99,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (existingSubmission != null && existingSubmission.IsCompleted)
                 throw new InvalidOperationException("You have already submitted this exam.");
 
-            var answersJson = System.Text.Json.JsonSerializer.Serialize(submissionDto.Answers);
+            var answersJson = JsonSerializer.Serialize(submissionDto.Answers, _jsonOpts);
 
             ExamSubmission submission;
             if (existingSubmission != null)
@@ -166,7 +186,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private static void _AutoGradeMcq(Exam exam, ExamSubmission submission)
         {
             List<ExamAnswerDto> answers;
-            try { answers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson) ?? new(); }
+            try { answers = JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson, _jsonOpts) ?? new(); }
             catch { answers = new(); }
 
             bool hasEssay = exam.Questions.Any(q =>
@@ -441,7 +461,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 throw new UnauthorizedAccessException("You are not authorized to view this submission.");
 
             List<ExamAnswerDto> studentAnswers;
-            try { studentAnswers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson) ?? new(); }
+            try { studentAnswers = JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson, _jsonOpts) ?? new(); }
             catch { studentAnswers = new(); }
 
             var answerDetails = submission.Exam.Questions
@@ -534,15 +554,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var gradingDict = new System.Collections.Generic.Dictionary<string, double>();
             if (!string.IsNullOrEmpty(submission.GradingJson))
             {
-                try { gradingDict = System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, double>>(submission.GradingJson) ?? new(); }
+                try { gradingDict = JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, double>>(submission.GradingJson) ?? new(); }
                 catch { }
             }
             gradingDict[dto.QuestionId.ToString()] = dto.Score;
-            submission.GradingJson = System.Text.Json.JsonSerializer.Serialize(gradingDict);
+            submission.GradingJson = JsonSerializer.Serialize(gradingDict);
 
             // Recompute total score: MCQ/TF auto-graded + manually graded essays
             List<ExamAnswerDto> studentAnswers;
-            try { studentAnswers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson) ?? new(); }
+            try { studentAnswers = JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson, _jsonOpts) ?? new(); }
             catch { studentAnswers = new(); }
 
             double total = 0;
@@ -650,7 +670,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (submission == null) return null;
 
             List<ExamAnswerDto> studentAnswers;
-            try { studentAnswers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson) ?? new(); }
+            try { studentAnswers = JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson, _jsonOpts) ?? new(); }
             catch { studentAnswers = new(); }
 
             var answerResults = submission.Exam.Questions
@@ -740,7 +760,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             // 2. Loop through COMPLETED submissions only
             foreach (var submission in exam.Submissions.Where(s => s.IsCompleted))
             {
-                var answers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson);
+                var answers = JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson, _jsonOpts);
 
                 if (answers == null || answers.Count == 0)
                 {
@@ -1012,7 +1032,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     ExamId = examId,
                     StudentId = studentId,
                     IsCompleted = false,
-                    DraftAnswersJson = System.Text.Json.JsonSerializer.Serialize(dto.Answers),
+                    DraftAnswersJson = JsonSerializer.Serialize(dto.Answers, _jsonOpts),
                     LastSavedAt = DateTime.UtcNow,
                     SubmittedAt = DateTime.UtcNow
                 };
@@ -1023,7 +1043,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 if (submission.IsCompleted)
                     throw new InvalidOperationException("Exam already submitted — cannot save progress.");
 
-                submission.DraftAnswersJson = System.Text.Json.JsonSerializer.Serialize(dto.Answers);
+                submission.DraftAnswersJson = JsonSerializer.Serialize(dto.Answers, _jsonOpts);
                 submission.LastSavedAt = DateTime.UtcNow;
             }
 
@@ -1069,7 +1089,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var draftAnswers = new List<ExamAnswerDto>();
             if (submission?.DraftAnswersJson != null && !submission.IsCompleted)
             {
-                try { draftAnswers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.DraftAnswersJson) ?? new(); }
+                try { draftAnswers = JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.DraftAnswersJson, _jsonOpts) ?? new(); }
                 catch { }
             }
 
@@ -1135,7 +1155,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 {
                     try
                     {
-                        var answers = System.Text.Json.JsonSerializer.Deserialize<List<ExamAnswerDto>>(sub.AnswersJson);
+                        var answers = JsonSerializer.Deserialize<List<ExamAnswerDto>>(sub.AnswersJson, _jsonOpts);
                         var ans = answers?.FirstOrDefault(a => a.QuestionId == q.Id);
                         if (ans != null)
                         {
