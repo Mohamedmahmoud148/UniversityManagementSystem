@@ -647,6 +647,69 @@ namespace UniversityManagementSystem.Infrastructure.Services
             };
         }
 
+        public async Task<ExamQuestionDto> UpdateExamQuestionAsync(Ulid examId, Ulid questionId, UpdateExamQuestionDto dto, Ulid doctorId)
+        {
+            var exam = await context.Exams
+                .Include(e => e.Questions)
+                .Include(e => e.SubjectOffering)
+                .FirstOrDefaultAsync(e => e.Id == examId)
+                ?? throw new KeyNotFoundException("Exam not found.");
+
+            if (exam.SubjectOffering.DoctorId != doctorId)
+                throw new UnauthorizedAccessException("Not authorized to edit this exam.");
+
+            var question = exam.Questions.FirstOrDefault(q => q.Id == questionId && q.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Question not found.");
+
+            bool recalcNeeded = false;
+
+            if (dto.QuestionText != null)
+                question.QuestionText = dto.QuestionText;
+
+            if (dto.Options != null)
+            {
+                question.OptionsJson = System.Text.Json.JsonSerializer.Serialize(dto.Options);
+                recalcNeeded = true;
+            }
+
+            if (dto.CorrectAnswer != null)
+            {
+                question.CorrectAnswer = dto.CorrectAnswer;
+                recalcNeeded = true;
+            }
+
+            if (dto.Mark.HasValue && dto.Mark.Value != question.Mark)
+            {
+                question.Mark = dto.Mark.Value;
+                recalcNeeded = true;
+            }
+
+            // Re-grade all completed submissions for this exam if answer/mark changed
+            if (recalcNeeded)
+            {
+                var submissions = await context.ExamSubmissions
+                    .Include(s => s.Exam).ThenInclude(e => e.Questions)
+                    .Where(s => s.ExamId == examId && s.IsCompleted)
+                    .ToListAsync();
+
+                foreach (var sub in submissions)
+                    _AutoGradeMcq(exam, sub);
+            }
+
+            await context.SaveChangesAsync();
+
+            return new ExamQuestionDto
+            {
+                Id           = question.Id,
+                QuestionText = question.QuestionText,
+                Options      = question.OptionsJson != null
+                    ? System.Text.Json.JsonSerializer.Deserialize<List<string>>(question.OptionsJson) : null,
+                QuestionType = question.QuestionType.ToString(),
+                Mark         = question.Mark,
+                CorrectAnswer = question.CorrectAnswer
+            };
+        }
+
         public async Task<IEnumerable<ExamDto>> GetStudentEnrolledExamsAsync(Ulid studentId)
         {
             var enrolledOfferingIds = await context.Enrollments

@@ -153,6 +153,15 @@ namespace UniversityManagementSystem.Core.DTOs
         public IFormFile File { get; set; } = null!;
     }
 
+    /// <summary>Update an existing exam question — only provided fields are changed.</summary>
+    public class UpdateExamQuestionDto
+    {
+        public string? QuestionText  { get; set; }
+        public List<string>? Options { get; set; }
+        public string? CorrectAnswer { get; set; }
+        public int? Mark             { get; set; }
+    }
+
     /// <summary>Request to preview AI-generated questions without creating an exam.</summary>
     public class PreviewAiQuestionsDto
     {

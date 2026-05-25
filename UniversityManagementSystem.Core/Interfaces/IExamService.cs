@@ -30,6 +30,9 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task GradeQuestionAsync(Ulid submissionId, GradeQuestionDto dto, Ulid doctorId);
         Task<object> AiGradeQuestionAsync(Ulid submissionId, Ulid questionId, Ulid doctorId);
 
+        /// <summary>Update a question's text/options/correctAnswer/mark, then re-grade all submissions.</summary>
+        Task<ExamQuestionDto> UpdateExamQuestionAsync(Ulid examId, Ulid questionId, UpdateExamQuestionDto dto, Ulid doctorId);
+
         // Grading
         Task GradeSubmissionAsync(GradeSubmissionDto dto, Ulid doctorId);
         Task<int> AutoGradeExamAsync(Ulid examId, Ulid doctorId); // Returns count of graded submissions

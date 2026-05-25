@@ -328,6 +328,26 @@ namespace UniversityManagementSystem.Api.Controllers
             catch (UnauthorizedAccessException)   { return Forbid(); }
         }
 
+        // ── Update exam question + re-grade all submissions ───────────────────────
+        [HttpPut("{examId}/questions/{questionId}")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
+        public async Task<IActionResult> UpdateExamQuestion(string examId, string questionId, [FromBody] UpdateExamQuestionDto dto)
+        {
+            if (!Ulid.TryParse(examId,     out var eId)) return BadRequest("Invalid exam ID.");
+            if (!Ulid.TryParse(questionId, out var qId)) return BadRequest("Invalid question ID.");
+            var profileClaim = User.Claims.FirstOrDefault(c => c.Type == "ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var doctorId = Ulid.Parse(profileClaim.Value);
+
+            try
+            {
+                var result = await examService.UpdateExamQuestionAsync(eId, qId, dto, doctorId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)     { return NotFound(ex.Message); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+        }
+
         // ── AI-grade a single essay question ─────────────────────────────────────
         [HttpPost("submissions/{submissionId}/ai-grade-question/{questionId}")]
         [Authorize(Roles = "Doctor,SuperAdmin")]
