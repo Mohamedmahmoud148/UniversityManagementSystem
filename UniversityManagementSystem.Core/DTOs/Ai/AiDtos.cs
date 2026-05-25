@@ -47,7 +47,7 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
         [JsonPropertyName("actions_available")]
         public List<string>? ActionsAvailable { get; set; }
 
-        [JsonIgnore]
+        [JsonPropertyName("is_fallback")]
         public bool IsFallback { get; set; }
     }
 

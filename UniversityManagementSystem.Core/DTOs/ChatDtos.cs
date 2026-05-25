@@ -17,9 +17,13 @@ namespace UniversityManagementSystem.Core.DTOs
     public class SendMessageDto
     {
         public Ulid ConversationId { get; set; }
-        public string? Content { get; set; }
+
+        /// <summary>Primary field. Use this — "content" is kept for legacy frontend compat.</summary>
         public string? Message { get; set; }
-        
+
+        /// <summary>Legacy alias for Message. Prefer sending "message" in new clients.</summary>
+        public string? Content { get; set; }
+
         [System.Text.Json.Serialization.JsonIgnore]
         public string ActualMessage => !string.IsNullOrWhiteSpace(Message) ? Message : (Content ?? string.Empty);
     }

@@ -105,18 +105,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
         // Shared chat execution (with resilience pipeline)
         // ----------------------------------------------------------------
 
-        private void AttachAuthHeader()
-        {
-            var authHeader = _httpContextAccessor.HttpContext?.Request.Headers.Authorization.FirstOrDefault();
-            if (!string.IsNullOrEmpty(authHeader) && !_httpClient.DefaultRequestHeaders.Contains("Authorization"))
-            {
-                _httpClient.DefaultRequestHeaders.Add("Authorization", authHeader);
-            }
-        }
+        private string? GetAuthHeader() =>
+            _httpContextAccessor.HttpContext?.Request.Headers.Authorization.FirstOrDefault();
 
         private async Task<AiChatResponseDto> ExecuteChatAsync(AiChatRequestDto request, string callerName)
         {
-            AttachAuthHeader();
+            var authHeader = GetAuthHeader();
 
             try
             {
@@ -124,7 +118,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
                 await _resiliencePipeline.ExecuteAsync(async ct =>
                 {
-                    var response = await _httpClient.PostAsJsonAsync("/api/chat", request, _jsonOptions, ct);
+                    // Create a new request message per call — safe under concurrent use.
+                    using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/api/chat");
+                    httpRequest.Content = JsonContent.Create(request, options: _jsonOptions);
+                    if (!string.IsNullOrEmpty(authHeader))
+                        httpRequest.Headers.TryAddWithoutValidation("Authorization", authHeader);
+
+                    var response = await _httpClient.SendAsync(httpRequest, ct);
                     response.EnsureSuccessStatusCode();
                     result = await response.Content.ReadFromJsonAsync<AiChatResponseDto>(_jsonOptions, ct);
                 });
@@ -157,8 +157,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<AiExtractResponseDto> ExtractDataFromFileAsync(string fileUrl, string fileType)
         {
-            AttachAuthHeader();
-
             try
             {
                 var payload = new { file_url = fileUrl, file_type = fileType };
@@ -185,8 +183,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<List<CreateExamQuestionDto>> GenerateExamAsync(AiGenerateExamRequestDto request)
         {
-            AttachAuthHeader();
-
             try
             {
                 var response = await _httpClient.PostAsJsonAsync("/generate-exam", request, _jsonOptions);
@@ -211,8 +207,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<AiGradeEssayResponseDto?> GradeEssayAsync(AiGradeEssayRequestDto request)
         {
-            AttachAuthHeader();
-
             try
             {
                 var response = await _httpClient.PostAsJsonAsync("/api/ai/grade-submission", request, _jsonOptions);
@@ -237,8 +231,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<AiResponseDto> AnalyzeTextAsync(string text)
         {
-            AttachAuthHeader();
-
             try
             {
                 var payload = new { text };
@@ -265,8 +257,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<AiComplaintAnalysisResponseDto> AnalyzeComplaintAsync(AiAnalyzeComplaintRequestDto request)
         {
-            AttachAuthHeader();
-
             try
             {
                 var response = await _httpClient.PostAsJsonAsync("/api/ai/analyze-complaint", request, _jsonOptions);
