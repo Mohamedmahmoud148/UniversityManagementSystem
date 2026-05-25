@@ -85,6 +85,26 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
         public object? Result { get; set; }
     }
 
+    // ── Essay AI grading ─────────────────────────────────────────────────────
+
+    public class AiGradeEssayRequestDto
+    {
+        public string SubmissionText    { get; set; } = string.Empty;
+        public string AssignmentTitle   { get; set; } = string.Empty;
+        public string AssignmentDescription { get; set; } = string.Empty;
+        public string? Rubric           { get; set; }
+        public double MaxGrade          { get; set; } = 10;
+    }
+
+    public class AiGradeEssayResponseDto
+    {
+        [JsonPropertyName("score")]      public double Score      { get; set; }
+        [JsonPropertyName("feedback")]   public string Feedback   { get; set; } = string.Empty;
+        [JsonPropertyName("strengths")]  public string Strengths  { get; set; } = string.Empty;
+        [JsonPropertyName("weaknesses")] public string Weaknesses { get; set; } = string.Empty;
+        [JsonPropertyName("confidence")] public double Confidence { get; set; }
+    }
+
     // ── Exam generation ──────────────────────────────────────────────────────
 
     public class AiGenerateExamRequestDto

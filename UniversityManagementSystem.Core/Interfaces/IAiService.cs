@@ -25,5 +25,8 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<AiChatResponseDto> SendToolResultAsync(AiChatRequestDto request);
 
         Task<System.Collections.Generic.List<UniversityManagementSystem.Core.DTOs.CreateExamQuestionDto>> GenerateExamAsync(AiGenerateExamRequestDto request);
+
+        /// <summary>Sends an essay answer to FastAPI for AI grading. Returns score + feedback.</summary>
+        Task<AiGradeEssayResponseDto?> GradeEssayAsync(AiGradeEssayRequestDto request);
     }
 }

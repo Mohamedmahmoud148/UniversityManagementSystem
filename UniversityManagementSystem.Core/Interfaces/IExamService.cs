@@ -28,6 +28,7 @@ namespace UniversityManagementSystem.Core.Interfaces
         // Submission detail + per-question grading
         Task<SubmissionDetailDto> GetSubmissionDetailAsync(Ulid submissionId, Ulid doctorId);
         Task GradeQuestionAsync(Ulid submissionId, GradeQuestionDto dto, Ulid doctorId);
+        Task<object> AiGradeQuestionAsync(Ulid submissionId, Ulid questionId, Ulid doctorId);
 
         // Grading
         Task GradeSubmissionAsync(GradeSubmissionDto dto, Ulid doctorId);

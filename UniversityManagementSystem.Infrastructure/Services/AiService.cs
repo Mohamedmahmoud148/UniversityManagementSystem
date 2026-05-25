@@ -206,6 +206,32 @@ namespace UniversityManagementSystem.Infrastructure.Services
         }
 
         // ----------------------------------------------------------------
+        // Essay AI Grading  —  POST /api/ai/grade-submission
+        // ----------------------------------------------------------------
+
+        public async Task<AiGradeEssayResponseDto?> GradeEssayAsync(AiGradeEssayRequestDto request)
+        {
+            AttachAuthHeader();
+
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync("/api/ai/grade-submission", request, _jsonOptions);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<AiGradeEssayResponseDto>(_jsonOptions);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "[AiService] GradeEssayAsync – HTTP error.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AiService] GradeEssayAsync – unexpected error.");
+            }
+
+            return null;
+        }
+
+        // ----------------------------------------------------------------
         // Text Analysis  —  POST /analyze  (internal / legacy)
         // ----------------------------------------------------------------
 

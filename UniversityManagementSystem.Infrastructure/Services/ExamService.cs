@@ -590,6 +590,63 @@ namespace UniversityManagementSystem.Infrastructure.Services
             await context.SaveChangesAsync();
         }
 
+        public async Task<object> AiGradeQuestionAsync(Ulid submissionId, Ulid questionId, Ulid doctorId)
+        {
+            var submission = await context.ExamSubmissions
+                .Include(s => s.Exam).ThenInclude(e => e.Questions)
+                .Include(s => s.Exam).ThenInclude(e => e.SubjectOffering)
+                .FirstOrDefaultAsync(s => s.Id == submissionId)
+                ?? throw new KeyNotFoundException($"Submission {submissionId} not found.");
+
+            if (submission.Exam.SubjectOffering.DoctorId != doctorId)
+                throw new UnauthorizedAccessException("You are not authorized to grade this submission.");
+
+            var question = submission.Exam.Questions.FirstOrDefault(q => q.Id == questionId && q.DeletedAt == null)
+                ?? throw new KeyNotFoundException($"Question {questionId} not found.");
+
+            if (question.QuestionType != QuestionType.Essay && question.QuestionType != QuestionType.ShortAnswer)
+                throw new InvalidOperationException("AI grading is only supported for Essay/ShortAnswer questions.");
+
+            // Get student's answer text
+            List<ExamAnswerDto> answers;
+            try { answers = JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson, _jsonOpts) ?? new(); }
+            catch { answers = new(); }
+
+            var studentAnswer = answers.FirstOrDefault(a => a.QuestionId == questionId)?.AnswerText ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(studentAnswer))
+                throw new InvalidOperationException("Student did not answer this question.");
+
+            // Call FastAPI AI grading
+            var aiRequest = new UniversityManagementSystem.Core.DTOs.Ai.AiGradeEssayRequestDto
+            {
+                SubmissionText       = studentAnswer,
+                AssignmentTitle      = question.QuestionText,
+                AssignmentDescription = question.CorrectAnswer ?? question.QuestionText,
+                MaxGrade             = question.Mark
+            };
+
+            var aiResult = await _aiService.GradeEssayAsync(aiRequest)
+                ?? throw new InvalidOperationException("AI grading service is unavailable.");
+
+            // Apply the AI score using the existing GradeQuestion logic
+            await GradeQuestionAsync(submissionId, new GradeQuestionDto
+            {
+                QuestionId = questionId,
+                Score      = Math.Round(aiResult.Score, 1),
+                Comment    = aiResult.Feedback
+            }, doctorId);
+
+            return new
+            {
+                score      = Math.Round(aiResult.Score, 1),
+                maxScore   = question.Mark,
+                feedback   = aiResult.Feedback,
+                strengths  = aiResult.Strengths,
+                weaknesses = aiResult.Weaknesses,
+                confidence = aiResult.Confidence
+            };
+        }
+
         public async Task<IEnumerable<ExamDto>> GetStudentEnrolledExamsAsync(Ulid studentId)
         {
             var enrolledOfferingIds = await context.Enrollments
