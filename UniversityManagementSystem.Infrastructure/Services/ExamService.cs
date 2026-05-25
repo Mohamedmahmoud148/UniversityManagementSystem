@@ -673,6 +673,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
             try { studentAnswers = JsonSerializer.Deserialize<List<ExamAnswerDto>>(submission.AnswersJson, _jsonOpts) ?? new(); }
             catch { studentAnswers = new(); }
 
+            // Read per-question essay scores saved by GradeQuestionAsync
+            var gradingDict = new System.Collections.Generic.Dictionary<string, double>();
+            if (!string.IsNullOrEmpty(submission.GradingJson))
+            {
+                try { gradingDict = JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, double>>(submission.GradingJson) ?? new(); }
+                catch { }
+            }
+
             var answerResults = submission.Exam.Questions
                 .Where(q => q.DeletedAt == null)
                 .Select(q =>
@@ -689,6 +697,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         isCorrect = !string.IsNullOrEmpty(text) &&
                             string.Equals(studentText, correctText, StringComparison.OrdinalIgnoreCase);
                         earned = isCorrect == true ? q.Mark : 0;
+                    }
+                    else // Essay — check if doctor already graded it
+                    {
+                        if (gradingDict.TryGetValue(q.Id.ToString(), out var essayScore))
+                        {
+                            earned = essayScore;
+                            isCorrect = essayScore > 0; // true if any marks awarded, false if 0
+                        }
+                        // else isCorrect stays null → Pending
                     }
 
                     // Resolve raw stored value (index/letter) to option text for display
