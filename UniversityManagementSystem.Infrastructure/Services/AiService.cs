@@ -226,6 +226,42 @@ namespace UniversityManagementSystem.Infrastructure.Services
         }
 
         // ----------------------------------------------------------------
+        // RAG Indexing  —  POST /api/rag/index
+        // ----------------------------------------------------------------
+
+        public async Task IndexMaterialAsync(string materialId, string fileUrl, string contentType, string title, string offeringId)
+        {
+            try
+            {
+                var payload = new
+                {
+                    material_id = materialId,
+                    file_url    = fileUrl,
+                    metadata    = new
+                    {
+                        materialTitle = title,
+                        offeringId    = offeringId,
+                        contentType   = contentType,
+                    }
+                };
+
+                var response = await _httpClient.PostAsJsonAsync("/api/rag/index", payload, _jsonOptions);
+                if (response.IsSuccessStatusCode)
+                    _logger.LogInformation("[AiService] IndexMaterialAsync – material {MaterialId} indexed successfully.", materialId);
+                else
+                    _logger.LogWarning("[AiService] IndexMaterialAsync – material {MaterialId} returned HTTP {Status}.", materialId, (int)response.StatusCode);
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex, "[AiService] IndexMaterialAsync – HTTP error for material {MaterialId}.", materialId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AiService] IndexMaterialAsync – unexpected error for material {MaterialId}.", materialId);
+            }
+        }
+
+        // ----------------------------------------------------------------
         // Text Analysis  —  POST /analyze  (internal / legacy)
         // ----------------------------------------------------------------
 

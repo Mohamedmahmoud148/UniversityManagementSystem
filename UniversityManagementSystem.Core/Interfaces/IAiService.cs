@@ -28,5 +28,11 @@ namespace UniversityManagementSystem.Core.Interfaces
 
         /// <summary>Sends an essay answer to FastAPI for AI grading. Returns score + feedback.</summary>
         Task<AiGradeEssayResponseDto?> GradeEssayAsync(AiGradeEssayRequestDto request);
+
+        /// <summary>
+        /// Fire-and-forget: asks the AI service to chunk, embed, and index a material
+        /// so it becomes searchable via RAG. Does not throw — logs internally.
+        /// </summary>
+        Task IndexMaterialAsync(string materialId, string fileUrl, string contentType, string title, string offeringId);
     }
 }

@@ -17,7 +17,8 @@ namespace UniversityManagementSystem.Api.Controllers
         IMaterialService materialService,
         AppDbContext context,
         IStorageService storageService,
-        IUserContextService userContext) : ControllerBase
+        IUserContextService userContext,
+        IAiService aiService) : ControllerBase
     {
         private static readonly System.Collections.Generic.HashSet<string> AllowedMimeTypes = new(System.StringComparer.OrdinalIgnoreCase)
         {
@@ -58,6 +59,17 @@ namespace UniversityManagementSystem.Api.Controllers
                 return BadRequest("File exceeds the 500 MB size limit.");
 
             var material = await materialService.UploadMaterialAsync(dto.OfferingId, doctorId, dto.File, dto.Title, dto.Description);
+
+            // Fire-and-forget: index the material in the RAG pipeline so it becomes
+            // searchable by students without blocking the upload response.
+            if (!string.IsNullOrEmpty(material.FileUrl))
+                _ = aiService.IndexMaterialAsync(
+                    material.Id.ToString(),
+                    material.FileUrl,
+                    material.ContentType,
+                    material.Title,
+                    dto.OfferingId.ToString());
+
             return CreatedAtAction(nameof(DownloadMaterial), new { id = material.Id.ToString() }, material);
         }
 
