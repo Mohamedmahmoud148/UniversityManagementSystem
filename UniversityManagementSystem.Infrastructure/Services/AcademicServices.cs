@@ -83,6 +83,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (student == null) throw new Exception("Student not found");
 
             student.DeletedAt = DateTime.UtcNow;
+            student.IsActive = false;
             await _repo.UpdateAsync(student);
         }
     }

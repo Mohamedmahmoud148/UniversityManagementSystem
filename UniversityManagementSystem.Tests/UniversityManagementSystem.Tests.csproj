@@ -22,6 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\UniversityManagementSystem.Api\UniversityManagementSystem.Api.csproj" />
     <ProjectReference Include="..\UniversityManagementSystem.Core\UniversityManagementSystem.Core.csproj" />
     <ProjectReference Include="..\UniversityManagementSystem.Infrastructure\UniversityManagementSystem.Infrastructure.csproj" />
   </ItemGroup>

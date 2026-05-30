@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NUlid;
 using UniversityManagementSystem.Core.DTOs;
+using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Api.Controllers
@@ -23,6 +24,11 @@ namespace UniversityManagementSystem.Api.Controllers
     public class DashboardController(AppDbContext context) : ControllerBase
     {
         private readonly AppDbContext _context = context;
+
+        private IQueryable<Student> ActiveStudents =>
+            _context.Students
+                .AsNoTracking()
+                .Where(s => s.IsActive);
 
         // ── GET /api/analytics/attendance/trends ──────────────────────────────
         /// <summary>
@@ -138,10 +144,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> AtRiskStudents([FromQuery] string? departmentId = null)
         {
-            var studentsQ = _context.Students
-                .AsNoTracking()
-                .Where(s => s.DeletedAt == null)
-                .AsQueryable();
+            var studentsQ = ActiveStudents.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(departmentId) && Ulid.TryParse(departmentId, out var dId))
                 studentsQ = studentsQ.Where(s => s.DepartmentId == dId);
@@ -372,9 +375,8 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var deptIds = departments.Select(d => d.Id).ToList();
 
-            var studentDeptData = await _context.Students
-                .AsNoTracking()
-                .Where(s => s.DeletedAt == null && deptIds.Contains(s.DepartmentId))
+            var studentDeptData = await ActiveStudents
+                .Where(s => deptIds.Contains(s.DepartmentId))
                 .Select(s => new { s.Id, s.DepartmentId })
                 .ToListAsync();
 
@@ -436,7 +438,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> AdminDashboard()
         {
-            var totalStudents = await _context.Students.AsNoTracking().CountAsync(s => s.DeletedAt == null);
+            var totalStudents = await ActiveStudents.CountAsync();
             var totalDoctors  = await _context.Doctors.AsNoTracking().CountAsync(d => d.DeletedAt == null);
             var activeCourses = await _context.SubjectOfferings.AsNoTracking().CountAsync(o => o.DeletedAt == null);
 

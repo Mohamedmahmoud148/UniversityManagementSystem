@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NUlid;
 using UniversityManagementSystem.Core.DTOs;
+using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Api.Controllers
@@ -21,6 +22,38 @@ namespace UniversityManagementSystem.Api.Controllers
     {
         private readonly AppDbContext _context = context;
 
+        private IQueryable<Student> ActiveStudents =>
+            _context.Students
+                .AsNoTracking()
+                .Where(s => s.IsActive);
+
+        private async Task<Dictionary<Ulid, int>> GetStudentCountsByDepartmentAsync()
+        {
+            var studentRows = await ActiveStudents
+                .Select(s => new { s.DepartmentId, s.BatchId })
+                .ToListAsync();
+
+            var batchIds = studentRows
+                .Select(s => s.BatchId)
+                .Where(id => id != Ulid.Empty)
+                .Distinct()
+                .ToList();
+
+            var batchDepartmentMap = await _context.Batches
+                .AsNoTracking()
+                .Where(b => batchIds.Contains(b.Id))
+                .Select(b => new { b.Id, b.DepartmentId })
+                .ToDictionaryAsync(x => x.Id, x => x.DepartmentId);
+
+            return studentRows
+                .Select(s => batchDepartmentMap.TryGetValue(s.BatchId, out var departmentId)
+                    ? departmentId
+                    : s.DepartmentId)
+                .Where(departmentId => departmentId != Ulid.Empty)
+                .GroupBy(departmentId => departmentId)
+                .ToDictionary(g => g.Key, g => g.Count());
+        }
+
         // ── GET /api/analytics/student-count-by-department ────────────────────
         /// <summary>
         /// Returns student count per department, sorted descending.
@@ -29,12 +62,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpGet("student-count-by-department")]
         public async Task<IActionResult> StudentCountByDepartment()
         {
-            var studentCounts = await _context.Students
-                .AsNoTracking()
-                .Where(s => s.DeletedAt == null)
-                .GroupBy(s => new { s.DepartmentId })
-                .Select(g => new { g.Key.DepartmentId, StudentCount = g.Count() })
-                .ToListAsync();
+            var studentDict = await GetStudentCountsByDepartmentAsync();
 
             var doctorCounts = await _context.Doctors
                 .AsNoTracking()
@@ -49,7 +77,6 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Select(d => new { d.Id, d.Name, CollegeName = d.College != null ? d.College.Name : "" })
                 .ToListAsync();
 
-            var studentDict = studentCounts.ToDictionary(x => x.DepartmentId, x => x.StudentCount);
             var doctorDict  = doctorCounts.ToDictionary(x => x.DepartmentId, x => x.DoctorCount);
 
             var result = departments
@@ -74,9 +101,8 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpGet("student-count-by-batch")]
         public async Task<IActionResult> StudentCountByBatch()
         {
-            var data = await _context.Students
-                .AsNoTracking()
-                .Where(s => s.DeletedAt == null)
+            var data = await ActiveStudents
+                .Where(s => s.BatchId != Ulid.Empty)
                 .GroupBy(s => new { s.BatchId })
                 .Select(g => new { g.Key.BatchId, Count = g.Count() })
                 .ToListAsync();
@@ -317,7 +343,7 @@ namespace UniversityManagementSystem.Api.Controllers
         [HttpGet("summary")]
         public async Task<IActionResult> Summary()
         {
-            var studentCount    = await _context.Students.AsNoTracking().CountAsync(s => s.DeletedAt == null);
+            var studentCount    = await ActiveStudents.CountAsync();
             var doctorCount     = await _context.Doctors.AsNoTracking().CountAsync(d => d.DeletedAt == null);
             var offeringCount   = await _context.SubjectOfferings.AsNoTracking().CountAsync();
             var enrollmentCount = await _context.Enrollments.AsNoTracking().CountAsync(e => e.IsActive && e.DeletedAt == null);
@@ -325,24 +351,35 @@ namespace UniversityManagementSystem.Api.Controllers
             var deptCount       = await _context.Departments.AsNoTracking().CountAsync(d => d.DeletedAt == null);
             var batchCount      = await _context.Batches.AsNoTracking().CountAsync(b => b.DeletedAt == null);
 
-            var topDepts = await _context.Students
-                .AsNoTracking()
-                .Where(s => s.DeletedAt == null)
-                .GroupBy(s => new { s.DepartmentId })
-                .Select(g => new { g.Key.DepartmentId, Count = g.Count() })
-                .OrderByDescending(x => x.Count)
+            var studentCountsByDepartment = await GetStudentCountsByDepartmentAsync();
+            var topDepartmentIds = studentCountsByDepartment
+                .OrderByDescending(x => x.Value)
                 .Take(5)
-                .Join(_context.Departments.Include(d => d.College),
-                      sc => sc.DepartmentId,
-                      d  => d.Id,
-                      (sc, d) => new DepartmentCountDto
-                      {
-                          DepartmentId   = d.Id.ToString(),
-                          DepartmentName = d.Name,
-                          CollegeName    = d.College != null ? d.College.Name : "",
-                          StudentCount   = sc.Count,
-                      })
+                .Select(x => x.Key)
+                .ToList();
+
+            var topDepartmentRows = await _context.Departments
+                .AsNoTracking()
+                .Include(d => d.College)
+                .Where(d => topDepartmentIds.Contains(d.Id))
+                .Select(d => new
+                {
+                    d.Id,
+                    d.Name,
+                    CollegeName = d.College != null ? d.College.Name : ""
+                })
                 .ToListAsync();
+
+            var topDepts = topDepartmentRows
+                .Select(d => new DepartmentCountDto
+                {
+                    DepartmentId   = d.Id.ToString(),
+                    DepartmentName = d.Name,
+                    CollegeName    = d.CollegeName,
+                    StudentCount   = studentCountsByDepartment.TryGetValue(d.Id, out var count) ? count : 0,
+                })
+                .OrderByDescending(d => d.StudentCount)
+                .ToList();
 
             var topSubjects = await _context.Enrollments
                 .AsNoTracking()
