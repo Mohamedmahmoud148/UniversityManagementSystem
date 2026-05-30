@@ -89,6 +89,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── GET /api/Regulations ─────────────────────────────────────────────
         [HttpGet]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<RegulationDto>>> GetAll()
         {
             try
@@ -119,6 +120,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
         // ── GET /api/Regulations/active ──────────────────────────────────────
         [HttpGet("active")]
+        [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<RegulationDto>>> GetActive()
         {
             var list = await _service.GetActiveAsync();

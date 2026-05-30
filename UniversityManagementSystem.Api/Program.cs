@@ -105,7 +105,14 @@ if (!string.IsNullOrWhiteSpace(redisConnectionString))
     catch (Exception ex)
     {
         Log.Warning(ex, "Failed to connect to Redis at startup. Application will continue without Redis cache.");
+        builder.Services.AddDistributedMemoryCache();
     }
+}
+else
+{
+    // No Redis configured — fall back to in-memory distributed cache so that
+    // controllers injecting IDistributedCache don't crash at startup.
+    builder.Services.AddDistributedMemoryCache();
 }
 
 // 4. Hangfire
