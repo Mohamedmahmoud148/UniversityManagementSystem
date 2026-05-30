@@ -212,8 +212,8 @@ namespace UniversityManagementSystem.Api.Controllers
 
             if (regulation == null) return NotFound("Assigned regulation not found.");
 
-            // 3. Load all finalized grades for this student
-            var grades = await _context.StudentGrades
+            // 3 + 4. Load grades and active enrollments concurrently — both depend only on studentId
+            var gradesTask = _context.StudentGrades
                 .AsNoTracking()
                 .Where(g => g.StudentId == studentId && g.IsFinalized)
                 .Select(g => new
@@ -226,26 +226,22 @@ namespace UniversityManagementSystem.Api.Controllers
                 })
                 .ToListAsync();
 
-            // 4. Load active enrollments
-            var enrolledSubjectIds = await _context.Enrollments
+            var enrolledSubjectIdsTask = _context.Enrollments
                 .AsNoTracking()
                 .Where(e => e.StudentId == studentId && e.IsActive && e.DeletedAt == null)
                 .Select(e => e.SubjectOffering.SubjectId)
                 .Distinct()
                 .ToListAsync();
 
-            // 5. Load student's GPA
-            double? gpa = null;
-            if (grades.Any())
-            {
-                var gpaSummary = await _context.StudentGrades
-                    .AsNoTracking()
-                    .Where(g => g.StudentId == studentId && g.IsFinalized && g.GradePoints > 0)
-                    .GroupBy(_ => 1)
-                    .Select(g => g.Average(x => x.GradePoints))
-                    .FirstOrDefaultAsync();
-                gpa = gpaSummary > 0 ? Math.Round(gpaSummary, 2) : null;
-            }
+            await Task.WhenAll(gradesTask, enrolledSubjectIdsTask);
+            var grades = gradesTask.Result;
+            var enrolledSubjectIds = enrolledSubjectIdsTask.Result;
+
+            // 5. Compute GPA in-memory from already-loaded grades — no extra DB round-trip
+            var positiveGradePoints = grades.Where(g => g.GradePoints > 0).Select(g => g.GradePoints).ToList();
+            double? gpa = positiveGradePoints.Count > 0
+                ? Math.Round(positiveGradePoints.Average(), 2)
+                : null;
 
             // 6. Build lookup maps
             // passedSubjectIds: subject IDs where student got a passing grade (GradePoints >= 1.0 = D)
