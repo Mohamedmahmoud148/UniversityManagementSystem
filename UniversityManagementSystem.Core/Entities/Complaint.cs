@@ -31,6 +31,9 @@ namespace UniversityManagementSystem.Core.Entities
         /// <summary>Optional resolution note added by admin/doctor.</summary>
         public string? ResolutionNote { get; set; }
 
+        /// <summary>UTC timestamp when the complaint was resolved.</summary>
+        public DateTime? ResolvedAt { get; set; }
+
         // Navigation
         public SystemUser Student { get; set; } = null!;
         public ComplaintAnalysis? Analysis { get; set; }

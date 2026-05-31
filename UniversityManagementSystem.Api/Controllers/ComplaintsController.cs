@@ -73,5 +73,32 @@ namespace UniversityManagementSystem.Api.Controllers
             var result = await _complaintService.GetDoctorOptionsForStudentAsync(studentId);
             return Ok(result);
         }
+
+        [HttpPut("{id}/reply")]
+        [Authorize(Roles = "Doctor,SuperAdmin")]
+        public async Task<IActionResult> ReplyToComplaint(string id, [FromBody] ComplaintReplyDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            if (!Ulid.TryParse(id, out var complaintId))
+                return BadRequest(new { error = "Invalid complaint ID." });
+
+            var doctorSystemUserId = _userContext.GetUserId();
+
+            try
+            {
+                var result = await _complaintService.ReplyToComplaintAsync(complaintId, dto.Reply, doctorSystemUserId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Forbid();
+            }
+        }
     }
 }

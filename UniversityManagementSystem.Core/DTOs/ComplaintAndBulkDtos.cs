@@ -52,6 +52,7 @@ namespace UniversityManagementSystem.Core.DTOs
         public string Priority { get; set; } = string.Empty;
         public string? ResolutionNote { get; set; }
         public DateTime CreatedAt { get; set; }
+        public DateTime? ResolvedAt { get; set; }
         public ComplaintAnalysisDto? Analysis { get; set; }
     }
 
@@ -97,6 +98,15 @@ namespace UniversityManagementSystem.Core.DTOs
         public int Page { get; set; }
         public int PageSize { get; set; }
         public List<ComplaintDto> Items { get; set; } = new();
+    }
+
+    /// <summary>Request body for PUT /api/complaints/{id}/reply (Doctor or SuperAdmin).</summary>
+    public class ComplaintReplyDto
+    {
+        [Required]
+        [MinLength(1)]
+        [MaxLength(2000)]
+        public string Reply { get; set; } = string.Empty;
     }
 
     // ── Bulk Operations DTOs ──────────────────────────────────────────────────

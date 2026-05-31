@@ -16,11 +16,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
     {
         private readonly AppDbContext _context;
         private readonly IBackgroundJobClient _backgroundJobClient;
+        private readonly INotificationService _notificationService;
 
-        public ComplaintService(AppDbContext context, IBackgroundJobClient backgroundJobClient)
+        public ComplaintService(AppDbContext context, IBackgroundJobClient backgroundJobClient, INotificationService notificationService)
         {
             _context = context;
             _backgroundJobClient = backgroundJobClient;
+            _notificationService = notificationService;
         }
 
         public async Task<ComplaintDto> CreateComplaintAsync(Ulid studentId, CreateComplaintDto dto)
@@ -42,6 +44,64 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             // Enqueue AI processing job
             _backgroundJobClient.Enqueue<IComplaintIntelligenceJob>(job => job.ProcessNewComplaintAsync(complaint.Id));
+
+            // Notify doctor if the complaint targets a doctor
+            if (dto.TargetType.Equals("Doctor", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(dto.TargetId)
+                && Ulid.TryParse(dto.TargetId, out var doctorEntityId))
+            {
+                var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == doctorEntityId && d.DeletedAt == null);
+                if (doctor != null)
+                {
+                    try
+                    {
+                        await _notificationService.SendNotificationAsync(
+                            doctor.SystemUserId,
+                            "New Student Request",
+                            "A student sent you a request requiring your response.");
+                    }
+                    catch
+                    {
+                        // Notification failure must not break complaint creation
+                    }
+                }
+            }
+
+            return MapToDto(complaint);
+        }
+
+        public async Task<ComplaintDto> ReplyToComplaintAsync(Ulid complaintId, string reply, Ulid doctorSystemUserId)
+        {
+            var complaint = await _context.Complaints.FirstOrDefaultAsync(c => c.Id == complaintId);
+            if (complaint == null) throw new KeyNotFoundException("Complaint not found.");
+
+            var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.SystemUserId == doctorSystemUserId && d.DeletedAt == null);
+            if (doctor == null) throw new UnauthorizedAccessException("Doctor profile not found.");
+
+            if (!complaint.TargetType.Equals("Doctor", StringComparison.OrdinalIgnoreCase)
+                || complaint.TargetId != doctor.Id.ToString())
+            {
+                throw new UnauthorizedAccessException("This complaint is not directed at you.");
+            }
+
+            complaint.ResolutionNote = reply;
+            complaint.Status = "Resolved";
+            complaint.ResolvedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            // Notify the student
+            try
+            {
+                await _notificationService.SendNotificationAsync(
+                    complaint.StudentId,
+                    "Reply to your request",
+                    $"Your request '{complaint.Title}' has been answered.");
+            }
+            catch
+            {
+                // Notification failure must not break the reply
+            }
 
             return MapToDto(complaint);
         }
@@ -214,7 +274,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 Status = c.Status,
                 Priority = c.Priority,
                 ResolutionNote = c.ResolutionNote,
-                CreatedAt = c.CreatedAt
+                CreatedAt = c.CreatedAt,
+                ResolvedAt = c.ResolvedAt
             };
 
             if (studentProfile != null)
