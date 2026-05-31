@@ -1,199 +1,189 @@
----
-layout: default
-title: "🚀 Deployment & Infrastructure Guide"
----
+# Deployment & Infrastructure
 
-# 🚀 Deployment & Infrastructure Guide
-
-## Platform: Railway
-
-This project is deployed on **Railway** — a modern Platform-as-a-Service (PaaS) that auto-deploys from GitHub.
-
-### Services on Railway
-
-| Service | Type | Description |
-|---------|------|-------------|
-| `.NET Backend` | Web Service | ASP.NET Core 9 API |
-| `FastAPI AI` | Web Service | Python AI orchestration |
-| `PostgreSQL` | Managed DB | Primary database |
-| `Redis` | Managed Cache | Session/cache layer |
-| `RabbitMQ` | Managed MQ | Message bus |
-
-### External Services
-
-| Service | Provider | Purpose |
-|---------|---------|---------|
-| File Storage | Cloudflare R2 | PDF/Excel/document storage |
-| LLM | Anthropic Claude | AI reasoning |
-| CDN | Cloudflare | File delivery |
+> **Last refreshed:** 2026-05-31 | **Platform:** Railway PaaS
 
 ---
 
-## Auto-Deploy Flow
+## 1. Production Services (Railway)
 
-```
-Developer pushes to main branch
-        │
-        ▼
-Railway detects push via webhook
-        │
-        ▼
-Railway runs Dockerfile or dotnet publish
-        │
-        ▼
-New container deployed (zero-downtime rolling deploy)
-        │
-        ▼
-Health check: GET /health
-        │
-        ├── Passes → old container shut down
-        └── Fails → rollback to previous version
-```
+| Service | Type | Notes |
+|---------|------|-------|
+| .NET Backend | Web Service | Auto-deploys from GitHub main branch |
+| FastAPI AI | Web Service | Python 3.12 |
+| PostgreSQL 16 | Managed DB | Persistent, Railway-managed |
+| Redis 7 | Plugin | Conversation memory, cache |
+| RabbitMQ 3.13 | Plugin | Async event bus |
+| ChromaDB 0.5 | Web Service | Persistent volume for vectors |
+
+**Frontend:** Hosted separately on Vercel/CDN at `bsnu.web.app`
+
+**File Storage:** Cloudflare R2 (not on Railway)
 
 ---
 
-## Health Check Endpoint
+## 2. Required Environment Variables
 
+### .NET Backend
+
+```env
+# Database
+ConnectionStrings__DefaultConnection=Host=...;Database=...;Username=...;Password=...
+
+# Redis
+REDIS_URL=redis://...
+
+# RabbitMQ
+RABBITMQ_URL=amqp://user:pass@host:5672/vhost
+
+# JWT
+JWT_SECRET=<256-bit secret>
+JWT_ISSUER=UniversityManagementSystem
+JWT_AUDIENCE=UniversityManagementSystem
+
+# FastAPI AI Service
+AI_SERVICE_URL=http://fastapi-service:8000
+
+# Cloudflare R2
+R2_ACCESS_KEY_ID=...
+R2_SECRET_ACCESS_KEY=...
+R2_BUCKET_NAME=...
+R2_ENDPOINT_URL=https://<account>.r2.cloudflarestorage.com
+R2_PUBLIC_URL=https://pub-<hash>.r2.dev
+
+# Hangfire
+HANGFIRE_DASHBOARD_USER=admin
+HANGFIRE_DASHBOARD_PASS=...
+
+# CORS
+ALLOWED_ORIGINS=https://bsnu.web.app,https://yourdomain.com
 ```
-GET /health
 
-Response:
-{
-  "status": "Healthy",
-  "checks": [
-    { "component": "postgresql", "status": "Healthy" },
-    { "component": "redis", "status": "Healthy" },
-    { "component": "hangfire", "status": "Healthy" }
-  ],
-  "totalDuration": "00:00:00.123"
-}
-```
+### FastAPI AI Service
 
-If any check fails: Status = "Degraded" or "Unhealthy"
+```env
+# LLM
+OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_FALLBACK_MODEL_1=openai/gpt-4o-mini
+OPENROUTER_TIMEOUT_SECONDS=45
 
----
+# Embeddings
+OPENAI_API_KEY=sk-...
+EMBEDDING_MODEL=text-embedding-3-small
 
-## Database Migration Strategy
+# Backend
+BACKEND_BASE_URL=https://universitymanagementsystem-production-e58e.up.railway.app
 
-Migrations run **automatically on startup**:
+# Redis
+REDIS_URL=redis://...
 
-```csharp
-// Program.cs
-db.Database.Migrate();  // Applies all pending migrations
-```
+# Rate limiting
+RATE_LIMIT_RPM=30
 
-Additionally, idempotent SQL runs for legacy column fixes:
-```csharp
-db.Database.ExecuteSqlRaw(@"
-    ALTER TABLE ""SystemUsers""
-    ADD COLUMN IF NOT EXISTS ""Code"" text;
-");
-```
+# Timeouts
+BACKEND_TIMEOUT_SECONDS=30
+REQUEST_TIMEOUT_SECONDS=60
 
-This means: **no manual migration steps** needed in production. Just deploy and the DB updates itself.
-
----
-
-## Environment Variables — Production Checklist
-
-```
-# Required for production:
-CONNECTION_STRING=Host=railway-postgres;...
-JWT_SECRET=<min-32-char-secret>
-AI_SERVICE_URL=https://your-ai-service.railway.app
-R2_ACCOUNT_ID=<cloudflare-account>
-R2_ACCESS_KEY=<r2-key>
-R2_SECRET_KEY=<r2-secret>
-R2_BUCKET_NAME=university-files
-DEFAULT_PASSWORD=<student-default-pass>
-ANTHROPIC_API_KEY=<claude-key>
-REDIS_URL=<railway-redis-url>
-RABBITMQ_URL=<railway-rabbitmq-url>
+# ChromaDB
+CHROMA_HOST=localhost
+CHROMA_PORT=8001
 ```
 
 ---
 
-## File Storage Architecture (Cloudflare R2)
+## 3. Deployment Flow
 
 ```
-User uploads file
-        │
-        ▼
-POST /api/file/upload (multipart/form-data)
-        │
-        ▼
-R2StorageService.UploadAsync():
-  1. Generate unique StorageKey: "{entityType}/{ulid}/{filename}"
-  2. Upload to Cloudflare R2 bucket
-  3. Save UploadedFile record to DB (StorageKey, FileName, ContentType)
-  4. Return { fileId, storageKey }
-        │
-        ▼
-User downloads file
-        │
-        ▼
-GET /api/file/{fileId}
-        │
-        ▼
-R2StorageService.GetSignedUrlAsync():
-  1. Look up StorageKey from DB
-  2. Generate presigned URL (60-minute expiry)
-  3. Return URL to client
-  4. Client downloads directly from Cloudflare (not through backend)
+Developer pushes to GitHub main branch
+    │
+Railway detects push → trigger build
+    │
+.NET: dotnet publish → Docker container
+FastAPI: pip install + uvicorn startup
+    │
+Railway deploys new containers (zero-downtime rolling update)
+    │
+.NET startup: MigrateAsync() → DB schema up-to-date
+FastAPI startup: index regulations → ready
 ```
-
-**Why presigned URLs?**
-- File download bypasses the backend server → no bandwidth cost
-- URL expires after 60 minutes → security
-- Cloudflare CDN serves the file → global performance
 
 ---
 
-## Serilog Structured Logging
+## 4. Health Checks
 
-Every request is logged with:
-```json
-{
-  "timestamp": "2026-05-16T08:00:00Z",
-  "level": "Information",
-  "message": "HTTP GET /api/students responded 200 in 45ms",
-  "properties": {
-    "correlationId": "abc-123",
-    "userId": "01HXYZ...",
-    "requestPath": "/api/students",
-    "statusCode": 200,
-    "elapsed": 45
-  }
-}
+```
+GET /health           → .NET health check endpoint
+GET /health/ai        → FastAPI health check
+GET /api/rag/stats    → ChromaDB collection stats
 ```
 
-Correlation IDs link all log entries from one request across services.
+Railway uses health check endpoints to determine deployment success.
 
 ---
 
-## Rate Limiting Configuration
+## 5. Resilience Configuration
 
-```csharp
-options.AddFixedWindowLimiter("default", opt =>
-{
-    opt.PermitLimit = 100;        // Max 100 requests
-    opt.Window = TimeSpan.FromMinutes(1);
-    opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-    opt.QueueLimit = 10;          // Allow 10 to queue
-});
-```
+### .NET Circuit Breaker (Polly)
+- Opens after 5 AI service failures in 15 seconds
+- Resets after 15 seconds
+- Returns friendly fallback during open state
 
-AI chat endpoint may need a separate, lower rate limit (AI calls are expensive).
+### FastAPI Circuit Breaker (ToolExecutionClient)
+- Opens after 5 consecutive backend call failures
+- Resets after 30 seconds
+
+### Redis Fallback
+- If Redis unavailable: `IDistributedCache` falls back to in-memory cache
+- Conversation memory: graceful degradation (AI still works, just loses history)
 
 ---
 
-## Hangfire Dashboard
+## 6. Scaling Considerations
 
-**URL:** `/hangfire`  
-**Access:** Admin and SuperAdmin only (custom authorization filter)  
-**Features:**
-- See all scheduled recurring jobs
-- See job history (success/failure)
-- Retry failed jobs manually
-- Enqueue jobs on-demand
-- Monitor job processing times
+| Bottleneck | Current | Scale Strategy |
+|-----------|---------|---------------|
+| .NET API | Single instance | Horizontal scale (stateless, Redis session) |
+| FastAPI AI | Single instance | Horizontal scale (stateless, Redis memory) |
+| PostgreSQL | Railway managed | Read replicas for analytics |
+| ChromaDB | Single instance | Volume-backed; scale vertically |
+| RabbitMQ | Railway plugin | Scale via Railway addons |
+
+---
+
+## 7. Monitoring
+
+- **Logging:** Serilog structured logs → Railway log viewer
+- **Hangfire Dashboard:** `/hangfire` (protected by basic auth) — view job history, failures, retries
+- **RabbitMQ Management:** `http://host:15672` — queue depth, consumer status
+
+---
+
+## 8. Backup Strategy
+
+- PostgreSQL: Railway automatic daily backups (point-in-time recovery)
+- ChromaDB: Railway persistent volume (survives redeploys)
+- R2 Files: Cloudflare R2 is redundantly stored across data centers
+
+---
+
+## 9. Local Development Setup
+
+```bash
+# Clone repository
+git clone <repo>
+
+# .NET Backend (requires .NET 9 SDK)
+cd UniversityManagementSystem
+cp appsettings.example.json appsettings.Development.json
+# Fill in local PostgreSQL, Redis, RabbitMQ connection strings
+dotnet run --project UniversityManagementSystem.Api
+
+# FastAPI AI Service (requires Python 3.12)
+cd fastApi
+pip install -r requirements.txt
+cp .env.example .env
+# Fill in OPENROUTER_API_KEY, OPENAI_API_KEY, BACKEND_BASE_URL
+uvicorn app.main:app --reload --port 8000
+
+# Optional: run infrastructure locally with Docker
+docker-compose up -d  # PostgreSQL + Redis + RabbitMQ
+```

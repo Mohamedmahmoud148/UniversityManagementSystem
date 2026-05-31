@@ -1,211 +1,165 @@
----
-layout: default
-title: "🔧 Backend Architecture"
+# Backend Architecture
+
+> **Last refreshed:** 2026-05-31 | **Framework:** ASP.NET Core 9
+
 ---
 
-# 🔧 Backend Architecture — Deep Dive
-
-## Project Structure
+## 1. Solution Structure
 
 ```
-UniversityManagementSystem.Core/
-├── Entities/                     ← 42 domain entities (pure C# classes)
-│   ├── BaseEntity.cs             ← Id (ULID), Code, CreatedAt, DeletedAt
-│   ├── SystemUser.cs             ← All users (Student/Doctor/Admin)
-│   ├── Student.cs                ← Student academic profile
-│   ├── Doctor.cs                 ← Doctor (professor) profile
-│   ├── Admin.cs                  ← Admin profile
-│   ├── University.cs             ← Top-level institution
-│   ├── College.cs                ← Faculty (Engineering, Science...)
-│   ├── Department.cs             ← CS, Electronics, Civil...
-│   ├── Batch.cs                  ← Class year (2022, 2023...)
-│   ├── Group.cs                  ← Section within batch (A, B, C)
-│   ├── AcademicYear.cs           ← Academic year (2023-2024)
-│   ├── Semester.cs               ← Spring/Fall 2024
-│   ├── Subject.cs                ← Course definition
-│   ├── SubjectOffering.cs ⭐     ← Course instance (most important!)
-│   ├── SubjectDoctor.cs          ← Junction: subject ↔ doctor
-│   ├── SubjectAssistant.cs       ← Teaching assistants
-│   ├── Enrollment.cs             ← Student enrolled in offering
-│   ├── StudentGrade.cs           ← Computed grade record
-│   ├── Regulation.cs             ← Academic curriculum
-│   ├── RegulationSubject.cs      ← Subject in regulation
-│   ├── Exam.cs                   ← Exam instance
-│   ├── ExamQuestion.cs           ← Questions for exam
-│   ├── ExamSubmission.cs         ← Student's answers
-│   ├── AttendanceSession.cs      ← Lecture session
-│   ├── StudentAttendance.cs      ← Student attendance record
-│   ├── Complaint.cs              ← Student complaint
-│   ├── ComplaintAnalysis.cs      ← AI analysis of complaint
-│   ├── ComplaintCluster.cs       ← Grouped complaints
-│   ├── AppNotification.cs        ← In-app notification
-│   ├── Conversation.cs           ← AI chat thread
-│   ├── ChatMessage.cs            ← Individual message
-│   ├── AiMemory.cs               ← Persistent AI user facts
-│   ├── AuditLog.cs               ← Immutable action log
-│   ├── RefreshToken.cs           ← JWT refresh token
-│   ├── Material.cs               ← Course material/file
-│   ├── ScheduleEntry.cs          ← Class schedule slot
-│   ├── UploadedFile.cs           ← File metadata (R2)
-│   ├── StudentFile.cs            ← Student personal documents
-│   └── EnrollmentUpload.cs       ← Bulk enrollment job
-│
-├── DTOs/                         ← Data Transfer Objects (request/response shapes)
-├── Interfaces/                   ← Service contracts (33 interfaces)
-├── Exceptions/                   ← DomainException (business rule violations)
-└── Events/                       ← Domain events (AttendanceRecordedEvent)
+UniversityManagementSystem/
+├── UniversityManagementSystem.Api/            ← Presentation layer
+│   ├── Controllers/   (35 controllers)
+│   ├── Hubs/          (NotificationHub — SignalR)
+│   ├── Middleware/    (exception, request logging)
+│   ├── Converters/    (ULID JSON converter)
+│   └── Program.cs     (DI, pipeline, Hangfire jobs)
+├── UniversityManagementSystem.Infrastructure/ ← Infrastructure layer
+│   ├── Data/          (AppDbContext, GenericRepository)
+│   ├── Services/      (all service implementations)
+│   ├── Jobs/          (Hangfire job classes)
+│   └── Consumers/     (MassTransit event consumers)
+├── UniversityManagementSystem.Core/           ← Domain layer (zero outward deps)
+│   ├── Entities/      (30+ EF Core entity classes)
+│   ├── DTOs/          (request/response shapes)
+│   ├── Interfaces/    (service contracts)
+│   └── Events/        (domain events for MassTransit)
+└── UniversityManagementSystem.Tests/
 ```
 
 ---
 
-## Controllers (API Endpoints)
+## 2. All 35 Controllers
 
-| Controller | Endpoints | Auth |
-|------------|---------|------|
-| `AuthController` | login, refresh, logout, change-password | Public/Any |
-| `StudentsController` | CRUD, bulk-upload, by-offering, struggling | Admin/Student |
-| `DoctorsController` | CRUD, bulk-upload, by-offering, by-subject | Admin/Doctor |
-| `AdminsController` | CRUD | SuperAdmin |
-| `EnrollmentsController` | CRUD, my-enrollments, auto-enroll | Admin/Student |
-| `SubjectOfferingsController` | CRUD, by-dept, by-doctor, by-batch | Admin/Doctor |
-| `SubjectsController` | CRUD | Admin |
-| `RegulationsController` | CRUD, my-roadmap, by-department | Admin/Student |
-| `AnalyticsController` | summary, dept-count, workload, top-subjects | Admin |
-| `GradesController` | my-grades, submit, calculate, offering-grades | Doctor/Student |
-| `GpaController` | my-gpa, student-gpa, recalculate | Doctor/Student/Admin |
-| `ExamsController` | CRUD, generate-ai, submit, auto-grade | Doctor/Student |
-| `AttendanceController` | sessions, check-in, my-attendance | Doctor/Student |
-| `ComplaintsController` | CRUD, my-complaints, resolve | Student/Admin |
-| `NotificationController` | get, read, send, send-to-students | Any/Admin/Doctor |
-| `MaterialsController` | list, upload, download | Doctor/Student |
-| `ScheduleController` | my-schedule, offering-schedule | Any |
-| `ChatController` | chat, history, conversations | Any |
-| `SemestersController` | CRUD | Admin |
-| `StructureControllers` | colleges, departments, batches, groups | Admin |
-| `AcademicYearsController` | CRUD | Admin |
-| `FileController` | upload, download (signed URL) | Any |
-| `StudentFilesController` | upload, list, download | Student/Admin |
-| `DashboardController` | admin, student, doctor dashboards | Role-based |
-| `AuditLogsController` | list, filter | SuperAdmin |
-| `AiController` | internal AI service proxy | Internal |
-| `AiToolsController` | AI-specific action endpoints | AI/Doctor |
-| `DevController` | debug/dev utilities | Dev only |
-
----
-
-## Service Layer — All 33 Services
-
-| Interface | Implementation | Purpose |
-|-----------|---------------|---------|
-| `IAuthService` | `AuthService` | Login, refresh, password |
-| `IStudentService` | `StudentService` | Student CRUD + bulk |
-| `IDoctorService` | `DoctorService` | Doctor CRUD |
-| `IAdminService` | `AdminService` | Admin management |
-| `IEnrollmentService` | `EnrollmentService` | Enrollment logic + auto-enroll |
-| `ISubjectOfferingService` | `SubjectOfferingService` | Offering management |
-| `IGradeService` | `GradeService` | Grade calculation |
-| `IRegulationService` | `RegulationService` | Regulation CRUD + roadmap |
-| `IComplaintService` | `ComplaintService` | Complaint workflow |
-| `INotificationService` | `NotificationService` | Notification + real-time |
-| `IExamService` | `ExamService` | Exam CRUD + AI generation |
-| `IAttendanceService` | `AttendanceService` | Sessions + check-in |
-| `IChatService` | `ChatService` | AI chat + history |
-| `IMaterialService` | `MaterialService` | Upload + retrieval |
-| `IScheduleService` | `ScheduleService` | Schedule management |
-| `ISemesterService` | `SemesterService` | Semester CRUD |
-| `IStructureServices` | (multiple) | University/College/Dept/Batch/Group |
-| `IAcademicYearService` | `AcademicYearService` | Academic year |
-| `IAuditService` | `AuditService` | Audit log writing |
-| `IFileService` | `FileService` | File metadata |
-| `IStorageService` | `R2StorageService` | Cloudflare R2 operations |
-| `IUserContextService` | `UserContextService` | JWT claim extraction |
-| `IIdentityProvisioningService` | `IdentityProvisioningService` | Create SystemUser accounts |
-| `ISystemUserResolver` | `SystemUserResolver` | Resolve user from JWT |
-| `ISmartStringGenerator` | `SmartStringGenerator` | Auto-generate codes/emails |
-| `IAiService` | `AiService` | HTTP client to FastAPI |
-| `IExcelService` | `ExcelService` | Excel parsing |
-| `IExcelImportService` | `ExcelImportService` | Import from Excel |
-| `IStudentFileService` | `StudentFileService` | Student personal files |
-| `IEnrollmentUploadService` | `EnrollmentUploadService` | Bulk enrollment |
-| `IRealtimeNotifier` | `SignalRNotifier` | WebSocket push |
-| `IGenericRepository<T>` | `GenericRepository<T>` | Generic CRUD |
+| Controller | Route Prefix | Roles | Purpose |
+|-----------|-------------|-------|---------|
+| AuthController | /api/auth | Public/Admin | Login, register, refresh token |
+| StudentsController | /api/students | Admin | Student CRUD |
+| DoctorsController | /api/doctors | Admin | Doctor CRUD |
+| AdminsController | /api/admins | Admin | Admin management |
+| StructureControllers | /api/colleges, /api/departments, /api/batches | Admin | University hierarchy |
+| SubjectsController | /api/subjects | Admin | Subject catalogue |
+| SubjectOfferingsController | /api/subjectofferings | Admin, Doctor | Offering management |
+| EnrollmentsController | /api/enrollments | Auth | Enrol, auto-enrol, withdraw |
+| MaterialsController | /api/materials | Doctor, Student | Upload, download, metadata |
+| AssignmentsController | /api/assignments | Doctor, Student | Create, submit, grade |
+| ExamsController | /api/exams | Doctor, Student | Lifecycle, publish, results |
+| SubmissionsController | /api/submissions | Doctor | Exam submission management |
+| GradesController | /api/grades | Doctor, Admin | Grade entry, finalization |
+| GpaController | /api/gpa | Auth | GPA queries |
+| AttendanceController | /api/attendance | Doctor | Sessions, records, reports |
+| RegulationsController | /api/regulations | Auth | CRUD, my-roadmap |
+| ComplaintsController | /api/complaints | Auth | Submit, manage complaints |
+| NotificationController | /api/notification | Auth | Get, read, send |
+| ChatController | /api/chat | Auth | AI conversation |
+| AiController | /api/ai | Doctor | Grading, generation tools |
+| AiToolsController | /api/ai-tools | Auth | Student overview, GPA, schedule |
+| AnalyticsController | /api/analytics | Admin, Doctor | Stats, distributions |
+| DashboardController | /api/analytics/dashboard | Auth | Role-specific dashboards |
+| RiskController | /api/risk | Admin | Academic risk scoring |
+| ScheduleController | /api/schedule | Auth | Timetable |
+| SemestersController | /api/semesters | Admin | Semester lifecycle |
+| AcademicYearsController | /api/academicyears | Admin | Year management |
+| RegistrationController | /api/registration | Admin | Bulk student import |
+| RagController | /api/rag | Admin | RAG status, manual trigger |
+| FileController | /api/files | Auth | Generic file upload |
+| StudentFilesController | /api/studentfiles | Auth | Student documents |
+| ProctoringController | /api/proctoring | Student | Exam proctoring events |
+| AuditLogsController | /api/auditlogs | Admin | Audit trail |
+| DeletionController | /api/deletion | Admin | Soft-delete management |
+| DevController | /api/dev | Dev | Development utilities |
 
 ---
 
-## Background Jobs — Complete List
+## 3. Key Service Interfaces (Core/Interfaces/)
 
-| Job | Schedule | Purpose |
-|-----|---------|---------|
-| `AcademicRiskJob` | Daily midnight | Detect low-GPA students → notify |
-| `ExamReminderJob` | Every 30 min | Send exam reminders 24h + 2h before |
-| `ComplaintIntelligenceJob` (daily) | Daily | Daily complaint analysis report |
-| `ComplaintIntelligenceJob` (weekly) | Weekly | Weekly trend analysis |
-| `ComplaintIntelligenceJob` (monthly) | Monthly | Monthly department report |
-| `BulkUploadJob` | On-demand | Process bulk student upload Excel |
+```
+IAuthService          – Login, JWT generation, password ops
+IChatService          – AI conversation, academic_context building
+IAiService            – FastAPI HTTP gateway (chat, grading, indexing)
+IRagService           – ChromaDB index + semantic search
+IMaterialService      – Material upload, metadata, fire-and-forget RAG
+IAssignmentService    – Assignment CRUD, submit, AI/manual grade
+IExamService          – Exam lifecycle, question randomization
+INotificationService  – Create DB record + publish to RabbitMQ
+IRegulationService    – Regulation CRUD, by-code lookup, slug generation
+IStorageService       – Cloudflare R2 upload/download/signed-URL
+IFileService          – UploadedFile entity lifecycle
+IGradeService         – StudentGrade creation, finalization, GPA calc
+IRiskService          – Attendance + GPA risk scoring
+IComplaintService     – Complaint CRUD + AI intelligence
+IUserContextService   – Extract userId/profileId/role from JWT claims
+```
 
 ---
 
-## Middleware Chain
+## 4. Entity Framework Core Patterns
+
+- **DB:** PostgreSQL 16 via `Npgsql.EntityFrameworkCore.PostgreSQL`
+- **Primary keys:** ULID (NUlid) — time-sortable, URL-safe, collision-free
+- **Soft deletes:** Every entity has `BaseEntity.DeletedAt`; all queries filter `WHERE DeletedAt IS NULL`
+- **Migrations:** Code-first, applied at startup via `context.Database.MigrateAsync()`
+- **Read optimization:** `AsNoTracking()` on every read-only query
+- **Projection:** Dashboard/analytics queries project directly to DTOs — no full entity loads
 
 ```csharp
-// Applied in order:
-app.UseMiddleware<ExceptionMiddleware>();     // Global exception handler
-app.UseSwagger();                            // API documentation
-app.UseSwaggerUI();                          // Swagger UI
-app.UseSerilogRequestLogging();             // HTTP request logging
-app.UseCors();                              // CORS headers
-app.UseHttpsRedirection();                  // Force HTTPS
-app.UseAuthentication();                    // JWT validation
-app.UseAuthorization();                     // Role checking
-app.UseRateLimiter();                       // Request throttling
-app.UseHangfireDashboard("/hangfire");      // Job dashboard
-app.MapControllers();                       // Route to controllers
-app.MapHub<NotificationHub>("/hubs/notifications"); // SignalR
-app.MapHealthChecks("/health");             // Health endpoint
-```
-
----
-
-## Response Wrapping
-
-All API responses are wrapped in a standard envelope by `ResponseWrapperFilter`:
-
-```json
-// Success response (200):
-{
-  "success": true,
-  "data": { ... },
-  "message": null
-}
-
-// Error response (400/404/500):
-{
-  "success": false,
-  "data": null,
-  "message": "Specific error description",
-  "correlationId": "abc-123"
+public abstract class BaseEntity {
+    public Ulid Id { get; set; }
+    public string Code { get; set; }        // Human-readable slug
+    public DateTime CreatedAt { get; set; }
+    public DateTime? DeletedAt { get; set; } // null = active record
 }
 ```
 
-This gives frontend a consistent shape to handle — always check `success` first.
+---
+
+## 5. Background Jobs (Hangfire)
+
+All jobs stored in PostgreSQL. Attributes: `[DisableConcurrentExecution]` + `[AutomaticRetry]`.
+
+| Job Class | Schedule | Smart Logic |
+|-----------|----------|------------|
+| `ExamReminderJob` | `*/30 * * * *` | 24h + 2h reminders to enrolled students |
+| `AssignmentReminderJob` | `*/30 * * * *` | 24h + 2h reminders — skips students who already submitted |
+| `AcademicRiskJob` | `0 6 * * *` | Daily GPA + attendance risk for all active students |
+| `RagIndexingJob` | Daily | Indexes unindexed Material files into ChromaDB |
+| `ComplaintIntelligenceJob` | Daily / Weekly / Monthly | AI-generated admin intelligence reports |
 
 ---
 
-## GradeService — Core Algorithm
+## 6. Notification Pipeline
 
-```csharp
-FinalScore = 
-  (midtermScore / MidtermMaxScore) * MidtermWeight * 100 +
-  (courseworkScore / CourseworkMaxScore) * CourseworkWeight * 100 +
-  (finalExamScore / FinalExamMaxScore) * FinalExamWeight * 100 +
-  (platformScore / PlatformMaxScore) * PlatformWeight * 100;
+```
+NotificationService.SendNotificationAsync(userId, title, message)
+  Step 1: INSERT AppNotification → PostgreSQL (guaranteed persistence)
+  Step 2: Publish NotificationCreatedEvent → RabbitMQ
 
-// Default weights: Midterm 20%, Coursework 20%, Final 50%, Platform 10%
-// Weights MUST sum to 1.0 — validated before calculation
-// GPA computed per credit hour weight for accuracy
+NotificationConsumer (MassTransit):
+  Step 3: Consume event
+  Step 4: IRealtimeNotifier.PushToUserAsync(userId, notification)
+  Step 5: SignalR Hub → push to user's connected clients
+
+Fallback: If SignalR fails, DB record already exists → client fetches on next poll
 ```
 
-**GPA Formula:**
-```
-GPA = Σ(GradePoints_i × CreditHours_i) / Σ(CreditHours_i)
-```
+---
+
+## 7. Rate Limiting
+
+| Policy | Limit | Window | Scope |
+|--------|-------|--------|-------|
+| GlobalPolicy | 1000 requests | 1 minute | All endpoints |
+| LoginPolicy | 5 requests | 1 minute | /api/auth/login per IP |
+| SensitiveAuthPolicy | 10 requests | 1 minute | Password change, sensitive ops |
+
+---
+
+## 8. Caching
+
+`IDistributedCache` backed by Redis (in-memory fallback if Redis unavailable).
+
+| Cached Data | TTL | Invalidation |
+|------------|-----|-------------|
+| Regulations list | 5 minutes | On create/update/delete |
+| Rate limit counters | Sliding window | Auto-expire |
+| Chat session state | Session lifetime | On conversation delete |

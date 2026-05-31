@@ -340,22 +340,47 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (student == null)
                 return ctx; // Guest / no profile — return base context
 
-            ctx["studentId"]    = student.Id.ToString();
-            ctx["collegeId"]    = student.CollegeId.ToString();
-            ctx["departmentId"] = student.DepartmentId.ToString();
-            ctx["batchId"]      = student.BatchId.ToString();
-            ctx["groupId"]      = student.GroupId.ToString();
+            ctx["studentId"]     = student.Id.ToString();
+            ctx["studentName"]   = student.FullName;
+            ctx["collegeId"]     = student.CollegeId.ToString();
+            ctx["departmentId"]  = student.DepartmentId.ToString();
+            ctx["departmentName"]= student.Department?.Name;
+            ctx["batchId"]       = student.BatchId.ToString();
+            ctx["batchName"]     = student.Batch?.Name;
+            ctx["groupId"]       = student.GroupId.ToString();
+
+            // Time context — lets the AI know "today" for study plan scheduling
+            ctx["today"]         = DateTime.UtcNow.ToString("yyyy-MM-dd");
+            ctx["dayOfWeek"]     = DateTime.UtcNow.DayOfWeek.ToString();
 
             // Active enrolled subject offering IDs (last 10 — capped for payload size)
-            var offeringIds = await _context.Enrollments
+            var enrollments = await _context.Enrollments
                 .AsNoTracking()
+                .Include(e => e.SubjectOffering)
+                    .ThenInclude(o => o.Subject)
                 .Where(e => e.StudentId == student.Id && e.IsActive)
                 .OrderByDescending(e => e.EnrolledAt)
                 .Take(10)
-                .Select(e => e.SubjectOfferingId.ToString())
                 .ToListAsync();
 
-            ctx["enrolledOfferingIds"] = offeringIds;
+            ctx["enrolledOfferingIds"] = enrollments
+                .Select(e => e.SubjectOfferingId.ToString())
+                .ToList();
+
+            // Enrich with subject names for the AI — avoids extra round-trips
+            ctx["enrolledSubjects"] = enrollments
+                .Select(e => new
+                {
+                    offeringId  = e.SubjectOfferingId.ToString(),
+                    subjectName = e.SubjectOffering?.Subject?.Name,
+                    subjectCode = e.SubjectOffering?.Subject?.Code,
+                })
+                .ToList();
+
+            // Primary offering (most recent) — used by modules that need a single offeringId
+            var primary = enrollments.FirstOrDefault();
+            if (primary != null)
+                ctx["subjectOfferingId"] = primary.SubjectOfferingId.ToString();
 
             return ctx;
         }

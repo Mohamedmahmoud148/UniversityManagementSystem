@@ -1,239 +1,172 @@
----
-layout: default
-title: "Assignments System + AI Auto-Grading"
----
+# Assignments System
 
-# Assignments System + AI Auto-Grading
-
-> **Doctors create assignments with optional AI grading; students submit text or files; AI grades against a rubric; doctors approve or override.**
-
----
-
-## Table of Contents
-
-1. [Overview](#1-overview)
-2. [Database Schema](#2-database-schema)
-3. [API Endpoints](#3-api-endpoints)
-4. [Assignment Lifecycle](#4-assignment-lifecycle)
-5. [AI Auto-Grading Flow](#5-ai-auto-grading-flow)
-6. [RBAC Rules](#6-rbac-rules)
-7. [DTOs Reference](#7-dtos-reference)
+> **Last refreshed:** 2026-05-31
 
 ---
 
 ## 1. Overview
 
-The Assignments System (Phase 3) adds a complete assignment workflow on top of the existing exam system:
-
-- **Doctors** create assignments with a deadline, max grade, and optional AI grading rubric
-- **Students** submit a text answer and/or an uploaded file before the deadline
-- If `AiGradingEnabled = true`, the .NET backend calls FastAPI `POST /api/ai/grade-submission` to get an AI score with feedback, strengths, and weaknesses
-- **Doctors** review AI grades and can approve or override them
-- All grading history is preserved (AI grade + human review are separate fields)
+The Assignments System supports the full lifecycle of academic assignments: creation by instructors, student submission (text + file), manual grading, AI-powered essay grading, and automated deadline reminders.
 
 ---
 
-## 2. Database Schema
+## 2. Assignment Entity
 
-### `Assignments` Table (migration: `AddAssignmentsSystem`)
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `Id` | ULID | PK |
-| `Title` | text | Assignment title |
-| `Description` | text | Full instructions |
-| `SubjectOfferingId` | ULID | FK → SubjectOfferings (RESTRICT) |
-| `DoctorId` | ULID | FK → Doctors (RESTRICT) |
-| `Deadline` | datetime | Submission cutoff |
-| `MaxGrade` | float | Maximum possible grade |
-| `AllowLateSubmission` | bool | Accept submissions after deadline? |
-| `AiGradingEnabled` | bool | Trigger AI grading on submission? |
-| `GradingRubric` | text? | Rubric text for AI grader |
-| `CreatedAt` | datetime | |
-
-### `AssignmentSubmissions` Table (migration: `AddAssignmentsSystem`)
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `Id` | ULID | PK |
-| `AssignmentId` | ULID | FK → Assignments (CASCADE) |
-| `StudentId` | ULID | FK → Students (RESTRICT) |
-| `TextAnswer` | text? | Written answer |
-| `FileUrl` | text? | Uploaded file public URL |
-| `StorageKey` | text? | Cloudflare R2 key |
-| `SubmittedAt` | datetime | Submission timestamp |
-| `IsLate` | bool | True if submitted after deadline |
-| `Status` | int | Submitted=0, UnderReview=1, Graded=2, Rejected=3 |
-| `Grade` | float? | Final confirmed grade |
-| `Feedback` | text? | Doctor feedback |
-| `AiFeedback` | text? | AI-generated feedback text |
-| `Strengths` | text? | AI strengths (JSON array) |
-| `Weaknesses` | text? | AI weaknesses (JSON array) |
-| `IsAiGraded` | bool | AI grading was applied |
-| `IsHumanReviewed` | bool | Doctor has reviewed AI grade |
-| `ReviewedByDoctorId` | ULID? | FK → Doctor who reviewed |
-
-**Constraint:** UNIQUE (`AssignmentId`, `StudentId`) — one submission per student per assignment.
-
----
-
-## 3. API Endpoints
-
-All endpoints are on `AssignmentsController` at `/api/assignments`.
-
-| Method | Endpoint | Role | Description |
-|--------|----------|------|-------------|
-| `POST` | `/api/assignments` | Doctor | Create a new assignment |
-| `GET` | `/api/assignments/{id}` | Doctor, Student, Admin | Get assignment details |
-| `PUT` | `/api/assignments/{id}` | Doctor (own) | Update assignment before deadline |
-| `DELETE` | `/api/assignments/{id}` | Doctor (own), Admin | Delete assignment |
-| `GET` | `/api/assignments/by-offering/{offeringId}` | Doctor, Student | List all assignments for an offering |
-| `POST` | `/api/assignments/{id}/submit` | Student | Submit an answer (text + optional file) |
-| `GET` | `/api/assignments/{id}/my-submission` | Student | Get own submission status and grade |
-| `GET` | `/api/assignments/{id}/submissions` | Doctor, Admin | List all submissions for an assignment |
-| `POST` | `/api/assignments/{id}/submissions/{submissionId}/grade` | Doctor | Manually grade or override AI grade |
-| `POST` | `/api/assignments/{id}/submissions/{submissionId}/ai-grade` | Doctor | Trigger AI grading for a specific submission |
-
----
-
-## 4. Assignment Lifecycle
-
-```
-Doctor creates assignment
-  └── POST /api/assignments
-        AiGradingEnabled: true
-        GradingRubric: "40 pts correctness, 30 clarity, 30 depth"
-        Deadline: 2026-06-01T23:59:00Z
-
-Student submits before deadline
-  └── POST /api/assignments/{id}/submit
-        TextAnswer: "Merge sort works by dividing the array..."
-        (optional FileUrl from prior upload)
-        → IsLate = false (before deadline)
-        → Status = Submitted
-
-If AiGradingEnabled:
-  AssignmentService calls FastAPI POST /api/ai/grade-submission
-        → Returns {score, feedback, strengths, weaknesses, confidence}
-        → Stored in AiFeedback, Strengths, Weaknesses, IsAiGraded=true
-        → Status → UnderReview
-
-Doctor reviews AI grade
-  └── POST /api/assignments/{id}/submissions/{submissionId}/grade
-        Grade: 85.0  (can accept AI score or override)
-        Feedback: "Good explanation, add more examples next time."
-        → IsHumanReviewed = true
-        → ReviewedByDoctorId = doctorId
-        → Status = Graded
-
-Student sees result
-  └── GET /api/assignments/{id}/my-submission
-        → Grade: 85.0, Feedback: "...", AiFeedback: "...", Strengths: [...], Weaknesses: [...]
+```csharp
+Assignment {
+    Title
+    Description
+    SubjectOfferingId    // which course
+    DoctorId             // who created it
+    Deadline             // DateTime (UTC)
+    MaxGrade             // default 100
+    AllowLateSubmission  // bool
+    AiGradingEnabled     // bool — triggers AI grading on submission
+    GradingRubric?       // JSON string — criteria for AI grader
+}
 ```
 
 ---
 
-## 5. AI Auto-Grading Flow
+## 3. AssignmentSubmission Entity
 
-The AI grading is handled by the FastAPI microservice.
-
-**Endpoint called by .NET:**
-```
-POST /api/ai/grade-submission
-```
-
-**Request payload:**
-```json
-{
-  "submission_text": "Merge sort divides the array recursively...",
-  "assignment_title": "Assignment 1 — Sorting Algorithms",
-  "description": "Explain merge sort and compare it with quicksort",
-  "rubric": "40 pts correctness, 30 clarity, 30 depth of comparison",
-  "max_grade": 100
+```csharp
+AssignmentSubmission {
+    AssignmentId / StudentId
+    TextAnswer?      // essay text answer
+    FileUrl?         // R2 public/signed URL
+    StorageKey?      // R2 object key for deletion
+    SubmittedAt
+    IsLate           // true if submitted after Deadline
+    Status           // Submitted | UnderReview | Graded | Rejected
+    Grade?           // 0–MaxGrade
+    Feedback?        // doctor's written feedback
+    AiFeedback?      // AI-generated feedback text
+    Strengths?       // AI-identified strengths
+    Weaknesses?      // AI-identified areas for improvement
+    IsAiGraded       // bool
+    IsHumanReviewed  // bool — doctor reviewed AI grade
+    ReviewedByDoctorId?
 }
 ```
-
-**Response:**
-```json
-{
-  "score": 82.5,
-  "feedback": "Good explanation of merge sort. The quicksort comparison section was too brief.",
-  "strengths": [
-    "Accurate time complexity analysis (O(n log n))",
-    "Clear divide-and-conquer explanation"
-  ],
-  "weaknesses": [
-    "Quicksort space complexity not discussed",
-    "No concrete examples with arrays"
-  ],
-  "confidence": 0.87
-}
-```
-
-**Grading prompt principles:**
-- LLM scores each rubric dimension independently and sums them
-- Cannot award more than `max_grade`
-- Instructed: "Base evaluation ONLY on what the student wrote. Do not assume knowledge not demonstrated."
-- `response_format = {"type": "json_object"}` enforced — no free-form text
-- Low confidence (< 0.6) flagged for mandatory doctor review
 
 ---
 
-## 6. RBAC Rules
+## 4. API Endpoints
 
-| Action | Allowed Roles |
-|--------|--------------|
-| Create assignment | Doctor (own offering only), Admin |
-| Update/delete assignment | Doctor (own), Admin |
-| View assignment | Doctor (own offering), Student (enrolled), Admin |
-| Submit | Student (enrolled, before deadline unless AllowLate) |
-| View all submissions | Doctor (own offering), Admin |
-| Grade submission | Doctor (own offering), Admin |
-| Trigger AI grade | Doctor (own offering), Admin |
-| View own submission | Student (own) |
+| Method | Endpoint | Roles | Description |
+|--------|----------|-------|-------------|
+| POST | `/api/assignments` | Doctor, Admin | Create assignment |
+| GET | `/api/assignments/offering/{offeringId}` | Auth | List for offering |
+| GET | `/api/assignments/{id}` | Auth | Detail |
+| POST | `/api/assignments/{id}/submit` | Student | Submit (multipart, 100 MB max) |
+| GET | `/api/assignments/{id}/submissions` | Doctor | All submissions |
+| POST | `/api/assignments/submissions/{id}/grade` | Doctor | Manual grade |
+| POST | `/api/assignments/submissions/{id}/ai-grade` | Doctor | AI grade |
+| GET | `/api/assignments/{id}/my-submission` | Student | Own submission |
+| DELETE | `/api/assignments/{id}` | Doctor, Admin | Delete |
 
 ---
 
-## 7. DTOs Reference
+## 5. Submission Flow
 
-### CreateAssignmentDto
-```json
-{
-  "title": "Assignment 1 — Sorting",
-  "description": "Explain merge sort...",
-  "subjectOfferingId": "01H...",
-  "deadline": "2026-06-01T23:59:00Z",
-  "maxGrade": 100,
-  "allowLateSubmission": false,
-  "aiGradingEnabled": true,
-  "gradingRubric": "40 correctness, 30 clarity, 30 depth"
-}
+```
+POST /api/assignments/{id}/submit (multipart/form-data)
+Fields: textAnswer (optional), file (optional, max 100 MB)
+
+AssignmentService.SubmitAsync():
+  1. Fetch assignment → check if already submitted
+  2. Compare SubmittedAt with Deadline → set IsLate flag
+  3. If AllowLateSubmission=false AND IsLate → reject
+  4. If file provided:
+     → StorageService.UploadFileStreamAsync() → R2 "assignments/" folder
+     → Store StorageKey + FileUrl
+  5. CREATE AssignmentSubmission { status=Submitted, isLate, textAnswer, fileUrl }
+  6. NotificationService.SendAsync(doctorId, "New submission: {title}")
 ```
 
-### SubmitAssignmentDto
-```json
-{
-  "textAnswer": "Merge sort works by...",
-  "fileUrl": "https://cdn.r2.example.com/submissions/file.pdf",
-  "storageKey": "submissions/01H.../file.pdf"
-}
+---
+
+## 6. AI Grading Pipeline
+
+```
+Doctor clicks "AI Grade" on a submission:
+POST /api/assignments/submissions/{id}/ai-grade
+
+AssignmentService.TriggerAiGradingAsync(submissionId):
+  1. Fetch submission + assignment (title, description, rubric, maxGrade)
+  2. AiService.GradeEssayAsync(submissionText, title, description, rubric, maxGrade)
+
+FastAPI POST /api/ai/grade-submission:
+  → GPT-4o-mini with structured JSON prompt
+  → Returns:
+    {
+      "score": 82,
+      "feedback": "Clear explanation of the algorithm. Missing edge case discussion.",
+      "strengths": ["Good structure", "Correct time complexity analysis"],
+      "weaknesses": ["Missing edge case for empty input", "No test cases"],
+      "confidence": 0.87
+    }
+
+UPDATE AssignmentSubmission:
+  { grade=82, aiFeedback=..., strengths=..., weaknesses=..., isAiGraded=true, status=Graded }
 ```
 
-### GradeAssignmentSubmissionDto
-```json
-{
-  "grade": 85.0,
-  "feedback": "Good work, add more examples next time."
-}
+---
+
+## 7. Automated Deadline Reminders
+
+`AssignmentReminderJob` runs every 30 minutes via Hangfire:
+
+```
+Find assignments: Deadline > now AND Deadline <= now+24h AND deletedAt IS NULL
+    │
+For each assignment:
+  1. Find students who have NOT submitted (excludes already-submitted students)
+  2. If Deadline <= now+2h:
+     title = "تذكير عاجل — موعد التسليم خلال ساعتين"
+  3. Else:
+     title = "تذكير — موعد تسليم الواجب غداً"
+  4. Send notification to each student's SystemUserId
+  5. Log: "Sent reminder for '{title}' to {count} students"
 ```
 
-### AiGradingResultDto (internal, from FastAPI)
-```json
-{
-  "score": 82.5,
-  "feedback": "...",
-  "strengths": ["..."],
-  "weaknesses": ["..."],
-  "confidence": 0.87
-}
+**Smart design:** Only non-submitters are notified — students who already submitted don't receive noise.
+
+---
+
+## 8. AI Chat Integration
+
+Students can ask the AI about assignments:
+
+```
+"ايه واجباتي في كورس Data Structures؟"
+→ Intent: assignment_query
+→ AssignmentQueryModule:
+   1. GET /api/assignments/offering/{offeringId}
+   2. GET /api/assignments/{id}/my-submission for each
+   3. Format: title + deadline countdown + submission status + grade
+```
+
+---
+
+## 9. File Storage
+
+Assignment files are stored in Cloudflare R2 under the `assignments/` prefix:
+- Storage key: `assignments/{randomId}/{filename}`
+- Download URLs are pre-signed with 60-minute expiry
+- Deleted via `StorageService.DeleteAsync(storageKey)` when assignment is deleted
+
+---
+
+## 10. Status Lifecycle
+
+```
+Student submits → Submitted
+    │
+Doctor reviews  → UnderReview
+    │
+    ├─ Doctor grades manually → Graded
+    ├─ AI grades → Graded (IsAiGraded=true)
+    └─ Doctor rejects → Rejected
 ```

@@ -161,6 +161,10 @@ namespace UniversityManagementSystem.Core.DTOs
         int TotalStudents,
         int TotalDoctors,
         int ActiveCourses,
+        int TotalEnrollments,
+        int TotalColleges,
+        int TotalDepartments,
+        int TotalBatches,
         double AvgGpa,
         double PassRate,
         int AtRiskCount);

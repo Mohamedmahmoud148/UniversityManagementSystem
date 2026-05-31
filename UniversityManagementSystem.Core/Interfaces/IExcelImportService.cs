@@ -24,6 +24,15 @@ namespace UniversityManagementSystem.Core.Interfaces
         /// Returns raw bytes ready for file download response.
         /// </summary>
         Task<byte[]> GenerateCredentialsExcelAsync(IReadOnlyList<StudentCredentialRow> credentials, string universityName);
+
+        /// <summary>
+        /// Generates a full import-result report Excel (.xlsx) containing:
+        ///   Sheet 1 — Successful students (credentials + assigned IDs/emails)
+        ///   Sheet 2 — Failed/skipped rows (reason per row)
+        ///   Sheet 3 — Summary (counts, warnings)
+        /// Returns raw bytes ready for file download.
+        /// </summary>
+        Task<byte[]> GenerateImportReportAsync(ImportStudentsResultDto result, string universityName);
     }
 }
 

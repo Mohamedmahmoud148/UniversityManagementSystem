@@ -438,18 +438,24 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> AdminDashboard()
         {
-            var totalStudents = await ActiveStudents.CountAsync();
-            var totalDoctors  = await _context.Doctors.AsNoTracking().CountAsync(d => d.DeletedAt == null);
-            var activeCourses = await _context.SubjectOfferings.AsNoTracking().CountAsync(o => o.DeletedAt == null);
-
-            var allGrades = await _context.StudentGrades
-                .AsNoTracking()
+            var totalStudentsTask   = ActiveStudents.CountAsync();
+            var totalDoctorsTask    = _context.Doctors.AsNoTracking().CountAsync(d => d.DeletedAt == null);
+            var activeCoursesTask   = _context.SubjectOfferings.AsNoTracking().CountAsync(o => o.DeletedAt == null);
+            var totalEnrollmentsTask= _context.Enrollments.AsNoTracking().CountAsync(e => e.IsActive && e.DeletedAt == null);
+            var totalCollegesTask   = _context.Colleges.AsNoTracking().CountAsync(c => c.DeletedAt == null);
+            var totalDepartmentsTask= _context.Departments.AsNoTracking().CountAsync(d => d.DeletedAt == null);
+            var totalBatchesTask    = _context.Batches.AsNoTracking().CountAsync(b => b.DeletedAt == null);
+            var allGradesTask       = _context.StudentGrades.AsNoTracking()
                 .Where(g => g.IsFinalized && g.DeletedAt == null)
                 .Select(g => new { g.GradePoints, g.FinalScore })
                 .ToListAsync();
 
-            var avgGpa   = allGrades.Any() ? Math.Round(allGrades.Average(g => g.GradePoints), 2) : 0.0;
-            var passRate = allGrades.Any()
+            await Task.WhenAll(totalStudentsTask, totalDoctorsTask, activeCoursesTask,
+                totalEnrollmentsTask, totalCollegesTask, totalDepartmentsTask, totalBatchesTask, allGradesTask);
+
+            var allGrades = allGradesTask.Result;
+            var avgGpa    = allGrades.Any() ? Math.Round(allGrades.Average(g => g.GradePoints), 2) : 0.0;
+            var passRate  = allGrades.Any()
                 ? Math.Round((double)allGrades.Count(g => g.FinalScore >= 50) / allGrades.Count * 100, 1)
                 : 0.0;
 
@@ -460,7 +466,17 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Select(g => new { Avg = g.Average(x => x.GradePoints) })
                 .CountAsync(g => g.Avg < 2.0);
 
-            return Ok(new AdminDashboardDto(totalStudents, totalDoctors, activeCourses, avgGpa, passRate, atRiskCount));
+            return Ok(new AdminDashboardDto(
+                totalStudentsTask.Result,
+                totalDoctorsTask.Result,
+                activeCoursesTask.Result,
+                totalEnrollmentsTask.Result,
+                totalCollegesTask.Result,
+                totalDepartmentsTask.Result,
+                totalBatchesTask.Result,
+                avgGpa,
+                passRate,
+                atRiskCount));
         }
 
         // ── GET /api/analytics/dashboard/doctor ───────────────────────────────

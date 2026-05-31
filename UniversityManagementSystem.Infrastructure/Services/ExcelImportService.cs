@@ -303,30 +303,38 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     if (string.IsNullOrWhiteSpace(groupCode))   rowErrors.Add("GroupCode (المجموعة) is empty");
                     if (rowErrors.Count > 0)
                     {
+                        var errMsg = string.Join("; ", rowErrors);
                         result.Skipped++;
-                        result.Errors.Add($"Row {rowNum}: {string.Join("; ", rowErrors)} — skipped.");
+                        result.Errors.Add($"Row {rowNum}: {errMsg} — skipped.");
+                        result.FailedRows.Add(new Core.DTOs.FailedImportRow { RowNumber = rowNum, FullName = fullName, NationalId = nationalId, BatchCode = batchCode, GroupCode = groupCode, ErrorMessage = errMsg });
                         continue;
                     }
 
                     // ── 6b. NationalId format (14 digits) ────────────────
                     if (!System.Text.RegularExpressions.Regex.IsMatch(nationalId, @"^\d{14}$"))
                     {
+                        var errMsg = $"NationalId '{nationalId}' must be exactly 14 digits";
                         result.Skipped++;
-                        result.Errors.Add($"Row {rowNum}: NationalId '{nationalId}' must be exactly 14 digits — skipped.");
+                        result.Errors.Add($"Row {rowNum}: {errMsg} — skipped.");
+                        result.FailedRows.Add(new Core.DTOs.FailedImportRow { RowNumber = rowNum, FullName = fullName, NationalId = nationalId, BatchCode = batchCode, GroupCode = groupCode, ErrorMessage = errMsg });
                         continue;
                     }
                     if (existingNationalIds.Contains(nationalId.ToLower()) || batchNationalIds.Contains(nationalId))
                     {
+                        var errMsg = $"NationalId '{nationalId}' already exists (duplicate)";
                         result.Skipped++;
-                        result.Errors.Add($"Row {rowNum}: NationalId '{nationalId}' already exists — skipped.");
+                        result.Errors.Add($"Row {rowNum}: {errMsg} — skipped.");
+                        result.FailedRows.Add(new Core.DTOs.FailedImportRow { RowNumber = rowNum, FullName = fullName, NationalId = nationalId, BatchCode = batchCode, GroupCode = groupCode, ErrorMessage = errMsg });
                         continue;
                     }
 
                     // ── 6c. Resolve Batch ─────────────────────────────────
                     if (!batchesByCode.TryGetValue(batchCode, out var batch))
                     {
+                        var errMsg = $"Batch '{batchCode}' not found in system";
                         result.Skipped++;
-                        result.Errors.Add($"Row {rowNum}: Batch '{batchCode}' not found — skipped.");
+                        result.Errors.Add($"Row {rowNum}: {errMsg} — skipped.");
+                        result.FailedRows.Add(new Core.DTOs.FailedImportRow { RowNumber = rowNum, FullName = fullName, NationalId = nationalId, BatchCode = batchCode, GroupCode = groupCode, ErrorMessage = errMsg });
                         continue;
                     }
 
@@ -347,14 +355,18 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     // ── 6e. Resolve Group ─────────────────────────────────
                     if (!groupsByCode.TryGetValue(groupCode, out var group))
                     {
+                        var errMsg = $"Group '{groupCode}' not found in system";
                         result.Skipped++;
-                        result.Errors.Add($"Row {rowNum}: Group '{groupCode}' not found — skipped.");
+                        result.Errors.Add($"Row {rowNum}: {errMsg} — skipped.");
+                        result.FailedRows.Add(new Core.DTOs.FailedImportRow { RowNumber = rowNum, FullName = fullName, NationalId = nationalId, BatchCode = batchCode, GroupCode = groupCode, ErrorMessage = errMsg });
                         continue;
                     }
                     if (group.BatchId != batch.Id)
                     {
+                        var errMsg = $"Group '{groupCode}' does not belong to batch '{batchCode}'";
                         result.Skipped++;
-                        result.Errors.Add($"Row {rowNum}: Group '{groupCode}' does not belong to batch '{batchCode}' — skipped.");
+                        result.Errors.Add($"Row {rowNum}: {errMsg} — skipped.");
+                        result.FailedRows.Add(new Core.DTOs.FailedImportRow { RowNumber = rowNum, FullName = fullName, NationalId = nationalId, BatchCode = batchCode, GroupCode = groupCode, ErrorMessage = errMsg });
                         continue;
                     }
 
@@ -368,8 +380,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     }
                     else if (existingUniStudentIds.Contains(uniStId.ToLower()) || batchUniStudentIds.Contains(uniStId))
                     {
+                        var errMsg = $"UniversityStudentId '{uniStId}' already exists (duplicate)";
                         result.Skipped++;
-                        result.Errors.Add($"Row {rowNum}: UniversityStudentId '{uniStId}' already exists — skipped.");
+                        result.Errors.Add($"Row {rowNum}: {errMsg} — skipped.");
+                        result.FailedRows.Add(new Core.DTOs.FailedImportRow { RowNumber = rowNum, FullName = fullName, NationalId = nationalId, BatchCode = batchCode, GroupCode = groupCode, ErrorMessage = errMsg });
                         continue;
                     }
 
@@ -487,11 +501,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 {
                     result.Skipped++;
                     result.Errors.Add($"Row {rowNum}: Validation error — {dex.Message} — skipped.");
+                    result.FailedRows.Add(new Core.DTOs.FailedImportRow { RowNumber = rowNum, ErrorMessage = $"Validation: {dex.Message}" });
                 }
                 catch (Exception ex)
                 {
                     result.Skipped++;
                     result.Errors.Add($"Row {rowNum}: Unexpected error — {ex.Message} — skipped.");
+                    result.FailedRows.Add(new Core.DTOs.FailedImportRow { RowNumber = rowNum, ErrorMessage = $"Unexpected: {ex.Message}" });
                 }
             }
 
@@ -595,6 +611,185 @@ namespace UniversityManagementSystem.Infrastructure.Services
             using var ms = new MemoryStream();
             workbook.SaveAs(ms);
             return Task.FromResult(ms.ToArray());
+        }
+
+        // ── Generate full import-result report (3 sheets) ────────────────────
+        public Task<byte[]> GenerateImportReportAsync(ImportStudentsResultDto result, string universityName)
+        {
+            using var workbook = new XLWorkbook();
+            var generated = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm") + " UTC";
+
+            // ── SHEET 1: Successful Students ──────────────────────────────────
+            var ws1 = workbook.Worksheets.Add("✓ Successful Students");
+            ws1.Cell(1, 1).Value = $"{universityName} — Import Report: Successful Students";
+            ws1.Range(1, 1, 1, 9).Merge();
+            StyleTitle(ws1.Cell(1, 1), "#1E6B3E");
+
+            ws1.Cell(2, 1).Value = $"Generated: {generated}  •  Imported: {result.Imported}  •  Password forced-change on first login";
+            ws1.Range(2, 1, 2, 9).Merge();
+            StyleSubTitle(ws1.Cell(2, 1));
+
+            var h1 = new[] { "#", "Full Name", "University ID", "Academic Email", "Temp Password", "Batch", "Group", "Department", "Status" };
+            for (int c = 0; c < h1.Length; c++)
+            {
+                StyleHeader(ws1.Cell(3, c + 1), "#2E75B6", h1[c]);
+            }
+
+            for (int i = 0; i < result.ImportedCredentials.Count; i++)
+            {
+                var cr = result.ImportedCredentials[i];
+                int r = i + 4;
+                bool isEven = i % 2 == 0;
+                ws1.Cell(r, 1).Value = i + 1;
+                ws1.Cell(r, 2).Value = cr.FullName;
+                ws1.Cell(r, 3).Value = cr.UniversityStudentId;
+                ws1.Cell(r, 4).Value = cr.UniversityEmail;
+                ws1.Cell(r, 5).Value = cr.TemporaryPassword;
+                ws1.Cell(r, 6).Value = cr.BatchCode;
+                ws1.Cell(r, 7).Value = cr.GroupCode;
+                ws1.Cell(r, 8).Value = cr.Department;
+                ws1.Cell(r, 9).Value = "✓ Imported";
+                if (isEven) ws1.Range(r, 1, r, 9).Style.Fill.BackgroundColor = XLColor.FromHtml("#EBF3FB");
+                ws1.Cell(r, 5).Style.Font.Bold = true;
+                ws1.Cell(r, 5).Style.Font.FontColor = XLColor.DarkRed;
+                ws1.Cell(r, 9).Style.Font.FontColor = XLColor.FromHtml("#1E6B3E");
+            }
+
+            int[] w1 = [5, 28, 18, 36, 20, 14, 12, 22, 14];
+            for (int i = 0; i < w1.Length; i++) ws1.Column(i + 1).Width = w1[i];
+            ws1.SheetView.Freeze(3, 0);
+
+            // ── SHEET 2: Failed / Skipped Rows ────────────────────────────────
+            var ws2 = workbook.Worksheets.Add("✗ Failed Rows");
+            ws2.Cell(1, 1).Value = $"{universityName} — Import Report: Failed / Skipped Rows";
+            ws2.Range(1, 1, 1, 7).Merge();
+            StyleTitle(ws2.Cell(1, 1), "#C00000");
+
+            ws2.Cell(2, 1).Value = $"Generated: {generated}  •  Failed: {result.Skipped}  •  Fix errors and re-import these rows";
+            ws2.Range(2, 1, 2, 7).Merge();
+            StyleSubTitle(ws2.Cell(2, 1));
+
+            var h2 = new[] { "Row #", "Full Name", "National ID", "Batch Code", "Group Code", "Status", "Error Message" };
+            for (int c = 0; c < h2.Length; c++)
+                StyleHeader(ws2.Cell(3, c + 1), "#C00000", h2[c]);
+
+            for (int i = 0; i < result.FailedRows.Count; i++)
+            {
+                var fr = result.FailedRows[i];
+                int r = i + 4;
+                bool isEven = i % 2 == 0;
+                ws2.Cell(r, 1).Value = fr.RowNumber;
+                ws2.Cell(r, 2).Value = fr.FullName;
+                ws2.Cell(r, 3).Value = fr.NationalId;
+                ws2.Cell(r, 4).Value = fr.BatchCode;
+                ws2.Cell(r, 5).Value = fr.GroupCode;
+                ws2.Cell(r, 6).Value = "✗ Failed";
+                ws2.Cell(r, 7).Value = fr.ErrorMessage;
+                if (isEven) ws2.Range(r, 1, r, 7).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF0F0");
+                ws2.Cell(r, 6).Style.Font.FontColor = XLColor.DarkRed;
+                ws2.Cell(r, 7).Style.Font.FontColor = XLColor.DarkRed;
+            }
+
+            if (result.FailedRows.Count == 0)
+            {
+                ws2.Cell(4, 1).Value = "No failed rows — all records were imported successfully.";
+                ws2.Range(4, 1, 4, 7).Merge();
+                ws2.Cell(4, 1).Style.Font.Italic = true;
+                ws2.Cell(4, 1).Style.Font.FontColor = XLColor.FromHtml("#1E6B3E");
+            }
+
+            int[] w2 = [8, 28, 18, 14, 12, 12, 55];
+            for (int i = 0; i < w2.Length; i++) ws2.Column(i + 1).Width = w2[i];
+            ws2.SheetView.Freeze(3, 0);
+
+            // ── SHEET 3: Summary ──────────────────────────────────────────────
+            var ws3 = workbook.Worksheets.Add("📊 Summary");
+            ws3.Cell(1, 1).Value = $"{universityName} — Import Summary";
+            ws3.Range(1, 1, 1, 3).Merge();
+            StyleTitle(ws3.Cell(1, 1), "#1E3A5F");
+
+            ws3.Cell(2, 1).Value = $"Generated: {generated}";
+            ws3.Range(2, 1, 2, 3).Merge();
+            StyleSubTitle(ws3.Cell(2, 1));
+
+            var stats = new (string Label, object Value, string? Color)[]
+            {
+                ("Total Rows in File",    result.TotalRows,        null),
+                ("✓ Successfully Imported", result.Imported,       "#1E6B3E"),
+                ("✗ Failed / Skipped",   result.Skipped,          "#C00000"),
+                ("⚠ Warnings",           result.Warnings.Count,   "#8B6914"),
+                ("Validation Errors",    result.Errors.Count,      "#C00000"),
+                ("Default Password",     result.TemporaryPassword, "#8B6914"),
+            };
+
+            for (int i = 0; i < stats.Length; i++)
+            {
+                int r = i + 4;
+                ws3.Cell(r, 1).Value = stats[i].Label;
+                ws3.Cell(r, 1).Style.Font.Bold = true;
+                ws3.Cell(r, 2).Value = stats[i].Value?.ToString() ?? "";
+                if (stats[i].Color != null)
+                    ws3.Cell(r, 2).Style.Font.FontColor = XLColor.FromHtml(stats[i].Color!);
+            }
+
+            // Warnings list
+            if (result.Warnings.Count > 0)
+            {
+                int warnStart = stats.Length + 6;
+                ws3.Cell(warnStart, 1).Value = "Warnings:";
+                ws3.Cell(warnStart, 1).Style.Font.Bold = true;
+                ws3.Cell(warnStart, 1).Style.Font.FontColor = XLColor.FromHtml("#8B6914");
+                for (int i = 0; i < result.Warnings.Count; i++)
+                {
+                    ws3.Cell(warnStart + 1 + i, 1).Value = $"• {result.Warnings[i]}";
+                    ws3.Range(warnStart + 1 + i, 1, warnStart + 1 + i, 3).Merge();
+                    ws3.Cell(warnStart + 1 + i, 1).Style.Font.FontColor = XLColor.FromHtml("#8B6914");
+                }
+            }
+
+            ws3.Column(1).Width = 30;
+            ws3.Column(2).Width = 35;
+            ws3.Column(3).Width = 10;
+
+            // ── Note ─────────────────────────────────────────────────────────
+            int noteRow2 = stats.Length + 6 + result.Warnings.Count + 3;
+            ws3.Cell(noteRow2, 1).Value = "⚠  This report contains sensitive credentials. Do not share publicly.";
+            ws3.Range(noteRow2, 1, noteRow2, 3).Merge();
+            ws3.Cell(noteRow2, 1).Style.Font.Italic = true;
+            ws3.Cell(noteRow2, 1).Style.Font.FontColor = XLColor.DarkRed;
+            ws3.Cell(noteRow2, 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#FFF2CC");
+
+            using var ms = new MemoryStream();
+            workbook.SaveAs(ms);
+            return Task.FromResult(ms.ToArray());
+        }
+
+        // ── Shared style helpers ──────────────────────────────────────────────
+        private static void StyleTitle(IXLCell cell, string bgHex)
+        {
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontSize = 13;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml(bgHex);
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        private static void StyleSubTitle(IXLCell cell)
+        {
+            cell.Style.Font.Italic = true;
+            cell.Style.Font.FontSize = 9;
+            cell.Style.Font.FontColor = XLColor.DarkRed;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+
+        private static void StyleHeader(IXLCell cell, string bgHex, string value)
+        {
+            cell.Value = value;
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml(bgHex);
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            cell.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
         }
 
         // ── Private helper ────────────────────────────────────────────────────

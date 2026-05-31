@@ -262,18 +262,93 @@ Students with GPA below threshold.
 ### POST `/api/students` `[Admin, SuperAdmin]`
 Creates student + SystemUser in one call. Returns student with auto-generated university email and ID.
 
+### GET `/api/students/import-excel/template` `[Admin, SuperAdmin]`
+Downloads a pre-filled `.xlsx` template with correct column headers, sample rows, and a reference sheet listing all valid `BatchCode` and `GroupCode` values.
+
+---
+
 ### POST `/api/students/import-excel` `[Admin, SuperAdmin]`
 **Multipart form** — field name: `file`, must be `.xlsx`
-Required columns: `FullName`, `BatchCode`, `GroupCode`
-Optional: `NationalId`, `Phone`, `Email`, `UniversityStudentId`
+Required columns: `FullName*`, `NationalId*`, `Phone*`, `BatchCode*`, `GroupCode*`
+Optional columns: `CollegeCode`, `DepartmentCode`, `Email`, `Governorate`, `Gender`, `DateOfBirth`, `StudentType`, `Religion`
+Headers are case-insensitive and support Arabic aliases (`الاسم`, `رقم قومي`, `تليفون`, `كود الدفعة`, `المجموعة`).
+
 ```json
-// Response
+// Response — full JSON result
 {
-  "totalRows": 150, "imported": 142, "skipped": 8,
+  "totalRows": 150,
+  "imported": 142,
+  "skipped": 8,
+  "validationErrors": 8,
+  "temporaryPassword": "Univ@2026",
   "errors": ["Row 5: Batch 'CS2022X' not found — skipped."],
   "warnings": ["Row 23: Phone invalid — using placeholder."],
-  "temporaryPassword": "123456"
+  "importedCredentials": [
+    {
+      "fullName": "Ahmed Ali Mohamed",
+      "universityStudentId": "STU20260001",
+      "universityEmail": "stu20260001@university.edu.eg",
+      "temporaryPassword": "Univ@2026",
+      "batchCode": "CS2024",
+      "groupCode": "GRP-A",
+      "department": "Computer Science"
+    }
+  ],
+  "failedRows": [
+    {
+      "rowNumber": 5,
+      "fullName": "Unknown Student",
+      "nationalId": "30501011234567",
+      "batchCode": "CS2022X",
+      "groupCode": "GRP-A",
+      "errorMessage": "Batch 'CS2022X' not found in system"
+    }
+  ]
 }
+```
+
+> **Note:** `importedCredentials` contains one entry per successfully imported student with their generated `universityEmail` and `universityStudentId`. Display this table to the admin after import. `temporaryPassword` at the top level is the global password for all students (they must change it on first login).
+
+---
+
+### POST `/api/students/import-excel/download-credentials` `[Admin, SuperAdmin]`
+**Same upload interface as above.** Instead of JSON, returns a downloadable `.xlsx` report file.
+
+Response header `X-Import-Summary` contains quick counts (read before parsing the file):
+```
+X-Import-Summary: total=150;imported=142;failed=8;warnings=3;errors=8
+```
+
+The Excel file has **3 sheets**:
+| Sheet | Content |
+|---|---|
+| `✓ Successful Students` | #, Full Name, University ID, **Academic Email**, Temp Password, Batch, Group, Department, Status |
+| `✗ Failed Rows` | Row #, Full Name, National ID, Batch Code, Group Code, Status, **Error Message** |
+| `📊 Summary` | Counts, warnings list, default password |
+
+**Frontend implementation:**
+```javascript
+// Trigger download and show summary from header
+const response = await fetch('/api/students/import-excel/download-credentials', {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${token}` },
+  body: formData
+});
+
+// Read summary counts from header (available even before blob is read)
+const summary = response.headers.get('X-Import-Summary');
+// summary = "total=150;imported=142;failed=8;warnings=3;errors=8"
+const stats = Object.fromEntries(summary.split(';').map(s => s.split('=')));
+// stats.total, stats.imported, stats.failed, stats.warnings, stats.errors
+
+// Download the report file
+const blob = await response.blob();
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+a.download = `import_report_${Date.now()}.xlsx`;
+a.click();
+URL.revokeObjectURL(url);
 ```
 
 ---

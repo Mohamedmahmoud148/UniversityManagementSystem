@@ -1,185 +1,188 @@
----
-layout: default
-title: "AI Tools APIs"
----
-
 # AI Tools APIs
 
-## Overview
+> **Last refreshed:** 2026-05-31
 
-`/api/ai-tools/*` is an internal API layer consumed exclusively by the **FastAPI AI service** — not by the frontend directly. When a user talks to the AI chatbot, the FastAPI brain calls these endpoints to read or write data on behalf of the user.
-
-```
-User → Frontend → FastAPI (AI Brain) → /api/ai-tools/* → Database
-```
-
-All endpoints require a valid JWT token. The token is forwarded from the original user request, so the backend enforces the same RBAC rules that apply to the regular API.
+These are the .NET backend endpoints the FastAPI AI service calls to fetch student data. They are authenticated (JWT forwarded from the user's session) and optimized for AI consumption.
 
 ---
 
-## Who Calls What
+## 1. Student Overview
 
-| Endpoint | Called From (FastAPI module) | Trigger |
-|---|---|---|
-| `GET resolve-offering` | `exam_generation.py` | Doctor asks AI to generate an exam |
-| `GET student-overview/{id}` | `academic_advisor.py` | Student asks for academic advice (sparse context) |
-| `POST create-complaint` | `complaint.py` | Student submits a complaint via AI chat |
-| `GET get-complaints` | `complaint.py` | Doctor/Admin asks AI to summarize complaints |
-| `POST bulk-create-students` | `file_processor.py` | Admin uploads an Excel file with student data |
-| `POST bulk-upload-grades` | `file_processor.py` | Admin uploads an Excel file with grade data |
-
-The remaining endpoints (`resolve-subject`, `resolve-student`, `resolve-doctor`, `student-gpa`, `offering-students`, `doctor-subjects`) are exposed in the Swagger schema and available to the AI planner — it may call them dynamically based on what the user asks.
-
----
-
-## Endpoint Reference
-
-### `GET /api/ai-tools/resolve-subject?name={name}`
-**Auth:** Admin, Doctor  
-Finds a subject by exact name match. Returns subject ID, name, and code.
-
-```json
-{ "subjectId": "01JFKX...", "subjectName": "Algorithms", "subjectCode": "CS301" }
+```
+GET /api/ai-tools/student-overview/{userId}
+Authorization: Bearer <student-jwt>
 ```
 
----
-
-### `GET /api/ai-tools/resolve-offering?subject={name}`
-**Auth:** Admin, Doctor  
-Finds all active SubjectOfferings for a subject name. Returns a list so the AI can disambiguate by semester or batch if there are multiple matches.
-
+**Response:**
 ```json
 {
-  "count": 2,
-  "note": "Multiple offerings found. Select using semesterName and/or batchId.",
-  "offerings": [
+  "userId": "...",
+  "studentId": "...",
+  "gpa": 3.2,
+  "totalCreditHours": 45,
+  "subjects": [
     {
-      "offeringId": "01JFKX...",
+      "subjectId": "...",
+      "name": "Data Structures",
+      "code": "CS301",
+      "offeringId": "..."
+    }
+  ],
+  "grades": [
+    {
       "subjectName": "Algorithms",
-      "semesterName": "Spring 2026",
-      "batchId": "01JFKX..."
+      "subjectCode": "CS302",
+      "gradeLetter": "A",
+      "finalScore": 91,
+      "gradePoints": 4.0
+    }
+  ],
+  "exams": [
+    {
+      "examTitle": "Midterm",
+      "subjectName": "Data Structures",
+      "score": 18,
+      "totalMarks": 20,
+      "isGraded": true
     }
   ]
 }
 ```
 
+**Used by:** AcademicAdvisorModule, StudyPlanModule
+
 ---
 
-### `GET /api/ai-tools/student-overview/{studentId}`
-**Auth:** Admin, Doctor, Student  
-Full academic snapshot for a student: GPA, enrolled subjects, finalized grades, exam scores.
+## 2. Student GPA
+
+```
+GET /api/ai-tools/student-gpa/{userId}
+```
+
+**Response:** `{ "studentId": "...", "gpa": 3.2 }`
+
+---
+
+## 3. Student Schedule
+
+```
+GET /api/ai-tools/student-schedule/{userId}
+```
+
+Returns the student's weekly timetable (subject offerings with time slots).
+
+---
+
+## 4. Academic Summary
+
+```
+GET /api/ai-tools/academic-summary/{userId}
+```
+
+Combined view: profile + GPA + current subjects + recent grades.
+
+---
+
+## 5. Student Performance (Analytics)
+
+```
+GET /api/analytics/student/{userId}/performance
+```
+
+Per-subject performance with attendance rate:
 
 ```json
-{
-  "studentId": "01JFKX...",
-  "gpa": 3.4,
-  "totalCreditHours": 72,
-  "subjects": [ { "subjectName": "Algorithms", "offeringId": "..." } ],
-  "grades":   [ { "subjectName": "OS", "gradeLetter": "A", "finalScore": 92 } ],
-  "exams":    [ { "examTitle": "OS Midterm", "score": 85, "totalMarks": 100, "isGraded": true } ]
-}
+[
+  {
+    "subjectName": "Data Structures",
+    "finalScore": 78.5,
+    "attendanceRate": 85.0,
+    "status": "Good"
+  },
+  {
+    "subjectName": "Networks",
+    "finalScore": 45.0,
+    "attendanceRate": 62.0,
+    "status": "Failing"
+  }
+]
+```
+
+**Used by:** StudyPlanModule (identifies weak subjects and attendance issues)
+
+---
+
+## 6. My Roadmap
+
+```
+GET /api/regulations/my-roadmap
+Authorization: Bearer <student-jwt>
+```
+
+See [10-Academic-Roadmap-System](../10-Academic-Roadmap-System/index.md) for full response schema.
+
+**Used by:** StudyPlanModule, AcademicAdvisorModule
+
+---
+
+## 7. Assignments by Offering
+
+```
+GET /api/assignments/offering/{offeringId}
+Authorization: Bearer <student-jwt>
+```
+
+**Used by:** StudyPlanModule (fetch upcoming deadlines), AssignmentQueryModule
+
+---
+
+## 8. My Submission
+
+```
+GET /api/assignments/{assignmentId}/my-submission
+Authorization: Bearer <student-jwt>
+```
+
+**Used by:** AssignmentQueryModule (check if already submitted)
+
+---
+
+## 9. Tool Registry (FastAPI)
+
+The FastAPI `ALLOWED_TOOL_NAMES` frozenset controls which backend endpoints the AI can call from multi-step plans:
+
+```python
+ALLOWED_TOOL_NAMES = frozenset({
+    "ResolveSubjectOffering",
+    "GetStudentResults",
+    "GetStudentGrades",
+    "GetGPASummary",
+    "GetTranscript",
+    "GetSchedule",
+    "GetStudentSchedule",
+    "GetSubjectOfferings",
+    "GetCourseEnrollments",
+    "GenerateExam",
+    "DistributeExam",
+    "GetExamQuestions",
+    "SubmitComplaint",
+    "GetComplaints",
+    "GetStudentAcademicSummary",
+    "BulkCreateStudents",
+    "BulkUploadGrades",
+    "GetMaterials",
+    "GetStudentAssignments",
+})
 ```
 
 ---
 
-### `GET /api/ai-tools/resolve-student?name={name}`
-**Auth:** Admin, Doctor  
-Fuzzy name search (ILIKE). Returns the first matching student's ID, full name, and code.
+## 10. Dynamic API Module
 
----
+The `DynamicApiModule` (handles `backend_api_query` + `action_execute` intents) discovers endpoints dynamically from the .NET Swagger schema. It:
 
-### `GET /api/ai-tools/resolve-doctor?name={name}`
-**Auth:** Admin, Doctor  
-Fuzzy name search (ILIKE). Returns the first matching doctor's ID, full name, and code.
-
----
-
-### `GET /api/ai-tools/student-gpa/{studentId}`
-**Auth:** Admin, Doctor, Student  
-Credit-hour-weighted GPA via GradeService (the authoritative calculation).
-
-```json
-{ "studentId": "01JFKX...", "gpa": 3.4 }
-```
-
----
-
-### `GET /api/ai-tools/offering-students/{offeringId}`
-**Auth:** Admin, Doctor  
-All active enrolled students in an offering — ID, full name, student code.
-
----
-
-### `GET /api/ai-tools/doctor-subjects/{doctorId}`
-**Auth:** Admin, Doctor, Student  
-All subjects a doctor teaches (distinct, across all offerings).
-
----
-
-### `POST /api/ai-tools/create-complaint`
-**Auth:** Student only  
-Submit a complaint via the AI chatbot.
-
-Request:
-```json
-{
-  "title": "Unfair exam grading",
-  "targetType": "Doctor",
-  "targetId": "01JFKX...",
-  "message": "The grading criteria were not communicated before the exam."
-}
-```
-
-`targetType` allowed values: `Doctor`, `Exam`, `Grade`, `Other`
-
-Response `201`:
-```json
-{ "id": "01JFKX...", "status": "Pending", "createdAt": "2026-05-16T10:00:00Z" }
-```
-
----
-
-### `GET /api/ai-tools/get-complaints`
-**Auth:** Admin, Doctor  
-Paginated, filtered complaint list.
-
-- **Admin** sees all complaints.
-- **Doctor** sees only complaints where `TargetType=Doctor` and `TargetId` matches their own doctor ID.
-
-Query params: `from`, `to`, `targetType`, `targetId`, `status`, `page`, `pageSize`
-
----
-
-### `POST /api/ai-tools/bulk-create-students`
-**Auth:** Admin, SuperAdmin  
-Upload an `.xlsx` file to bulk-import student accounts.
-
-Required columns: `FullName | Email | UniversityStudentId | BatchCode | GroupCode`
-
-Max file size: 10 MB. Returns inserted/skipped counts and per-row errors.
-
----
-
-### `POST /api/ai-tools/bulk-upload-grades`
-**Auth:** Admin, SuperAdmin  
-Upload an `.xlsx` file to bulk-upsert student grades.
-
-Required columns: `UniversityStudentId | SubjectOfferingId | FinalScore | GradeLetter | GradePoints`
-
-Duplicate `(StudentId, OfferingId)` rows are updated (upsert). Returns inserted/updated/skipped counts.
-
----
-
-## AI Discovery — How the AI Knows These Exist
-
-On FastAPI startup, `api_discovery.py` downloads the Swagger JSON from the .NET backend and filters it through an allowlist. Only `GET` and specific `POST` paths survive. The resulting filtered schema is injected into the AI planner's system prompt so the LLM knows which endpoints it can call.
-
-`PUT`, `PATCH`, and `DELETE` are blocked at the discovery layer — the AI can never call destructive methods.
-
----
-
-## Changes Made (Session — May 2026)
-
-- **Removed** `POST /api/ai-tools/distribute-exams` — was the old manual exam randomization approach, replaced by `StudentExamVariant` (lazy per-question allocation). Also removed from the FastAPI allowlist in `api_discovery.py`.
-- **Fixed** `create-complaint` — was using a hardcoded `Title = "AI Tool Complaint"` instead of `dto.Title`.
-- **Fixed** `academic_advisor.py` — was calling the non-existent `/api/ai-tools/student-academic-summary`; corrected to `/api/ai-tools/student-overview/{userId}`.
+1. Fetches allowed endpoint schema on startup
+2. When user asks a data question, asks LLM to select the best endpoint
+3. Validates selection against allowlist
+4. Calls the endpoint with JWT forwarding
+5. Narrates the JSON response in natural language

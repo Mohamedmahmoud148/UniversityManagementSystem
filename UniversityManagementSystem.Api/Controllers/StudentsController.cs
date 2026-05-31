@@ -571,21 +571,13 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var result = await _excelImportService.ImportStudentsFromExcelAsync(file);
 
-            // Always include import summary in header so frontend can show it even on JSON fallback
+            // Rich summary header — frontend reads this to display stats without parsing the file
             Response.Headers.Append("X-Import-Summary",
-                $"imported={result.Imported};skipped={result.Skipped};total={result.TotalRows};warnings={result.Warnings.Count}");
+                $"total={result.TotalRows};imported={result.Imported};failed={result.Skipped};warnings={result.Warnings.Count};errors={result.Errors.Count}");
 
-            if (result.ImportedCredentials.Count == 0)
+            if (result.TotalRows == 0 && result.Errors.Count > 0)
             {
-                // No new students — return JSON with full details so frontend can show errors/warnings
-                return Ok(new
-                {
-                    result.TotalRows, result.Imported, result.Skipped,
-                    result.Errors, result.Warnings,
-                    message = result.Skipped > 0
-                        ? $"All {result.Skipped} rows were skipped. Check errors for details."
-                        : "No students were imported."
-                });
+                return BadRequest(new { result.Errors, result.Warnings });
             }
 
             var universityName = await _context.Universities
@@ -593,10 +585,10 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Select(u => u.Name)
                 .FirstOrDefaultAsync() ?? "University";
 
-            var excelBytes = await _excelImportService.GenerateCredentialsExcelAsync(
-                result.ImportedCredentials, universityName);
+            // Always generate the full 3-sheet report (success + failed + summary)
+            var excelBytes = await _excelImportService.GenerateImportReportAsync(result, universityName);
 
-            var fileName = $"credentials_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx";
+            var fileName = $"import_report_{DateTime.UtcNow:yyyyMMdd_HHmm}.xlsx";
             return File(excelBytes,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 fileName);
@@ -613,15 +605,13 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var batches = await _context.Batches
                 .AsNoTracking()
-                .Include(b => b.Department)
-                .Select(b => new { b.Code, DeptName = b.Department.Name })
-                .Take(5)
+                .Include(b => b.Department).ThenInclude(d => d.College)
+                .Select(b => new { b.Code, DeptName = b.Department.Name, DeptCode = b.Department.Code, CollegeName = b.Department.College.Name, CollegeCode = b.Department.College.Code })
                 .ToListAsync();
 
             var groups = await _context.Groups
                 .AsNoTracking()
-                .Select(g => g.Code)
-                .Take(5)
+                .Select(g => new { g.Code, BatchCode = g.Batch.Code })
                 .ToListAsync();
 
             using var workbook = new ClosedXML.Excel.XLWorkbook();
@@ -638,8 +628,10 @@ namespace UniversityManagementSystem.Api.Controllers
 
             // ── Headers row 2 ──────────────────────────────────────────────────
             var required = new[] { "FullName*", "NationalId*", "Phone*", "BatchCode*", "GroupCode*" };
-            var optional = new[] { "Email", "Governorate", "Gender", "DateOfBirth", "StudentType", "Religion" };
+            var optional = new[] { "CollegeCode", "DepartmentCode", "Email", "Governorate", "Gender", "DateOfBirth", "StudentType", "Religion" };
             var all = required.Concat(optional).ToArray();
+
+            ws.Range(1, 1, 1, all.Length).Merge();
 
             for (int c = 0; c < all.Length; c++)
             {
@@ -655,13 +647,15 @@ namespace UniversityManagementSystem.Api.Controllers
             }
 
             // ── Sample rows ────────────────────────────────────────────────────
-            var sampleBatch = batches.FirstOrDefault()?.Code ?? "BATCH2024";
-            var sampleGroup = groups.FirstOrDefault() ?? "GRP-A";
+            var sampleBatch   = batches.FirstOrDefault()?.Code       ?? "BATCH2024";
+            var sampleGroup   = groups.FirstOrDefault()?.Code        ?? "GRP-A";
+            var sampleCollege = batches.FirstOrDefault()?.CollegeCode ?? "ENG";
+            var sampleDept    = batches.FirstOrDefault()?.DeptCode    ?? "CS";
             object[][] samples =
             [
-                ["Ahmed Ali Mohamed", "30501011234567", "01012345678", sampleBatch, sampleGroup, "ahmed@gmail.com", "Cairo", "Male", "2000-05-15", "Regular", "Islam"],
-                ["Sara Mohamed Hassan", "30601021234568", "01198765432", sampleBatch, sampleGroup, "", "Giza", "Female", "2001-03-22", "Regular", ""],
-                ["Omar Khaled Ibrahim", "30701031234569", "01556789012", sampleBatch, sampleGroup, "", "", "", "", "", ""],
+                ["Ahmed Ali Mohamed",    "30501011234567", "01012345678", sampleBatch, sampleGroup, sampleCollege, sampleDept, "ahmed@gmail.com", "Cairo", "Male",   "2000-05-15", "Regular", "Islam"],
+                ["Sara Mohamed Hassan",  "30601021234568", "01198765432", sampleBatch, sampleGroup, sampleCollege, sampleDept, "",                "Giza",  "Female", "2001-03-22", "Regular", ""],
+                ["Omar Khaled Ibrahim",  "30701031234569", "01556789012", sampleBatch, sampleGroup, "",            "",          "",                "",      "",       "",           "",         ""],
             ];
 
             for (int r = 0; r < samples.Length; r++)
@@ -678,31 +672,48 @@ namespace UniversityManagementSystem.Api.Controllers
 
             // ── Legend ─────────────────────────────────────────────────────────
             int leg = samples.Length + 4;
-            ws.Cell(leg, 1).Value = "* Required   |   Gender: Male / Female   |   DateOfBirth: YYYY-MM-DD   |   StudentType: Regular / Transfer / Repeating / External";
-            ws.Range(leg, 1, leg, 11).Merge();
+            ws.Cell(leg, 1).Value = "* Required   |   CollegeCode & DepartmentCode: optional (validated against BatchCode)   |   Gender: Male / Female   |   DateOfBirth: YYYY-MM-DD   |   StudentType: Regular / Transfer / Repeating / External";
+            ws.Range(leg, 1, leg, all.Length).Merge();
             ws.Cell(leg, 1).Style.Font.Italic = true;
             ws.Cell(leg, 1).Style.Font.FontSize = 9;
             ws.Cell(leg, 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromHtml("#FFF2CC");
 
             // ── Batches reference sheet ────────────────────────────────────────
             var refWs = workbook.Worksheets.Add("Reference - Batches & Groups");
-            refWs.Cell(1, 1).Value = "BatchCode";
-            refWs.Cell(1, 2).Value = "Department";
-            refWs.Cell(1, 1).Style.Font.Bold = true;
-            refWs.Cell(1, 2).Style.Font.Bold = true;
+            var refHeaders = new[] { "BatchCode", "Department", "DepartmentCode", "College", "CollegeCode" };
+            for (int c = 0; c < refHeaders.Length; c++)
+            {
+                refWs.Cell(1, c + 1).Value = refHeaders[c];
+                refWs.Cell(1, c + 1).Style.Font.Bold = true;
+                refWs.Cell(1, c + 1).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromHtml("#2E75B6");
+                refWs.Cell(1, c + 1).Style.Font.FontColor = ClosedXML.Excel.XLColor.White;
+            }
             for (int i = 0; i < batches.Count; i++)
             {
                 refWs.Cell(i + 2, 1).Value = batches[i].Code;
                 refWs.Cell(i + 2, 2).Value = batches[i].DeptName;
+                refWs.Cell(i + 2, 3).Value = batches[i].DeptCode;
+                refWs.Cell(i + 2, 4).Value = batches[i].CollegeName;
+                refWs.Cell(i + 2, 5).Value = batches[i].CollegeCode;
             }
-            refWs.Cell(1, 4).Value = "GroupCode";
-            refWs.Cell(1, 4).Style.Font.Bold = true;
+            refWs.Cell(1, 7).Value = "GroupCode";
+            refWs.Cell(1, 8).Value = "BatchCode";
+            refWs.Cell(1, 7).Style.Font.Bold = true;
+            refWs.Cell(1, 8).Style.Font.Bold = true;
+            refWs.Cell(1, 7).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromHtml("#2E75B6");
+            refWs.Cell(1, 8).Style.Fill.BackgroundColor = ClosedXML.Excel.XLColor.FromHtml("#2E75B6");
+            refWs.Cell(1, 7).Style.Font.FontColor = ClosedXML.Excel.XLColor.White;
+            refWs.Cell(1, 8).Style.Font.FontColor = ClosedXML.Excel.XLColor.White;
             for (int i = 0; i < groups.Count; i++)
-                refWs.Cell(i + 2, 4).Value = groups[i];
+            {
+                refWs.Cell(i + 2, 7).Value = groups[i].Code;
+                refWs.Cell(i + 2, 8).Value = groups[i].BatchCode;
+            }
+            for (int c = 1; c <= 8; c++) refWs.Column(c).AdjustToContents();
 
             // ── Column widths ──────────────────────────────────────────────────
-            int[] widths = [28, 18, 15, 14, 12, 26, 14, 10, 14, 14, 12];
-            for (int i = 0; i < widths.Length; i++)
+            int[] widths = [28, 18, 15, 14, 12, 14, 16, 26, 14, 10, 14, 14, 12];
+            for (int i = 0; i < Math.Min(widths.Length, all.Length); i++)
                 ws.Column(i + 1).Width = widths[i];
 
             ws.SheetView.Freeze(2, 0);

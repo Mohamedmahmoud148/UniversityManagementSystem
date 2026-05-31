@@ -362,6 +362,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddSingleton<UniversityManagementSystem.Infrastructure.Services.IAiInputSanitizer, UniversityManagementSystem.Infrastructure.Services.AiInputSanitizer>();
 builder.Services.AddScoped<IAcademicRiskJob, AcademicRiskJob>();
 builder.Services.AddScoped<IExamReminderJob, ExamReminderJob>();
+builder.Services.AddScoped<IAssignmentReminderJob, AssignmentReminderJob>();
 builder.Services.AddScoped<IRegulationService, RegulationService>();
 builder.Services.AddScoped<ISmartStringGenerator, SmartStringGenerator>();
 builder.Services.AddScoped<IChatService, ChatService>();
@@ -896,6 +897,11 @@ using (var scope = app.Services.CreateScope())
         "exam-reminders",
         job => job.RunAsync(),
         "*/30 * * * *"); // every 30 minutes
+
+    recurringJobManager.AddOrUpdate<IAssignmentReminderJob>(
+        "assignment-reminders",
+        job => job.RunAsync(),
+        "*/30 * * * *"); // every 30 minutes — mirrors exam reminders
 
     recurringJobManager.AddOrUpdate<IRagIndexingJob>(
         "rag-index-unindexed-materials",

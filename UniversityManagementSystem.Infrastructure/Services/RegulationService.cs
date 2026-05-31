@@ -51,10 +51,18 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         // ── Interface Implementations ───────────────────────────────────────────
         public async Task<IEnumerable<Regulation>> GetAllAsync()
-            => await _context.Regulations.ToListAsync();
+            => await _context.Regulations
+                .Include(r => r.File)
+                .Include(r => r.RegulationSubjects)
+                .Where(r => r.DeletedAt == null)
+                .ToListAsync();
 
         public async Task<IEnumerable<Regulation>> GetActiveAsync()
-            => await _context.Regulations.Where(r => r.IsActive).ToListAsync();
+            => await _context.Regulations
+                .Include(r => r.File)
+                .Include(r => r.RegulationSubjects)
+                .Where(r => r.IsActive && r.DeletedAt == null)
+                .ToListAsync();
 
         /// <summary>NEW: Resolve a Regulation by its auto-generated slug code.</summary>
         public async Task<Regulation?> GetByCodeAsync(string code)
