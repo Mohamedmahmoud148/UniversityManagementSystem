@@ -102,6 +102,83 @@ namespace UniversityManagementSystem.Api.Controllers
         }
 
         /// <summary>
+        /// GET /api/materials/by-subject/{subjectIdOrCode}
+        /// Resolves the student's enrolled offering for a subject automatically.
+        /// Accepts either Subject ULID or Subject code (e.g. DS-101).
+        /// </summary>
+        [HttpGet("by-subject/{subjectIdOrCode}")]
+        [Authorize(Roles = "Student,Doctor,TeachingAssistant,Admin,SuperAdmin")]
+        public async Task<IActionResult> GetMaterialsBySubject(
+            string subjectIdOrCode,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? search = null)
+        {
+            var roleClaim = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                         ?? User.FindFirst("role")?.Value ?? "Student";
+            var profileClaim = User.FindFirst("ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            var callerId = Ulid.Parse(profileClaim.Value);
+
+            // Resolve Subject entity — accept ULID or code
+            Ulid? subjectId = null;
+            if (Ulid.TryParse(subjectIdOrCode, out var parsedSubjectId))
+            {
+                subjectId = parsedSubjectId;
+            }
+            else
+            {
+                // Try by code (e.g. DS-101)
+                var subj = await context.Subjects
+                    .AsNoTracking()
+                    .Where(s => s.Code.ToLower() == subjectIdOrCode.ToLower())
+                    .Select(s => new { s.Id })
+                    .FirstOrDefaultAsync();
+                if (subj != null) subjectId = subj.Id;
+            }
+
+            if (subjectId == null)
+                return NotFound($"Subject '{subjectIdOrCode}' not found.");
+
+            // For students: resolve their enrolled offering for this subject
+            Ulid offeringId;
+            if (roleClaim.Equals("Student", StringComparison.OrdinalIgnoreCase))
+            {
+                var enrollment = await context.Enrollments
+                    .AsNoTracking()
+                    .Include(e => e.SubjectOffering)
+                    .Where(e => e.StudentId == callerId
+                             && e.IsActive
+                             && e.SubjectOffering.SubjectId == subjectId.Value)
+                    .Select(e => new { e.SubjectOfferingId })
+                    .FirstOrDefaultAsync();
+
+                if (enrollment == null)
+                    return NotFound($"You are not enrolled in subject '{subjectIdOrCode}'.");
+
+                offeringId = enrollment.SubjectOfferingId;
+            }
+            else
+            {
+                // Doctor/Admin: get the most recent active offering for this subject
+                var offering = await context.SubjectOfferings
+                    .AsNoTracking()
+                    .Where(o => o.SubjectId == subjectId.Value && o.DeletedAt == null)
+                    .OrderByDescending(o => o.CreatedAt)
+                    .Select(o => new { o.Id })
+                    .FirstOrDefaultAsync();
+
+                if (offering == null)
+                    return NotFound($"No active offering found for subject '{subjectIdOrCode}'.");
+
+                offeringId = offering.Id;
+            }
+
+            var result = await materialService.GetMaterialsByOfferingAsync(offeringId, callerId, roleClaim, page, pageSize, search);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Returns a short-lived pre-signed URL (1 hour) for the material.
         /// The client downloads directly from R2 — nothing streams through the backend.
         /// </summary>
