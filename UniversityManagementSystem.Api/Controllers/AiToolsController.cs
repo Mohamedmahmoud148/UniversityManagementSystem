@@ -137,11 +137,25 @@ namespace UniversityManagementSystem.Api.Controllers
             });
         }
 
-        // ── 3. Student Academic Overview ────────────────────────────────────
-        /// <summary>GET /api/ai-tools/student-overview/{studentId}</summary>
+        // ── 3a. Student Overview — self (uses ProfileId from JWT) ───────────
+        /// <summary>GET /api/ai-tools/student-overview/me — resolves authenticated student automatically.</summary>
+        [HttpGet("student-overview/me")]
+        [Authorize(Roles = "Student,SuperAdmin")]
+        public async Task<IActionResult> GetMyStudentOverview()
+        {
+            var profileClaim = User.FindFirst("ProfileId");
+            if (profileClaim == null) return Unauthorized("ProfileId claim not found.");
+            return await GetStudentOverviewById(profileClaim.Value);
+        }
+
+        // ── 3b. Student Academic Overview ────────────────────────────────────
+        /// <summary>GET /api/ai-tools/student-overview/{studentId} — doctor/admin lookup by Student.Id.</summary>
         [HttpGet("student-overview/{studentId}")]
         [Authorize(Roles = "Admin,SuperAdmin,Doctor,Student")]
         public async Task<IActionResult> GetStudentOverview(string studentId)
+            => await GetStudentOverviewById(studentId);
+
+        private async Task<IActionResult> GetStudentOverviewById(string studentId)
         {
             if (!Ulid.TryParse(studentId, out var parsedId))
                 return BadRequest("Invalid student ID format.");
@@ -150,13 +164,12 @@ namespace UniversityManagementSystem.Api.Controllers
             if (!exists)
                 return NotFound($"Student '{studentId}' not found.");
 
-            // ── GPA via GradeService (unified, credit-hour-weighted) ──────────
+            // GPA via GradeService (credit-hour-weighted)
             var gpaDto = await _gradeService.CalculateStudentGpaAsync(parsedId);
 
-            // Active subject enrolments
+            // Active enrollments
             var subjects = await _context.Enrollments
-                .Include(e => e.SubjectOffering)
-                    .ThenInclude(so => so.Subject)
+                .Include(e => e.SubjectOffering).ThenInclude(so => so.Subject)
                 .Where(e => e.StudentId == parsedId && e.IsActive)
                 .Select(e => new
                 {
@@ -169,8 +182,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
             // Finalised grades
             var grades = await _context.StudentGrades
-                .Include(g => g.SubjectOffering)
-                    .ThenInclude(so => so.Subject)
+                .Include(g => g.SubjectOffering).ThenInclude(so => so.Subject)
                 .Where(g => g.StudentId == parsedId && g.IsFinalized)
                 .Select(g => new
                 {
@@ -184,9 +196,7 @@ namespace UniversityManagementSystem.Api.Controllers
 
             // Exam submissions
             var exams = await _context.ExamSubmissions
-                .Include(es => es.Exam)
-                    .ThenInclude(e => e.SubjectOffering)
-                        .ThenInclude(so => so.Subject)
+                .Include(es => es.Exam).ThenInclude(e => e.SubjectOffering).ThenInclude(so => so.Subject)
                 .Where(es => es.StudentId == parsedId)
                 .Select(es => new
                 {
@@ -200,8 +210,8 @@ namespace UniversityManagementSystem.Api.Controllers
 
             return Ok(new
             {
-                studentId  = studentId,
-                gpa        = gpaDto.GPA,
+                studentId        = studentId,
+                gpa              = gpaDto.GPA,
                 totalCreditHours = gpaDto.TotalCreditHours,
                 subjects,
                 grades,

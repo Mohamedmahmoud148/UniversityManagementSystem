@@ -221,8 +221,9 @@ namespace UniversityManagementSystem.Api.Controllers
 
             if (regulation == null) return NotFound("Assigned regulation not found.");
 
-            // 3 + 4. Load grades and active enrollments concurrently — both depend only on studentId
-            var gradesTask = _context.StudentGrades
+            // 3. Load finalized grades
+            // NOTE: EF Core DbContext is NOT thread-safe — queries must be sequential, not concurrent.
+            var grades = await _context.StudentGrades
                 .AsNoTracking()
                 .Where(g => g.StudentId == studentId && g.IsFinalized)
                 .Select(g => new
@@ -235,16 +236,13 @@ namespace UniversityManagementSystem.Api.Controllers
                 })
                 .ToListAsync();
 
-            var enrolledSubjectIdsTask = _context.Enrollments
+            // 4. Load active enrollment subject IDs
+            var enrolledSubjectIds = await _context.Enrollments
                 .AsNoTracking()
                 .Where(e => e.StudentId == studentId && e.IsActive && e.DeletedAt == null)
                 .Select(e => e.SubjectOffering.SubjectId)
                 .Distinct()
                 .ToListAsync();
-
-            await Task.WhenAll(gradesTask, enrolledSubjectIdsTask);
-            var grades = gradesTask.Result;
-            var enrolledSubjectIds = enrolledSubjectIdsTask.Result;
 
             // 5. Compute GPA in-memory from already-loaded grades — no extra DB round-trip
             var positiveGradePoints = grades.Where(g => g.GradePoints > 0).Select(g => g.GradePoints).ToList();

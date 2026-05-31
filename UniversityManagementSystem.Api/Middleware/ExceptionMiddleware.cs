@@ -43,7 +43,9 @@ namespace UniversityManagementSystem.Api.Middleware
 
             var statusCode = exception switch
             {
-                UnauthorizedAccessException                        => (int)HttpStatusCode.Unauthorized,
+                // UnauthorizedAccessException = "authenticated but not allowed" → 403 Forbidden.
+                // HTTP 401 is reserved for "not authenticated at all" (handled by JWT middleware).
+                UnauthorizedAccessException                        => (int)HttpStatusCode.Forbidden,
                 Core.Exceptions.ForbiddenException                 => (int)HttpStatusCode.Forbidden,
                 KeyNotFoundException                               => (int)HttpStatusCode.NotFound,
                 Core.Exceptions.ConflictException                  => (int)HttpStatusCode.Conflict,
@@ -79,7 +81,7 @@ namespace UniversityManagementSystem.Api.Middleware
                 var safeMessage = statusCode switch
                 {
                     (int)HttpStatusCode.Unauthorized => "Authentication required.",
-                    (int)HttpStatusCode.Forbidden    => "You do not have permission to perform this action.",
+                    (int)HttpStatusCode.Forbidden    => exception.Message,   // preserve "not enrolled" / "not authorized" messages
                     (int)HttpStatusCode.NotFound     => "The requested resource was not found.",
                     (int)HttpStatusCode.Conflict when exception is Microsoft.EntityFrameworkCore.DbUpdateException
                                                      => exception.InnerException?.Message ?? exception.Message,
