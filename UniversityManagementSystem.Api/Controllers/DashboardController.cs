@@ -438,45 +438,40 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize(Roles = "Admin,SuperAdmin")]
         public async Task<IActionResult> AdminDashboard()
         {
-            var totalStudentsTask   = ActiveStudents.CountAsync();
-            var totalDoctorsTask    = _context.Doctors.AsNoTracking().CountAsync(d => d.DeletedAt == null);
-            var activeCoursesTask   = _context.SubjectOfferings.AsNoTracking().CountAsync(o => o.DeletedAt == null);
-            var totalEnrollmentsTask= _context.Enrollments.AsNoTracking().CountAsync(e => e.IsActive && e.DeletedAt == null);
-            var totalCollegesTask   = _context.Colleges.AsNoTracking().CountAsync(c => c.DeletedAt == null);
-            var totalDepartmentsTask= _context.Departments.AsNoTracking().CountAsync(d => d.DeletedAt == null);
-            var totalBatchesTask    = _context.Batches.AsNoTracking().CountAsync(b => b.DeletedAt == null);
-            var allGradesTask       = _context.StudentGrades.AsNoTracking()
+            // Sequential queries — DbContext is not thread-safe; concurrent Task.WhenAll on the
+            // same context causes some counts to return 0 under contention.
+            // IgnoreQueryFilters() + explicit predicate bypasses any broken global filter translation.
+            var totalStudents    = await ActiveStudents.IgnoreQueryFilters().CountAsync(s => s.IsActive && s.DeletedAt == null);
+            var totalDoctors     = await _context.Doctors.AsNoTracking().IgnoreQueryFilters().CountAsync(d => d.DeletedAt == null);
+            var activeCourses    = await _context.SubjectOfferings.AsNoTracking().IgnoreQueryFilters().CountAsync(o => o.DeletedAt == null);
+            var totalEnrollments = await _context.Enrollments.AsNoTracking().IgnoreQueryFilters().CountAsync(e => e.IsActive && e.DeletedAt == null);
+            var totalColleges    = await _context.Colleges.AsNoTracking().IgnoreQueryFilters().CountAsync(c => c.DeletedAt == null);
+            var totalDepartments = await _context.Departments.AsNoTracking().IgnoreQueryFilters().CountAsync(d => d.DeletedAt == null);
+            var totalBatches     = await _context.Batches.AsNoTracking().IgnoreQueryFilters().CountAsync(b => b.DeletedAt == null);
+
+            var allGrades = await _context.StudentGrades.AsNoTracking()
+                .IgnoreQueryFilters()
                 .Where(g => g.IsFinalized && g.DeletedAt == null)
                 .Select(g => new { g.GradePoints, g.FinalScore })
                 .ToListAsync();
 
-            await Task.WhenAll(totalStudentsTask, totalDoctorsTask, activeCoursesTask,
-                totalEnrollmentsTask, totalCollegesTask, totalDepartmentsTask, totalBatchesTask, allGradesTask);
-
-            var allGrades = allGradesTask.Result;
-            var avgGpa    = allGrades.Any() ? Math.Round(allGrades.Average(g => g.GradePoints), 2) : 0.0;
-            var passRate  = allGrades.Any()
+            var avgGpa   = allGrades.Any() ? Math.Round(allGrades.Average(g => g.GradePoints), 2) : 0.0;
+            var passRate = allGrades.Any()
                 ? Math.Round((double)allGrades.Count(g => g.FinalScore >= 50) / allGrades.Count * 100, 1)
                 : 0.0;
 
             var atRiskCount = await _context.StudentGrades
                 .AsNoTracking()
+                .IgnoreQueryFilters()
                 .Where(g => g.IsFinalized && g.DeletedAt == null)
                 .GroupBy(g => g.StudentId)
                 .Select(g => new { Avg = g.Average(x => x.GradePoints) })
                 .CountAsync(g => g.Avg < 2.0);
 
             return Ok(new AdminDashboardDto(
-                totalStudentsTask.Result,
-                totalDoctorsTask.Result,
-                activeCoursesTask.Result,
-                totalEnrollmentsTask.Result,
-                totalCollegesTask.Result,
-                totalDepartmentsTask.Result,
-                totalBatchesTask.Result,
-                avgGpa,
-                passRate,
-                atRiskCount));
+                totalStudents, totalDoctors, activeCourses, totalEnrollments,
+                totalColleges, totalDepartments, totalBatches,
+                avgGpa, passRate, atRiskCount));
         }
 
         // ── GET /api/analytics/dashboard/doctor ───────────────────────────────

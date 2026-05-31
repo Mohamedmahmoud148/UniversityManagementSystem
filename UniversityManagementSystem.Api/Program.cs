@@ -355,7 +355,13 @@ builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IExcelService, ExcelService>();
 builder.Services.AddScoped<IIdentityProvisioningService, IdentityProvisioningService>();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.ClientTimeoutInterval  = TimeSpan.FromSeconds(60);
+    options.KeepAliveInterval      = TimeSpan.FromSeconds(15);
+    options.HandshakeTimeout       = TimeSpan.FromSeconds(15);
+    options.MaximumReceiveMessageSize = 32 * 1024; // 32 KB
+});
 builder.Services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, UniversityManagementSystem.Api.Hubs.NameIdUserIdProvider>();
 builder.Services.AddSingleton<IRealtimeNotifier, SignalRNotifier>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -456,7 +462,16 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 });
 
 app.MapControllers();
-app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<NotificationHub>("/hubs/notifications", options =>
+{
+    // Prefer WebSockets; fall back to SSE then long-polling.
+    // Long-polling POST 404s after connection DELETE are expected and harmless —
+    // the client reconnects automatically.
+    options.Transports =
+        Microsoft.AspNetCore.Http.Connections.HttpTransportType.WebSockets |
+        Microsoft.AspNetCore.Http.Connections.HttpTransportType.ServerSentEvents |
+        Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling;
+});
 
 // Task 5: Health Check Endpoint
 app.MapHealthChecks("/health", new HealthCheckOptions
