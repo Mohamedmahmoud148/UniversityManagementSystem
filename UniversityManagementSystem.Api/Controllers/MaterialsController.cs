@@ -140,38 +140,41 @@ namespace UniversityManagementSystem.Api.Controllers
             if (subjectId == null)
                 return NotFound($"Subject '{subjectIdOrCode}' not found.");
 
-            // For students: resolve their enrolled offering for this subject
+            // Step 1: collect all offering IDs for this subject.
+            // IgnoreQueryFilters: EF Core propagates soft-delete filters through navigation
+            // properties; without this, related Semester/Batch rows can cause the join to
+            // silently drop offerings that are still active at the SubjectOffering level.
+            var offeringIds = await context.SubjectOfferings
+                .AsNoTracking()
+                .IgnoreQueryFilters()
+                .Where(so => so.SubjectId == subjectId.Value && so.DeletedAt == null)
+                .Select(so => so.Id)
+                .ToListAsync();
+
+            if (offeringIds.Count == 0)
+                return NotFound($"No active offering found for subject '{subjectIdOrCode}'.");
+
+            // Step 2: find the student's enrolled offering (direct FK — no navigation needed).
             Ulid offeringId;
             if (roleClaim.Equals("Student", StringComparison.OrdinalIgnoreCase))
             {
-                var enrollment = await context.Enrollments
+                var enrolledOfferingId = await context.Enrollments
                     .AsNoTracking()
-                    .Include(e => e.SubjectOffering)
                     .Where(e => e.StudentId == callerId
                              && e.IsActive
-                             && e.SubjectOffering.SubjectId == subjectId.Value)
-                    .Select(e => new { e.SubjectOfferingId })
+                             && offeringIds.Contains(e.SubjectOfferingId))
+                    .Select(e => (Ulid?)e.SubjectOfferingId)
                     .FirstOrDefaultAsync();
 
-                if (enrollment == null)
+                if (enrolledOfferingId == null)
                     return NotFound($"You are not enrolled in subject '{subjectIdOrCode}'.");
 
-                offeringId = enrollment.SubjectOfferingId;
+                offeringId = enrolledOfferingId.Value;
             }
             else
             {
-                // Doctor/Admin: get the most recent active offering for this subject
-                var offering = await context.SubjectOfferings
-                    .AsNoTracking()
-                    .Where(o => o.SubjectId == subjectId.Value && o.DeletedAt == null)
-                    .OrderByDescending(o => o.CreatedAt)
-                    .Select(o => new { o.Id })
-                    .FirstOrDefaultAsync();
-
-                if (offering == null)
-                    return NotFound($"No active offering found for subject '{subjectIdOrCode}'.");
-
-                offeringId = offering.Id;
+                // Doctor/Admin: use the most recent offering
+                offeringId = offeringIds[0];
             }
 
             var result = await materialService.GetMaterialsByOfferingAsync(offeringId, callerId, roleClaim, page, pageSize, search);
