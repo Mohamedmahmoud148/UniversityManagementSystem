@@ -18,7 +18,7 @@ namespace UniversityManagementSystem.Api.Filters
             if (context.Result is ObjectResult objectResult)
             {
                 // Verify if it's already wrapped or is a problem details (though middleware handles exceptions)
-                if (objectResult.Value is ApiResponse<object>) return;
+                if (IsApiResponse(objectResult.Value)) return;
                 
                 // Wrap the response
                 var response = new ApiResponse<object>
@@ -52,6 +52,13 @@ namespace UniversityManagementSystem.Api.Filters
                      StatusCode = 200
                  };
             }
+        }
+
+        private static bool IsApiResponse(object? value)
+        {
+            var type = value?.GetType();
+            return type is { IsGenericType: true }
+                   && type.GetGenericTypeDefinition() == typeof(ApiResponse<>);
         }
     }
 }

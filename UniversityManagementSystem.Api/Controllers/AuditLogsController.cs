@@ -61,19 +61,26 @@ namespace UniversityManagementSystem.Api.Controllers
                     EntityId        = l.EntityId.ToString(),
                     l.OldValues,
                     l.NewValues,
-                    PerformedByUserId = l.PerformedByUserId.ToString(),
+                    PerformedByUserId = l.PerformedByUserId.HasValue
+                        ? l.PerformedByUserId.Value.ToString()
+                        : null,
                     l.PerformedAt
                 })
                 .ToListAsync();
+
+            var totalPages = (int)Math.Ceiling(total / (double)pageSize);
 
             return Ok(new
             {
                 page,
                 pageSize,
+                size = pageSize,
                 total,
-                totalPages = (int)Math.Ceiling(total / (double)pageSize),
+                totalCount = total,
+                totalPages,
                 hasNextPage = page * pageSize < total,
-                data = logs
+                data = logs,
+                items = logs
             });
         }
     }
