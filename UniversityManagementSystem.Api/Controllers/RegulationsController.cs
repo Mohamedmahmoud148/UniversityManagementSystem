@@ -85,16 +85,22 @@ namespace UniversityManagementSystem.Api.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<RegulationDto>>> GetAll()
         {
-            // Cache with a hard 800ms timeout so a dead/slow Redis never blocks the response
-            using var cacheCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(800));
+            // Task.WhenAny guarantees the 500ms timeout even when StackExchange.Redis
+            // ignores CancellationToken and waits for the full TCP connection timeout (~11s).
             try
             {
-                var cached = await _cache.GetStringAsync(CacheKey, cacheCts.Token);
-                if (!string.IsNullOrEmpty(cached))
+                var cacheTask   = _cache.GetStringAsync(CacheKey);
+                var timeoutTask = Task.Delay(500);
+                if (await Task.WhenAny(cacheTask, timeoutTask) == cacheTask)
                 {
-                    try { return Ok(JsonSerializer.Deserialize<IEnumerable<RegulationDto>>(cached, _jsonOptions)); }
-                    catch { try { await _cache.RemoveAsync(CacheKey); } catch { } }
+                    var cached = await cacheTask;
+                    if (!string.IsNullOrEmpty(cached))
+                    {
+                        try { return Ok(JsonSerializer.Deserialize<IEnumerable<RegulationDto>>(cached, _jsonOptions)); }
+                        catch { try { _ = _cache.RemoveAsync(CacheKey); } catch { } }
+                    }
                 }
+                // else: timeout won — fall through to DB without waiting for Redis
             }
             catch { /* cache unavailable — fall through to DB */ }
 

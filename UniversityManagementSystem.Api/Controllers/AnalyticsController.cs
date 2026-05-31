@@ -338,18 +338,19 @@ namespace UniversityManagementSystem.Api.Controllers
         // ── GET /api/analytics/summary ────────────────────────────────────────
         /// <summary>
         /// Quick system-wide summary — counts + top departments + top subjects.
-        /// All counts in a single multi-query batch.
+        /// IgnoreQueryFilters() + explicit predicate bypasses the global filter
+        /// expression-tree bug that causes WHERE FALSE on some entity types.
         /// </summary>
         [HttpGet("summary")]
         public async Task<IActionResult> Summary()
         {
-            var studentCount    = await ActiveStudents.CountAsync();
-            var doctorCount     = await _context.Doctors.AsNoTracking().CountAsync(d => d.DeletedAt == null);
-            var offeringCount   = await _context.SubjectOfferings.AsNoTracking().CountAsync();
-            var enrollmentCount = await _context.Enrollments.AsNoTracking().CountAsync(e => e.IsActive && e.DeletedAt == null);
-            var collegeCount    = await _context.Colleges.AsNoTracking().CountAsync(c => c.DeletedAt == null);
-            var deptCount       = await _context.Departments.AsNoTracking().CountAsync(d => d.DeletedAt == null);
-            var batchCount      = await _context.Batches.AsNoTracking().CountAsync(b => b.DeletedAt == null);
+            var studentCount    = await ActiveStudents.IgnoreQueryFilters().CountAsync(s => s.IsActive && s.DeletedAt == null);
+            var doctorCount     = await _context.Doctors.AsNoTracking().IgnoreQueryFilters().CountAsync(d => d.DeletedAt == null);
+            var offeringCount   = await _context.SubjectOfferings.AsNoTracking().IgnoreQueryFilters().CountAsync(o => o.DeletedAt == null);
+            var enrollmentCount = await _context.Enrollments.AsNoTracking().IgnoreQueryFilters().CountAsync(e => e.IsActive && e.DeletedAt == null);
+            var collegeCount    = await _context.Colleges.AsNoTracking().IgnoreQueryFilters().CountAsync(c => c.DeletedAt == null);
+            var deptCount       = await _context.Departments.AsNoTracking().IgnoreQueryFilters().CountAsync(d => d.DeletedAt == null);
+            var batchCount      = await _context.Batches.AsNoTracking().IgnoreQueryFilters().CountAsync(b => b.DeletedAt == null);
 
             var studentCountsByDepartment = await GetStudentCountsByDepartmentAsync();
             var topDepartmentIds = studentCountsByDepartment

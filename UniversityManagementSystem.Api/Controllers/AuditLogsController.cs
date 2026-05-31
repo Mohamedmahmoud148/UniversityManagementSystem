@@ -55,24 +55,25 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Take(pageSize)
                 .Select(l => new
                 {
-                    l.Id,
+                    Id              = l.Id.ToString(),
                     l.ActionType,
                     l.EntityName,
-                    l.EntityId,
+                    EntityId        = l.EntityId.ToString(),
                     l.OldValues,
                     l.NewValues,
-                    l.PerformedByUserId,
+                    PerformedByUserId = l.PerformedByUserId.ToString(),
                     l.PerformedAt
                 })
                 .ToListAsync();
 
             return Ok(new
             {
-                Page = page,
-                PageSize = pageSize,
-                Total = total,
-                TotalPages = (int)Math.Ceiling(total / (double)pageSize),
-                Data = logs
+                page,
+                pageSize,
+                total,
+                totalPages = (int)Math.Ceiling(total / (double)pageSize),
+                hasNextPage = page * pageSize < total,
+                data = logs
             });
         }
     }
