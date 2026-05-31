@@ -48,5 +48,7 @@ namespace UniversityManagementSystem.Core.DTOs
         SubmissionStatus Status,
         double? Grade,
         string? Feedback,
-        bool IsAiGraded);
+        bool IsAiGraded,
+        string? FileUrl,
+        string? TextAnswer);
 }

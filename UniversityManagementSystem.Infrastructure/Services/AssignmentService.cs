@@ -250,6 +250,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 s.Status,
                 s.Grade,
                 s.Feedback ?? s.AiFeedback,
-                s.IsAiGraded);
+                s.IsAiGraded,
+                s.FileUrl,
+                s.TextAnswer);
     }
 }
