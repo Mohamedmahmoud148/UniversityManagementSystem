@@ -52,6 +52,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         // ── Interface Implementations ───────────────────────────────────────────
         public async Task<IEnumerable<Regulation>> GetAllAsync()
             => await _context.Regulations
+                .IgnoreQueryFilters()
                 .Include(r => r.File)
                 .Include(r => r.RegulationSubjects)
                 .Where(r => r.DeletedAt == null)
@@ -59,6 +60,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task<IEnumerable<Regulation>> GetActiveAsync()
             => await _context.Regulations
+                .IgnoreQueryFilters()
                 .Include(r => r.File)
                 .Include(r => r.RegulationSubjects)
                 .Where(r => r.IsActive && r.DeletedAt == null)

@@ -85,28 +85,36 @@ namespace UniversityManagementSystem.Api.Controllers
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<RegulationDto>>> GetAll()
         {
+            // Cache with a hard 800ms timeout so a dead/slow Redis never blocks the response
+            using var cacheCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(800));
             try
             {
-                var cached = await _cache.GetStringAsync(CacheKey);
+                var cached = await _cache.GetStringAsync(CacheKey, cacheCts.Token);
                 if (!string.IsNullOrEmpty(cached))
                 {
                     try { return Ok(JsonSerializer.Deserialize<IEnumerable<RegulationDto>>(cached, _jsonOptions)); }
                     catch { try { await _cache.RemoveAsync(CacheKey); } catch { } }
                 }
             }
-            catch { }
+            catch { /* cache unavailable — fall through to DB */ }
 
             var list = await _service.GetAllAsync();
             var dtos = new List<RegulationDto>();
             foreach (var r in list)
                 dtos.Add(await ToDto(r));
 
-            try
+            // Fire-and-forget cache write — never block the response on it
+            _ = Task.Run(async () =>
             {
-                await _cache.SetStringAsync(CacheKey, JsonSerializer.Serialize(dtos, _jsonOptions),
-                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) });
-            }
-            catch { }
+                try
+                {
+                    using var writeCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(800));
+                    await _cache.SetStringAsync(CacheKey, JsonSerializer.Serialize(dtos, _jsonOptions),
+                        new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5) },
+                        writeCts.Token);
+                }
+                catch { /* ignore cache write failures */ }
+            });
 
             return Ok(dtos);
         }
