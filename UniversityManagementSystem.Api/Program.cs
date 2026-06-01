@@ -409,6 +409,14 @@ builder.Services.AddScoped<IDeletionService, DeletionService>();
 builder.Services.AddScoped<IAssignmentService, AssignmentService>();
 builder.Services.AddScoped<IAcademicStatusService, AcademicStatusService>();
 builder.Services.AddScoped<IRegistrationService, RegistrationService>();
+
+// ── AI Companion Platform ────────────────────────────────────────────────────
+builder.Services.AddScoped<IAiCompanionService, AiCompanionService>();
+builder.Services.AddHostedService<AiFollowUpBackgroundService>();
+
+// ── AI Teaching Intelligence Platform ───────────────────────────────────────
+builder.Services.AddScoped<ITeachingIntelligenceService, TeachingIntelligenceService>();
+builder.Services.AddHostedService<TeachingIntelligenceBackgroundService>();
 builder.Services.AddScoped<IBulkUploadJob, BulkUploadJob>();
 builder.Services.AddScoped<IExcelImportService, ExcelImportService>();
 builder.Services.AddScoped<IStudentFileService, StudentFileService>();

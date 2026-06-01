@@ -117,4 +117,71 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
         public string ExamType { get; set; } = "Final";
         public System.Collections.Generic.List<string> Topics { get; set; } = new();
     }
+
+    // ── AI Companion Platform DTOs ────────────────────────────────────────────
+
+    /// <summary>Single flashcard item returned by FastAPI.</summary>
+    public class AiFlashcardItemDto
+    {
+        [JsonPropertyName("front")]      public string Front      { get; set; } = string.Empty;
+        [JsonPropertyName("back")]       public string Back       { get; set; } = string.Empty;
+        [JsonPropertyName("hint")]       public string? Hint      { get; set; }
+        [JsonPropertyName("difficulty")] public string Difficulty { get; set; } = "medium";
+    }
+
+    public class AiStudyPlanRequestDto
+    {
+        public string StudentId     { get; set; } = string.Empty;
+        public string StudentName   { get; set; } = string.Empty;
+        public List<string> WeakSubjects  { get; set; } = new();
+        public List<string> EnrolledSubjects { get; set; } = new();
+        public double Gpa           { get; set; }
+        public string Goal          { get; set; } = string.Empty;
+        public string LearningStyle { get; set; } = "mixed";
+        public int DaysUntilExam    { get; set; } = 14;
+    }
+
+    public class AiStudyPlanDto
+    {
+        [JsonPropertyName("plan_title")]   public string PlanTitle   { get; set; } = string.Empty;
+        [JsonPropertyName("daily_tasks")]  public List<AiDailyTaskDto> DailyTasks { get; set; } = new();
+        [JsonPropertyName("focus_areas")]  public List<string> FocusAreas { get; set; } = new();
+        [JsonPropertyName("motivational_note")] public string MotivationalNote { get; set; } = string.Empty;
+    }
+
+    public class AiDailyTaskDto
+    {
+        [JsonPropertyName("day")]          public string Day         { get; set; } = string.Empty;
+        [JsonPropertyName("subject")]      public string Subject     { get; set; } = string.Empty;
+        [JsonPropertyName("task")]         public string Task        { get; set; } = string.Empty;
+        [JsonPropertyName("duration_min")] public int DurationMin    { get; set; } = 30;
+    }
+
+    public class AiProgressReportRequestDto
+    {
+        public string StudentName   { get; set; } = string.Empty;
+        public int SessionsThisWeek { get; set; }
+        public double AvgAccuracy   { get; set; }
+        public int StudyMinutes     { get; set; }
+        public int StreakDays       { get; set; }
+        public List<string> WeakSubjects  { get; set; } = new();
+        public List<string> StrongSubjects { get; set; } = new();
+        public string Period        { get; set; } = "weekly";  // "weekly" | "monthly"
+    }
+
+    // ── Complaint analysis ────────────────────────────────────────────────────
+
+    public class AiAnalyzeComplaintRequestDto
+    {
+        public string ComplaintText { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+    }
+
+    public class AiComplaintAnalysisResponseDto
+    {
+        [JsonPropertyName("severity")]   public string Severity  { get; set; } = string.Empty;
+        [JsonPropertyName("sentiment")]  public string Sentiment { get; set; } = string.Empty;
+        [JsonPropertyName("summary")]    public string Summary   { get; set; } = string.Empty;
+        [JsonPropertyName("tags")]       public List<string> Tags { get; set; } = new();
+    }
 }

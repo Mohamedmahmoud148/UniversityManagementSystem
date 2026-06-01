@@ -62,6 +62,16 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<AcademicRiskScore> AcademicRiskScores { get; set; } = null!;
         public DbSet<ExamProctoringLog> ExamProctoringLogs { get; set; } = null!;
 
+        // ── AI Companion Platform ──────────────────────────────────────────
+        public DbSet<AiCompanionProfile> AiCompanionProfiles { get; set; } = null!;
+        public DbSet<LearningSession> LearningSessions { get; set; } = null!;
+        public DbSet<AiInsight> AiInsights { get; set; } = null!;
+        public DbSet<FlashcardDeck> FlashcardDecks { get; set; } = null!;
+        public DbSet<Flashcard> Flashcards { get; set; } = null!;
+
+        // ── AI Teaching Intelligence Platform ─────────────────────────────
+        public DbSet<StudentIntelligenceSnapshot> StudentIntelligenceSnapshots { get; set; } = null!;
+
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         {
             // --------------------------------------------------------

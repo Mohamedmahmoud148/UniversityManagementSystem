@@ -34,5 +34,31 @@ namespace UniversityManagementSystem.Core.Interfaces
         /// so it becomes searchable via RAG. Does not throw — logs internally.
         /// </summary>
         Task IndexMaterialAsync(string materialId, string fileUrl, string contentType, string title, string offeringId);
+
+        // ── AI Companion Platform additions ───────────────────────────────
+
+        /// <summary>
+        /// Generate AI flashcards for a topic.
+        /// Returns a list of (Front, Back, Hint, Difficulty) objects.
+        /// </summary>
+        Task<System.Collections.Generic.List<AiFlashcardItemDto>> GenerateFlashcardsAsync(
+            string topicName, int cardCount, string difficulty);
+
+        /// <summary>
+        /// Send a one-shot prompt to the AI and get a text response.
+        /// Used for feedback generation, recommendations, and summaries.
+        /// Does not require conversation context.
+        /// </summary>
+        Task<string?> SendQuickPromptAsync(string prompt);
+
+        /// <summary>
+        /// Generate a personalized study plan for a student based on their profile.
+        /// </summary>
+        Task<AiStudyPlanDto?> GenerateStudyPlanAsync(AiStudyPlanRequestDto request);
+
+        /// <summary>
+        /// Generate an academic progress report for a student.
+        /// </summary>
+        Task<string?> GenerateProgressReportAsync(AiProgressReportRequestDto request);
     }
 }

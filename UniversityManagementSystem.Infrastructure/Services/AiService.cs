@@ -310,5 +310,94 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             return new AiComplaintAnalysisResponseDto();
         }
+
+        // ----------------------------------------------------------------
+        // AI Companion: Flashcard Generation  —  POST /api/companion/generate-flashcards
+        // ----------------------------------------------------------------
+
+        public async Task<List<AiFlashcardItemDto>> GenerateFlashcardsAsync(
+            string topicName, int cardCount, string difficulty)
+        {
+            try
+            {
+                var payload = new { topic = topicName, card_count = cardCount, difficulty };
+                var response = await _httpClient.PostAsJsonAsync(
+                    "/api/companion/generate-flashcards", payload, _jsonOptions);
+                response.EnsureSuccessStatusCode();
+                var result = await response.Content
+                    .ReadFromJsonAsync<List<AiFlashcardItemDto>>(_jsonOptions);
+                return result ?? [];
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AiService] GenerateFlashcardsAsync – error for topic {Topic}.", topicName);
+                return [];
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // AI Companion: Quick Prompt  —  POST /api/companion/quick-prompt
+        // ----------------------------------------------------------------
+
+        public async Task<string?> SendQuickPromptAsync(string prompt)
+        {
+            try
+            {
+                var payload = new { prompt };
+                var response = await _httpClient.PostAsJsonAsync(
+                    "/api/companion/quick-prompt", payload, _jsonOptions);
+                response.EnsureSuccessStatusCode();
+                var result = await response.Content
+                    .ReadFromJsonAsync<Dictionary<string, string>>(_jsonOptions);
+                return result?.GetValueOrDefault("response");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("[AiService] SendQuickPromptAsync – error: {Error}", ex.Message);
+                return null;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // AI Companion: Study Plan  —  POST /api/companion/study-plan
+        // ----------------------------------------------------------------
+
+        public async Task<AiStudyPlanDto?> GenerateStudyPlanAsync(AiStudyPlanRequestDto request)
+        {
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync(
+                    "/api/companion/study-plan", request, _jsonOptions);
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadFromJsonAsync<AiStudyPlanDto>(_jsonOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AiService] GenerateStudyPlanAsync – error.");
+                return null;
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // AI Companion: Progress Report  —  POST /api/companion/progress-report
+        // ----------------------------------------------------------------
+
+        public async Task<string?> GenerateProgressReportAsync(AiProgressReportRequestDto request)
+        {
+            try
+            {
+                var response = await _httpClient.PostAsJsonAsync(
+                    "/api/companion/progress-report", request, _jsonOptions);
+                response.EnsureSuccessStatusCode();
+                var result = await response.Content
+                    .ReadFromJsonAsync<Dictionary<string, string>>(_jsonOptions);
+                return result?.GetValueOrDefault("report");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AiService] GenerateProgressReportAsync – error.");
+                return null;
+            }
+        }
     }
 }

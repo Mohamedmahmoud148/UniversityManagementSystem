@@ -1,0 +1,616 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using NUlid;
+using UniversityManagementSystem.Core.DTOs.Companion;
+using UniversityManagementSystem.Core.Entities;
+using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Infrastructure.Data;
+
+namespace UniversityManagementSystem.Infrastructure.Services
+{
+    public class AiCompanionService(
+        AppDbContext context,
+        IAiService aiService,
+        ILogger<AiCompanionService> logger) : IAiCompanionService
+    {
+        private readonly AppDbContext _context = context;
+        private readonly IAiService _aiService = aiService;
+        private readonly ILogger<AiCompanionService> _logger = logger;
+
+        // ── Profile ───────────────────────────────────────────────────────
+
+        public async Task<AiCompanionProfileDto> GetOrCreateProfileAsync(Ulid userId)
+        {
+            var profile = await _context.AiCompanionProfiles
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
+            if (profile == null)
+            {
+                profile = new AiCompanionProfile
+                {
+                    UserId = userId,
+                    ProfileUpdatedAt = DateTime.UtcNow,
+                };
+                _context.AiCompanionProfiles.Add(profile);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Created AiCompanionProfile for user {UserId}", userId);
+            }
+
+            return MapToProfileDto(profile);
+        }
+
+        public async Task<AiCompanionProfileDto> UpdateProfileAsync(
+            Ulid userId, UpdateCompanionProfileDto dto)
+        {
+            var profile = await _context.AiCompanionProfiles
+                .FirstOrDefaultAsync(p => p.UserId == userId)
+                ?? throw new KeyNotFoundException("Profile not found.");
+
+            if (dto.LearningStyle is not null)
+                profile.LearningStyle = dto.LearningStyle;
+            if (dto.CurrentGoal is not null)
+                profile.CurrentGoal = dto.CurrentGoal;
+            if (dto.PreferredStudyTime is not null)
+                profile.PreferredStudyTime = dto.PreferredStudyTime;
+
+            profile.ProfileUpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return MapToProfileDto(profile);
+        }
+
+        // ── Dashboard ─────────────────────────────────────────────────────
+
+        public async Task<CompanionDashboardDto> GetDashboardAsync(Ulid userId)
+        {
+            var profile = await GetOrCreateProfileAsync(userId);
+
+            var insights = await GetMyInsightsAsync(userId, unreadOnly: true);
+            var dueCards = await GetDueCardsAsync(userId, limit: 5);
+            var weeklyProgress = await BuildWeeklyProgressAsync(userId);
+
+            // AI-generated today's recommendations (fast: from profile data, no LLM)
+            var recommendations = BuildTodayRecommendations(profile);
+
+            return new CompanionDashboardDto(
+                Profile: profile,
+                RecentInsights: insights.Take(5).ToList(),
+                DueFlashcards: dueCards,
+                WeeklyProgress: weeklyProgress,
+                TodayRecommendations: recommendations);
+        }
+
+        // ── Learning Sessions ─────────────────────────────────────────────
+
+        public async Task<LearningSessionDto> StartSessionAsync(
+            Ulid userId, StartLearningSessionDto dto)
+        {
+            var profile = await _context.AiCompanionProfiles
+                .FirstOrDefaultAsync(p => p.UserId == userId);
+
+            if (profile == null)
+            {
+                profile = new AiCompanionProfile { UserId = userId };
+                _context.AiCompanionProfiles.Add(profile);
+                await _context.SaveChangesAsync();
+            }
+
+            var sessionType = Enum.TryParse<LearningSessionType>(
+                dto.SessionType, ignoreCase: true, out var st)
+                ? st : LearningSessionType.FreeStudy;
+
+            Ulid? offeringId = null;
+            if (Ulid.TryParse(dto.SubjectOfferingId, out var oid))
+                offeringId = oid;
+
+            var session = new LearningSession
+            {
+                UserId = userId,
+                AiCompanionProfileId = profile.Id,
+                SubjectOfferingId = offeringId,
+                SessionType = sessionType,
+                TopicName = dto.TopicName,
+                Status = LearningSessionStatus.Active,
+                StartedAt = DateTime.UtcNow,
+            };
+
+            _context.LearningSessions.Add(session);
+            profile.TotalSessions++;
+            profile.LastInteractionAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return MapToSessionDto(session);
+        }
+
+        public async Task<LearningSessionDto> CompleteSessionAsync(
+            Ulid sessionId, CompleteSessionDto dto)
+        {
+            var session = await _context.LearningSessions
+                .Include(s => s.AiCompanionProfile)
+                .FirstOrDefaultAsync(s => s.Id == sessionId)
+                ?? throw new KeyNotFoundException("Session not found.");
+
+            session.Status = LearningSessionStatus.Completed;
+            session.TotalQuestions = dto.TotalQuestions;
+            session.CorrectAnswers = dto.CorrectAnswers;
+            session.DurationMinutes = dto.DurationMinutes;
+            session.CompletedAt = DateTime.UtcNow;
+            session.AccuracyPercent = dto.TotalQuestions > 0
+                ? Math.Round((double)dto.CorrectAnswers / dto.TotalQuestions * 100, 1)
+                : 0;
+
+            if (!string.IsNullOrEmpty(dto.SessionDataJson))
+                session.SessionData = dto.SessionDataJson;
+
+            // Generate AI feedback for the session
+            session.AiFeedback = await GenerateSessionFeedbackAsync(session);
+
+            // Update streak and engagement score
+            UpdateEngagementMetrics(session.AiCompanionProfile, session);
+
+            await _context.SaveChangesAsync();
+            return MapToSessionDto(session);
+        }
+
+        public async Task<IList<LearningSessionDto>> GetSessionHistoryAsync(
+            Ulid userId, int page = 1, int pageSize = 20)
+        {
+            var sessions = await _context.LearningSessions
+                .Where(s => s.UserId == userId && s.DeletedAt == null)
+                .OrderByDescending(s => s.StartedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return sessions.Select(MapToSessionDto).ToList();
+        }
+
+        // ── Flashcards ────────────────────────────────────────────────────
+
+        public async Task<FlashcardDeckDto> GenerateFlashcardsAsync(
+            Ulid userId, GenerateFlashcardsDto dto)
+        {
+            Ulid? offeringId = null;
+            if (Ulid.TryParse(dto.SubjectOfferingId, out var oid))
+                offeringId = oid;
+
+            // Call FastAPI AI service to generate flashcard content
+            var aiCards = await _aiService.GenerateFlashcardsAsync(
+                dto.TopicName, dto.CardCount, dto.Difficulty);
+
+            var deck = new FlashcardDeck
+            {
+                UserId = userId,
+                SubjectOfferingId = offeringId,
+                Title = $"Flashcards: {dto.TopicName}",
+                TopicName = dto.TopicName,
+                CardCount = aiCards.Count,
+            };
+            _context.FlashcardDecks.Add(deck);
+            await _context.SaveChangesAsync();
+
+            var cards = aiCards.Select(c => new Flashcard
+            {
+                DeckId = deck.Id,
+                Front = c.Front,
+                Back = c.Back,
+                Hint = c.Hint,
+                Difficulty = Enum.TryParse<FlashcardDifficulty>(
+                    c.Difficulty, ignoreCase: true, out var d) ? d : FlashcardDifficulty.Medium,
+                NextReviewAt = DateTime.UtcNow,
+            }).ToList();
+
+            _context.Flashcards.AddRange(cards);
+            await _context.SaveChangesAsync();
+
+            return await GetDeckAsync(deck.Id);
+        }
+
+        public async Task<IList<FlashcardDeckDto>> GetMyDecksAsync(Ulid userId)
+        {
+            var decks = await _context.FlashcardDecks
+                .Where(d => d.UserId == userId && d.DeletedAt == null)
+                .Include(d => d.Cards)
+                .OrderByDescending(d => d.CreatedAt)
+                .ToListAsync();
+
+            return decks.Select(d => MapToDeckDto(d, userId)).ToList();
+        }
+
+        public async Task<FlashcardDeckDto> GetDeckAsync(Ulid deckId)
+        {
+            var deck = await _context.FlashcardDecks
+                .Include(d => d.Cards)
+                .FirstOrDefaultAsync(d => d.Id == deckId && d.DeletedAt == null)
+                ?? throw new KeyNotFoundException("Flashcard deck not found.");
+
+            return MapToDeckDto(deck, deck.UserId);
+        }
+
+        public async Task<FlashcardDto> ReviewCardAsync(Ulid cardId, ReviewFlashcardDto dto)
+        {
+            var card = await _context.Flashcards
+                .FirstOrDefaultAsync(c => c.Id == cardId)
+                ?? throw new KeyNotFoundException("Flashcard not found.");
+
+            // SM-2 Algorithm implementation
+            ApplySm2(card, dto.Quality);
+
+            card.LastReviewedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return MapToCardDto(card);
+        }
+
+        public async Task<IList<FlashcardDto>> GetDueCardsAsync(Ulid userId, int limit = 20)
+        {
+            var now = DateTime.UtcNow;
+            var cards = await _context.Flashcards
+                .Include(c => c.Deck)
+                .Where(c => c.Deck.UserId == userId
+                         && c.Deck.DeletedAt == null
+                         && c.NextReviewAt <= now)
+                .OrderBy(c => c.NextReviewAt)
+                .Take(limit)
+                .ToListAsync();
+
+            return cards.Select(MapToCardDto).ToList();
+        }
+
+        // ── Insights ──────────────────────────────────────────────────────
+
+        public async Task<IList<AiInsightDto>> GetMyInsightsAsync(
+            Ulid userId, bool unreadOnly = false)
+        {
+            var query = _context.AiInsights
+                .Where(i => i.UserId == userId && i.DeletedAt == null
+                    && (i.ExpiresAt == null || i.ExpiresAt > DateTime.UtcNow));
+
+            if (unreadOnly)
+                query = query.Where(i => !i.IsAcknowledged);
+
+            var insights = await query
+                .OrderByDescending(i => i.CreatedAt)
+                .Take(50)
+                .ToListAsync();
+
+            return insights.Select(MapToInsightDto).ToList();
+        }
+
+        public async Task AcknowledgeInsightAsync(Ulid insightId, Ulid userId)
+        {
+            var insight = await _context.AiInsights
+                .FirstOrDefaultAsync(i => i.Id == insightId)
+                ?? throw new KeyNotFoundException("Insight not found.");
+
+            if (insight.UserId != userId)
+                throw new UnauthorizedAccessException("Not your insight.");
+
+            insight.IsAcknowledged = true;
+            await _context.SaveChangesAsync();
+        }
+
+        // ── Doctor Analytics ──────────────────────────────────────────────
+
+        public async Task<ClassAnalyticsDto> GetClassAnalyticsAsync(
+            Ulid subjectOfferingId, Ulid doctorUserId)
+        {
+            // Verify the doctor owns this offering
+            var offering = await _context.SubjectOfferings
+                .Include(o => o.Subject)
+                .Include(o => o.SubjectDoctors)
+                .FirstOrDefaultAsync(o => o.Id == subjectOfferingId)
+                ?? throw new KeyNotFoundException("Subject offering not found.");
+
+            var doctorProfile = await _context.Doctors
+                .FirstOrDefaultAsync(d => d.SystemUserId == doctorUserId);
+
+            if (doctorProfile != null &&
+                !offering.SubjectDoctors.Any(sd => sd.DoctorId == doctorProfile.Id))
+                throw new UnauthorizedAccessException("You are not assigned to this subject.");
+
+            // Aggregate grade data
+            var grades = await _context.StudentGrades
+                .Where(g => g.SubjectOfferingId == subjectOfferingId)
+                .Select(g => new { g.FinalGrade, g.StudentId })
+                .ToListAsync();
+
+            var totalStudents = grades.Count;
+            var avgGrade = totalStudents > 0 ? grades.Average(g => g.FinalGrade ?? 0) : 0;
+            var passCount = grades.Count(g => (g.FinalGrade ?? 0) >= 50);
+            var passRate = totalStudents > 0 ? (double)passCount / totalStudents * 100 : 0;
+            var atRisk = grades.Count(g => (g.FinalGrade ?? 0) < 50);
+            var atRiskPct = totalStudents > 0 ? (double)atRisk / totalStudents * 100 : 0;
+
+            // Build grade trend from exam results
+            var trend = await BuildGradeTrendAsync(subjectOfferingId);
+            var weakTopics = await GetClassWeakTopicsAsync(subjectOfferingId, doctorUserId);
+
+            // Generate AI summary
+            var aiSummary = await GenerateClassSummaryAsync(
+                offering.Subject?.Name ?? "Subject", totalStudents, avgGrade,
+                passRate, atRiskPct, weakTopics);
+
+            return new ClassAnalyticsDto(
+                SubjectOfferingId: subjectOfferingId.ToString(),
+                SubjectName: offering.Subject?.Name ?? "Unknown",
+                TotalStudents: totalStudents,
+                AverageGrade: Math.Round(avgGrade, 1),
+                PassRate: Math.Round(passRate, 1),
+                AtRiskPercent: Math.Round(atRiskPct, 1),
+                WeakTopics: weakTopics.ToList(),
+                GradeTrend: trend,
+                AiSummary: aiSummary);
+        }
+
+        public async Task<IList<WeakTopicDto>> GetClassWeakTopicsAsync(
+            Ulid subjectOfferingId, Ulid doctorUserId)
+        {
+            // Identify weak exam topics by question-level performance
+            var questionStats = await _context.ExamSubmissions
+                .Where(es => es.Exam.SubjectOfferingId == subjectOfferingId)
+                .SelectMany(es => es.Answers)
+                .GroupBy(a => a.Question.Topic ?? a.Question.Text.Substring(0, 30))
+                .Select(g => new
+                {
+                    Topic = g.Key,
+                    AvgScore = g.Average(a => a.IsCorrect ? 100.0 : 0.0),
+                    TotalAnswers = g.Count(),
+                })
+                .Where(t => t.AvgScore < 60)
+                .OrderBy(t => t.AvgScore)
+                .Take(10)
+                .ToListAsync();
+
+            var weakTopics = new List<WeakTopicDto>();
+            foreach (var stat in questionStats)
+            {
+                var struggling = (int)(stat.TotalAnswers * (1 - stat.AvgScore / 100));
+                var rec = await GenerateTopicRecommendationAsync(stat.Topic, stat.AvgScore);
+                weakTopics.Add(new WeakTopicDto(
+                    TopicName: stat.Topic,
+                    AverageScore: Math.Round(stat.AvgScore, 1),
+                    StudentsStruggling: struggling,
+                    AiRecommendation: rec));
+            }
+
+            return weakTopics;
+        }
+
+        // ── Private helpers ───────────────────────────────────────────────
+
+        private static void ApplySm2(Flashcard card, int quality)
+        {
+            // SM-2 spaced repetition algorithm
+            quality = Math.Clamp(quality, 0, 5);
+
+            if (quality < 3)
+            {
+                // Incorrect — reset repetition
+                card.RepetitionCount = 0;
+                card.IntervalDays = 1;
+            }
+            else
+            {
+                // Correct
+                card.IntervalDays = card.RepetitionCount switch
+                {
+                    0 => 1,
+                    1 => 6,
+                    _ => (int)Math.Round(card.IntervalDays * card.EaseFactor),
+                };
+                card.RepetitionCount++;
+            }
+
+            // Update ease factor (SM-2 formula)
+            card.EaseFactor = Math.Max(1.3,
+                card.EaseFactor + 0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+            card.NextReviewAt = DateTime.UtcNow.AddDays(card.IntervalDays);
+        }
+
+        private static void UpdateEngagementMetrics(
+            AiCompanionProfile profile, LearningSession session)
+        {
+            var now = DateTime.UtcNow;
+            var lastDay = profile.LastInteractionAt?.Date;
+
+            if (lastDay == now.Date.AddDays(-1))
+                profile.CurrentStreakDays++;
+            else if (lastDay != now.Date)
+                profile.CurrentStreakDays = 1;  // restart streak
+
+            if (profile.CurrentStreakDays > profile.LongestStreakDays)
+                profile.LongestStreakDays = profile.CurrentStreakDays;
+
+            profile.LastInteractionAt = now;
+
+            // Simple engagement score: weighted average
+            var accuracyBonus = session.AccuracyPercent * 0.3;
+            var durationBonus = Math.Min(session.DurationMinutes * 0.5, 20);
+            var streakBonus = Math.Min(profile.CurrentStreakDays * 2.0, 30);
+            profile.EngagementScore = Math.Min(100,
+                profile.EngagementScore * 0.8 + (accuracyBonus + durationBonus + streakBonus) * 0.2);
+        }
+
+        private async Task<string> GenerateSessionFeedbackAsync(LearningSession session)
+        {
+            try
+            {
+                var prompt = $"Generate brief encouraging feedback (2-3 sentences) for a student who just completed a {session.SessionType} session on '{session.TopicName}'. They answered {session.CorrectAnswers}/{session.TotalQuestions} questions correctly ({session.AccuracyPercent:F0}% accuracy) in {session.DurationMinutes} minutes. Match the student's language — if the topic sounds Arabic, respond in Arabic.";
+                var result = await _aiService.SendQuickPromptAsync(prompt);
+                return result ?? "Great work on your study session! Keep it up.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Session feedback generation failed: {Error}", ex.Message);
+                return session.AccuracyPercent >= 80
+                    ? "ممتاز! أداء رائع في الجلسة دي. 🎉"
+                    : "استمر في المذاكرة! المراجعة المنتظمة هتحسن أداءك. 💪";
+            }
+        }
+
+        private async Task<string> GenerateClassSummaryAsync(
+            string subjectName, int total, double avg, double passRate,
+            double atRisk, IList<WeakTopicDto> weakTopics)
+        {
+            try
+            {
+                var topicList = string.Join(", ", weakTopics.Take(3).Select(t => t.TopicName));
+                var prompt = $"Analyze class performance: Subject={subjectName}, Students={total}, Average={avg:F1}, PassRate={passRate:F0}%, AtRisk={atRisk:F0}%, WeakTopics={topicList}. Provide a 2-3 sentence academic insight for the doctor. Respond in Arabic.";
+                return await _aiService.SendQuickPromptAsync(prompt) ?? "بيانات الفصل تم تحليلها.";
+            }
+            catch { return "تم تحليل بيانات الفصل الدراسي."; }
+        }
+
+        private async Task<string> GenerateTopicRecommendationAsync(string topic, double avgScore)
+        {
+            try
+            {
+                var prompt = $"Topic '{topic}' has average score {avgScore:F0}%. Give a 1-sentence teaching recommendation for the doctor. Be specific. Respond in Arabic.";
+                return await _aiService.SendQuickPromptAsync(prompt) ?? "يُنصح بمراجعة هذا الموضوع.";
+            }
+            catch { return "يُنصح بإعادة شرح هذا الموضوع بأمثلة تطبيقية."; }
+        }
+
+        private async Task<WeeklyProgressDto> BuildWeeklyProgressAsync(Ulid userId)
+        {
+            var weekAgo = DateTime.UtcNow.AddDays(-7);
+            var sessions = await _context.LearningSessions
+                .Where(s => s.UserId == userId
+                         && s.StartedAt >= weekAgo
+                         && s.Status == LearningSessionStatus.Completed)
+                .ToListAsync();
+
+            var dailyActivity = Enumerable.Range(0, 7)
+                .Select(i =>
+                {
+                    var date = DateTime.UtcNow.AddDays(-i).Date;
+                    var daySessions = sessions.Where(s => s.StartedAt.Date == date).ToList();
+                    return new DailyActivityDto(
+                        Date: date.ToString("yyyy-MM-dd"),
+                        Sessions: daySessions.Count,
+                        Minutes: daySessions.Sum(s => s.DurationMinutes));
+                })
+                .OrderBy(d => d.Date)
+                .ToList();
+
+            var flashcardsReviewed = await _context.Flashcards
+                .Include(c => c.Deck)
+                .CountAsync(c => c.Deck.UserId == userId
+                              && c.LastReviewedAt >= weekAgo);
+
+            return new WeeklyProgressDto(
+                SessionsThisWeek: sessions.Count,
+                AverageAccuracy: sessions.Any()
+                    ? Math.Round(sessions.Average(s => s.AccuracyPercent), 1) : 0,
+                FlashcardsReviewed: flashcardsReviewed,
+                StudyMinutes: sessions.Sum(s => s.DurationMinutes),
+                DailyActivity: dailyActivity);
+        }
+
+        private async Task<List<PerformanceTrendDto>> BuildGradeTrendAsync(Ulid subjectOfferingId)
+        {
+            var exams = await _context.Exams
+                .Where(e => e.SubjectOfferingId == subjectOfferingId)
+                .OrderBy(e => e.CreatedAt)
+                .Take(6)
+                .Select(e => new
+                {
+                    e.Title,
+                    Submissions = e.ExamSubmissions.Where(s => s.TotalScore != null)
+                })
+                .ToListAsync();
+
+            return exams.Select(e => new PerformanceTrendDto(
+                Label: e.Title,
+                Average: e.Submissions.Any()
+                    ? Math.Round(e.Submissions.Average(s => s.TotalScore ?? 0), 1) : 0,
+                PassRate: e.Submissions.Any()
+                    ? Math.Round(e.Submissions.Count(s => (s.TotalScore ?? 0) >= 50.0) * 100.0 / e.Submissions.Count(), 1) : 0
+            )).ToList();
+        }
+
+        private static List<string> BuildTodayRecommendations(AiCompanionProfileDto profile)
+        {
+            var recs = new List<string>();
+
+            if (profile.DueFlashcards is null && profile.CurrentStreakDays == 0)
+                recs.Add("ابدأ جلسة مذاكرة اليوم لتبدأ streak جديدة 🔥");
+
+            if (profile.WeakSubjects.Any())
+                recs.Add($"راجع موضوع في {profile.WeakSubjects.First()} — ده من أضعف مواضيعك 📚");
+
+            if (profile.CurrentStreakDays > 0)
+                recs.Add($"Streak بتاعك {profile.CurrentStreakDays} يوم — استمر عشان ما تكسرهاش ⚡");
+
+            if (!recs.Any())
+                recs.Add("جرب تعمل quiz سريع على أي موضوع بتذاكره دلوقتي 🎯");
+
+            return recs.Take(3).ToList();
+        }
+
+        // ── Mapping helpers ───────────────────────────────────────────────
+
+        private static AiCompanionProfileDto MapToProfileDto(AiCompanionProfile p)
+        {
+            var weakSubjects = TryParseStringList(p.WeakSubjects);
+            var strongSubjects = TryParseStringList(p.StrongSubjects);
+            var activeGoals = TryParseStringList(p.ActiveGoals);
+            var milestones = TryParseStringList(p.Milestones);
+
+            return new AiCompanionProfileDto(
+                UserId: p.UserId.ToString(),
+                LearningStyle: p.LearningStyle,
+                CurrentGoal: p.CurrentGoal,
+                PreferredStudyTime: p.PreferredStudyTime,
+                WeakSubjects: weakSubjects,
+                StrongSubjects: strongSubjects,
+                TotalSessions: p.TotalSessions,
+                CurrentStreakDays: p.CurrentStreakDays,
+                LongestStreakDays: p.LongestStreakDays,
+                EngagementScore: p.EngagementScore,
+                LastInteractionAt: p.LastInteractionAt,
+                ActiveGoals: activeGoals,
+                Milestones: milestones);
+        }
+
+        private static LearningSessionDto MapToSessionDto(LearningSession s) =>
+            new(s.Id.ToString(), s.SessionType.ToString(), s.TopicName,
+                s.Status.ToString(), s.TotalQuestions, s.CorrectAnswers,
+                s.AccuracyPercent, s.DurationMinutes, s.AiFeedback,
+                s.StartedAt, s.CompletedAt);
+
+        private static FlashcardDeckDto MapToDeckDto(FlashcardDeck deck, Ulid userId)
+        {
+            var now = DateTime.UtcNow;
+            var dueToday = deck.Cards.Count(c => c.NextReviewAt <= now);
+            return new FlashcardDeckDto(
+                Id: deck.Id.ToString(),
+                Title: deck.Title,
+                TopicName: deck.TopicName,
+                CardCount: deck.CardCount,
+                DueToday: dueToday,
+                CreatedAt: deck.CreatedAt,
+                Cards: deck.Cards.Select(MapToCardDto).ToList());
+        }
+
+        private static FlashcardDto MapToCardDto(Flashcard c) =>
+            new(c.Id.ToString(), c.Front, c.Back, c.Hint,
+                c.Difficulty.ToString(), c.RepetitionCount,
+                c.EaseFactor, c.NextReviewAt);
+
+        private static AiInsightDto MapToInsightDto(AiInsight i) =>
+            new(i.Id.ToString(), i.InsightType.ToString(),
+                i.Priority.ToString(), i.Title, i.Message,
+                i.ActionUrl, i.IsAcknowledged, i.CreatedAt, i.ExpiresAt);
+
+        private static List<string> TryParseStringList(string json)
+        {
+            try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; }
+            catch { return []; }
+        }
+    }
+}
