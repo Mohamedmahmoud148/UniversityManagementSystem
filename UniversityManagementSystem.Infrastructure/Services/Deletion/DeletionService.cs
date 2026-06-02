@@ -323,7 +323,6 @@ namespace UniversityManagementSystem.Infrastructure.Services.Deletion
                 ("Subject",         "SubjectDoctor")        => await context.SubjectDoctors.CountAsync(x => x.SubjectId == parentId),
                 ("Subject",         "SubjectAssistant")     => await context.SubjectAssistants.CountAsync(x => x.SubjectId == parentId),
                 ("Subject",         "RegulationSubject")    => await context.RegulationSubjects.CountAsync(x => x.SubjectId == parentId),
-                ("Subject",         "AttendanceSession")    => await context.AttendanceSessions.CountAsync(x => x.SubjectId == parentId),
                 ("Regulation",      "RegulationSubject")    => await context.RegulationSubjects.CountAsync(x => x.RegulationId == parentId),
                 ("Semester",        "SubjectOffering")      => await context.SubjectOfferings.CountAsync(x => x.SemesterId == parentId),
                 ("SubjectOffering", "Enrollment")           => await context.Enrollments.CountAsync(x => x.SubjectOfferingId == parentId),
@@ -333,15 +332,12 @@ namespace UniversityManagementSystem.Infrastructure.Services.Deletion
                 ("SubjectOffering", "ScheduleEntry")        => await context.ScheduleEntries.CountAsync(x => x.SubjectOfferingId == parentId),
                 ("Doctor",          "SubjectOffering")      => await context.SubjectOfferings.CountAsync(x => x.DoctorId == parentId),
                 ("Doctor",          "SubjectDoctor")        => await context.SubjectDoctors.CountAsync(x => x.DoctorId == parentId),
-                ("Doctor",          "AttendanceSession")    => await context.AttendanceSessions.CountAsync(x => x.DoctorId == parentId),
                 ("Doctor",          "Material")             => await context.Materials.CountAsync(x => x.UploadedByDoctorId == parentId),
                 ("Doctor",          "Exam")                 => await context.Exams.CountAsync(x => x.CreatedByDoctorId == parentId),
                 ("TeachingAssistant", "SubjectAssistant")   => await context.SubjectAssistants.CountAsync(x => x.TeachingAssistantId == parentId),
-                ("TeachingAssistant", "AttendanceSession")  => await context.AttendanceSessions.CountAsync(x => x.TeachingAssistantId == parentId),
                 ("Student",         "Enrollment")           => await context.Enrollments.CountAsync(x => x.StudentId == parentId),
                 ("Student",         "StudentGrade")         => await context.StudentGrades.CountAsync(x => x.StudentId == parentId),
                 ("Student",         "ExamSubmission")       => await context.ExamSubmissions.CountAsync(x => x.StudentId == parentId),
-                ("Student",         "StudentAttendance")    => await context.StudentAttendances.CountAsync(x => x.StudentId == parentId),
                 ("Student",         "StudentExamVariant")   => await context.StudentExamVariants.CountAsync(x => x.StudentId == parentId),
                 ("Student",         "StudentFile")          => await context.StudentFiles.CountAsync(x => x.UploadedByStudentId == parentId),
                 ("Student",         "Complaint")            => await context.Complaints.CountAsync(x => x.StudentId == parentId),
@@ -354,7 +350,6 @@ namespace UniversityManagementSystem.Infrastructure.Services.Deletion
                 ("Exam",            "StudentExamVariant")   => await context.StudentExamVariants.CountAsync(x => x.ExamId == parentId),
                 ("Complaint",       "ComplaintAnalysis")    => await context.ComplaintAnalyses.CountAsync(x => x.ComplaintId == parentId),
                 ("Conversation",    "ChatMessage")          => await context.ChatMessages.CountAsync(x => x.ConversationId == parentId),
-                ("AttendanceSession","StudentAttendance")   => await context.StudentAttendances.CountAsync(x => x.AttendanceSessionId == parentId),
                 _                                           => 0
             };
         }
@@ -624,14 +619,6 @@ namespace UniversityManagementSystem.Infrastructure.Services.Deletion
                 case "Exam":
                     var exam = await context.Exams.FindAsync(entityId);
                     if (exam != null) { exam.DeletedAt = now; counts["Exam"] = 1; steps.Add("Soft-deleted Exam"); }
-                    break;
-                case "AttendanceSession":
-                    var atSess = await context.AttendanceSessions.FindAsync(entityId);
-                    if (atSess != null) { atSess.DeletedAt = now; counts["AttendanceSession"] = 1; steps.Add("Soft-deleted Attendance Session"); }
-                    break;
-                case "StudentAttendance":
-                    var atRec = await context.StudentAttendances.FindAsync(entityId);
-                    if (atRec != null) { atRec.DeletedAt = now; counts["StudentAttendance"] = 1; steps.Add("Soft-deleted Attendance Record"); }
                     break;
                 case "Material":
                     var mat = await context.Materials.FindAsync(entityId);

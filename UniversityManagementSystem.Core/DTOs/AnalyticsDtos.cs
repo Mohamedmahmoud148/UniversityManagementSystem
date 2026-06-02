@@ -128,14 +128,12 @@ namespace UniversityManagementSystem.Core.DTOs
         string OfferingId,
         string SubjectName,
         double AvgGrade,
-        double AttendanceRate,
         int EnrollmentCount,
         double PassRate);
 
     public record StudentPerformanceDto(
         string SubjectName,
         double? Grade,
-        double AttendancePercent,
         string Status);
 
     public record AtRiskStudentDto
@@ -145,7 +143,6 @@ namespace UniversityManagementSystem.Core.DTOs
         public string FullName         { get; init; } = string.Empty;
         public string DepartmentName   { get; init; } = string.Empty;
         public double? Gpa             { get; init; }
-        public double AttendanceRate   { get; init; }
         public int    FailingSubjects  { get; init; }
         public string RiskLevel        { get; init; } = string.Empty;
     }
@@ -154,7 +151,6 @@ namespace UniversityManagementSystem.Core.DTOs
         string DepartmentName,
         double AvgGpa,
         double PassRate,
-        double AttendanceRate,
         int StudentCount);
 
     public record AdminDashboardDto(
@@ -172,13 +168,11 @@ namespace UniversityManagementSystem.Core.DTOs
     public record DoctorDashboardDto(
         int TotalOfferings,
         int TotalStudents,
-        double AvgAttendance,
         double AvgGrade,
         List<CoursePerformanceDto> Offerings);
 
     public record StudentDashboardDto(
         double CurrentGpa,
-        double OverallAttendance,
         int EnrolledCourses,
         List<StudentPerformanceDto> SubjectDetails);
 }

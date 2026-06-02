@@ -30,74 +30,6 @@ namespace UniversityManagementSystem.Api.Controllers
                 .AsNoTracking()
                 .Where(s => s.IsActive);
 
-        // ── GET /api/analytics/attendance/trends ──────────────────────────────
-        /// <summary>
-        /// Weekly attendance % for the last N weeks for a given offering (by SubjectId).
-        /// </summary>
-        [HttpGet("attendance/trends")]
-        [Authorize(Roles = "Doctor,Admin,SuperAdmin")]
-        public async Task<IActionResult> AttendanceTrends(
-            [FromQuery] string offeringId,
-            [FromQuery] int weeks = 8)
-        {
-            if (!Ulid.TryParse(offeringId, out var oId))
-                return BadRequest("Invalid offeringId.");
-
-            weeks = Math.Clamp(weeks, 1, 52);
-
-            var offering = await _context.SubjectOfferings
-                .AsNoTracking()
-                .Where(o => o.Id == oId && o.DeletedAt == null)
-                .Select(o => new { o.SubjectId })
-                .FirstOrDefaultAsync();
-
-            if (offering == null)
-                return NotFound("Offering not found.");
-
-            var cutoff = DateTime.UtcNow.AddDays(-weeks * 7);
-
-            var sessions = await _context.AttendanceSessions
-                .AsNoTracking()
-                .Where(s => s.SubjectId == offering.SubjectId && s.SessionDate >= cutoff && s.DeletedAt == null)
-                .Select(s => new { s.Id, s.SessionDate })
-                .ToListAsync();
-
-            if (!sessions.Any())
-                return Ok(new List<AttendanceTrendDto>());
-
-            var sessionIds = sessions.Select(s => s.Id).ToList();
-
-            var attendances = await _context.StudentAttendances
-                .AsNoTracking()
-                .Where(a => sessionIds.Contains(a.AttendanceSessionId) && a.DeletedAt == null)
-                .Select(a => new { a.AttendanceSessionId, a.IsPresent })
-                .ToListAsync();
-
-            var attBySession = attendances
-                .GroupBy(a => a.AttendanceSessionId)
-                .ToDictionary(g => g.Key, g => new { Total = g.Count(), Present = g.Count(x => x.IsPresent) });
-
-            var result = sessions
-                .Select(s => new
-                {
-                    s.Id,
-                    s.SessionDate,
-                    Week = $"{s.SessionDate:yyyy}-W{System.Globalization.ISOWeek.GetWeekOfYear(s.SessionDate):D2}",
-                })
-                .GroupBy(s => s.Week)
-                .OrderBy(g => g.Key)
-                .Select(g =>
-                {
-                    var totalRecs  = g.Sum(s => attBySession.TryGetValue(s.Id, out var a) ? a.Total : 0);
-                    var presentRecs= g.Sum(s => attBySession.TryGetValue(s.Id, out var a) ? a.Present : 0);
-                    var pct = totalRecs > 0 ? Math.Round((double)presentRecs / totalRecs * 100, 1) : 0;
-                    return new AttendanceTrendDto(g.Key, pct, g.Count(), presentRecs);
-                })
-                .ToList();
-
-            return Ok(result);
-        }
-
         // ── GET /api/analytics/grades/distribution ────────────────────────────
         [HttpGet("grades/distribution")]
         [Authorize(Roles = "Doctor,Admin,SuperAdmin")]
@@ -167,30 +99,18 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Select(g => new { g.StudentId, g.FinalScore, g.GradePoints })
                 .ToListAsync();
 
-            var attendances = await _context.StudentAttendances
-                .AsNoTracking()
-                .Where(a => studentIds.Contains(a.StudentId) && a.DeletedAt == null)
-                .Select(a => new { a.StudentId, a.IsPresent })
-                .ToListAsync();
-
-            var gradesByStudent     = grades.GroupBy(g => g.StudentId).ToDictionary(g => g.Key, g => g.ToList());
-            var attendanceByStudent = attendances.GroupBy(a => a.StudentId).ToDictionary(a => a.Key, a => a.ToList());
+            var gradesByStudent = grades.GroupBy(g => g.StudentId).ToDictionary(g => g.Key, g => g.ToList());
 
             var result = students
                 .Select(s =>
                 {
-                    var sg = gradesByStudent.TryGetValue(s.Id, out var gl) ? gl : new();
-                    var sa = attendanceByStudent.TryGetValue(s.Id, out var al) ? al : new();
-
+                    var sg      = gradesByStudent.TryGetValue(s.Id, out var gl) ? gl : new();
                     var gpa     = sg.Any() ? (double?)Math.Round(sg.Average(x => x.GradePoints), 2) : null;
-                    var attRate = sa.Any() ? Math.Round((double)sa.Count(x => x.IsPresent) / sa.Count * 100, 1) : 100.0;
                     var failing = sg.Count(x => x.FinalScore < 50);
 
                     string risk = "Low";
-                    if ((gpa.HasValue && gpa < 1.5) || attRate < 60 || failing >= 3)
-                        risk = "High";
-                    else if ((gpa.HasValue && gpa < 2.0) || attRate < 75 || failing >= 1)
-                        risk = "Medium";
+                    if ((gpa.HasValue && gpa < 1.5) || failing >= 3) risk = "High";
+                    else if ((gpa.HasValue && gpa < 2.0) || failing >= 1) risk = "Medium";
 
                     return new AtRiskStudentDto
                     {
@@ -199,7 +119,6 @@ namespace UniversityManagementSystem.Api.Controllers
                         FullName        = s.FullName,
                         DepartmentName  = s.DepartmentName,
                         Gpa             = gpa,
-                        AttendanceRate  = attRate,
                         FailingSubjects = failing,
                         RiskLevel       = risk,
                     };
@@ -248,49 +167,15 @@ namespace UniversityManagementSystem.Api.Controllers
                 })
                 .ToListAsync();
 
-            var subjectIds     = offerings.Select(o => o.SubjectId).Distinct().ToList();
-            var subjectIdMap   = offerings.ToDictionary(o => o.Id, o => o.SubjectId);
-
-            var sessions = await _context.AttendanceSessions
-                .AsNoTracking()
-                .Where(s => subjectIds.Contains(s.SubjectId) && s.DeletedAt == null)
-                .Select(s => new { s.Id, s.SubjectId })
-                .ToListAsync();
-
-            var sessionIds = sessions.Select(s => s.Id).ToList();
-            var attRecs    = await _context.StudentAttendances
-                .AsNoTracking()
-                .Where(a => sessionIds.Contains(a.AttendanceSessionId) && a.DeletedAt == null)
-                .Select(a => new { a.AttendanceSessionId, a.IsPresent })
-                .ToListAsync();
-
-            var attBySession = attRecs
-                .GroupBy(a => a.AttendanceSessionId)
-                .ToDictionary(g => g.Key, g => new { Total = g.Count(), Present = g.Count(x => x.IsPresent) });
-
-            var attBySubject = sessions
-                .GroupBy(s => s.SubjectId)
-                .ToDictionary(
-                    g => g.Key,
-                    g =>
-                    {
-                        var tot = g.Sum(s => attBySession.TryGetValue(s.Id, out var a) ? a.Total : 0);
-                        var pre = g.Sum(s => attBySession.TryGetValue(s.Id, out var a) ? a.Present : 0);
-                        return tot > 0 ? Math.Round((double)pre / tot * 100, 1) : 0.0;
-                    });
-
             var gradeDict = gradeStats.ToDictionary(x => x.OfferingId);
 
             var result = offerings.Select(o =>
             {
-                var gs      = gradeDict.TryGetValue(o.Id, out var g) ? g : null;
-                var subjId  = subjectIdMap.TryGetValue(o.Id, out var sid) ? sid : default;
-                var attRate = attBySubject.TryGetValue(subjId, out var ar) ? ar : 0.0;
+                var gs = gradeDict.TryGetValue(o.Id, out var g) ? g : null;
                 return new CoursePerformanceDto(
                     o.Id.ToString(),
                     o.SubjectName,
                     gs != null ? Math.Round(gs.Avg, 1) : 0,
-                    attRate,
                     enrollmentCounts.TryGetValue(o.Id, out var ec) ? ec : 0,
                     gs != null && gs.Total > 0 ? Math.Round((double)gs.Pass / gs.Total * 100, 1) : 0);
             }).ToList();
@@ -328,35 +213,13 @@ namespace UniversityManagementSystem.Api.Controllers
                 })
                 .ToListAsync();
 
-            var subjectIds = grades.Select(g => g.SubjectId).Distinct().ToList();
-
-            var sessions = await _context.AttendanceSessions
-                .AsNoTracking()
-                .Where(s => subjectIds.Contains(s.SubjectId) && s.DeletedAt == null)
-                .Select(s => new { s.Id, s.SubjectId })
-                .ToListAsync();
-
-            var sessionIds = sessions.Select(s => s.Id).ToList();
-            var attRecs    = await _context.StudentAttendances
-                .AsNoTracking()
-                .Where(a => a.StudentId == sId && sessionIds.Contains(a.AttendanceSessionId) && a.DeletedAt == null)
-                .Select(a => new { a.AttendanceSessionId, a.IsPresent })
-                .ToListAsync();
-
-            var sessionSubjectMap = sessions.ToDictionary(s => s.Id, s => s.SubjectId);
-            var attBySubject = attRecs
-                .GroupBy(a => sessionSubjectMap.TryGetValue(a.AttendanceSessionId, out var sid) ? sid : default)
-                .Where(g => g.Key != default)
-                .ToDictionary(g => g.Key, g => Math.Round((double)g.Count(x => x.IsPresent) / g.Count() * 100, 1));
-
             var result = grades.Select(g =>
             {
-                var att    = attBySubject.TryGetValue(g.SubjectId, out var a) ? a : 100.0;
                 var status = g.FinalScore >= 85 ? "Excellent"
                            : g.FinalScore >= 70 ? "Good"
                            : g.FinalScore >= 50 ? "Average"
                            : "Failing";
-                return new StudentPerformanceDto(g.SubjectName, g.FinalScore, att, status);
+                return new StudentPerformanceDto(g.SubjectName, g.FinalScore, status);
             }).ToList();
 
             return Ok(result);
@@ -389,12 +252,6 @@ namespace UniversityManagementSystem.Api.Controllers
                 .Select(g => new { g.StudentId, g.GradePoints, g.FinalScore })
                 .ToListAsync();
 
-            var attendances = await _context.StudentAttendances
-                .AsNoTracking()
-                .Where(a => allStudentIds.Contains(a.StudentId) && a.DeletedAt == null)
-                .Select(a => new { a.StudentId, a.IsPresent })
-                .ToListAsync();
-
             var gradeByDept = grades
                 .GroupBy(g => studentDeptMap.TryGetValue(g.StudentId, out var d) ? d : default)
                 .Where(g => g.Key != default)
@@ -406,25 +263,16 @@ namespace UniversityManagementSystem.Api.Controllers
                         PassRate = g.Any() ? Math.Round((double)g.Count(x => x.FinalScore >= 50) / g.Count() * 100, 1) : 0.0,
                     });
 
-            var attByDept = attendances
-                .GroupBy(a => studentDeptMap.TryGetValue(a.StudentId, out var d) ? d : default)
-                .Where(g => g.Key != default)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.Any() ? Math.Round((double)g.Count(x => x.IsPresent) / g.Count() * 100, 1) : 0.0);
-
             var countByDept = studentDeptData.GroupBy(s => s.DepartmentId).ToDictionary(g => g.Key, g => g.Count());
 
             var result = departments
                 .Select(d =>
                 {
-                    var gd  = gradeByDept.TryGetValue(d.Id, out var g) ? g : null;
-                    var att = attByDept.TryGetValue(d.Id, out var a) ? a : 0.0;
+                    var gd = gradeByDept.TryGetValue(d.Id, out var g) ? g : null;
                     return new DepartmentComparisonDto(
                         d.Name,
                         gd?.AvgGpa ?? 0,
                         gd?.PassRate ?? 0,
-                        att,
                         countByDept.TryGetValue(d.Id, out var c) ? c : 0);
                 })
                 .OrderByDescending(d => d.AvgGpa)
@@ -531,12 +379,11 @@ namespace UniversityManagementSystem.Api.Controllers
                     o.Id.ToString(),
                     o.SubjectName,
                     gs != null ? Math.Round(gs.Avg, 1) : 0,
-                    0, // attendance per offering requires session linkage; placeholder
                     enrollmentCounts.TryGetValue(o.Id, out var ec) ? ec : 0,
                     gs != null && gs.Total > 0 ? Math.Round((double)gs.Pass / gs.Total * 100, 1) : 0);
             }).ToList();
 
-            return Ok(new DoctorDashboardDto(offerings.Count, totalStudents, 0, avgGrade, courseList));
+            return Ok(new DoctorDashboardDto(offerings.Count, totalStudents, avgGrade, courseList));
         }
 
         // ── GET /api/analytics/dashboard/student ──────────────────────────────
@@ -566,41 +413,16 @@ namespace UniversityManagementSystem.Api.Controllers
 
             var currentGpa = grades.Any() ? Math.Round(grades.Average(g => g.GradePoints), 2) : 0.0;
 
-            var subjectIds = grades.Select(g => g.SubjectId).Distinct().ToList();
-            var sessions   = await _context.AttendanceSessions
-                .AsNoTracking()
-                .Where(s => subjectIds.Contains(s.SubjectId) && s.DeletedAt == null)
-                .Select(s => new { s.Id, s.SubjectId })
-                .ToListAsync();
-
-            var sessionIds = sessions.Select(s => s.Id).ToList();
-            var attRecs    = await _context.StudentAttendances
-                .AsNoTracking()
-                .Where(a => a.StudentId == studentId && sessionIds.Contains(a.AttendanceSessionId) && a.DeletedAt == null)
-                .Select(a => new { a.AttendanceSessionId, a.IsPresent })
-                .ToListAsync();
-
-            var overallAtt = attRecs.Any()
-                ? Math.Round((double)attRecs.Count(x => x.IsPresent) / attRecs.Count * 100, 1)
-                : 100.0;
-
-            var sessionSubjectMap = sessions.ToDictionary(s => s.Id, s => s.SubjectId);
-            var attBySubject = attRecs
-                .GroupBy(a => sessionSubjectMap.TryGetValue(a.AttendanceSessionId, out var sid) ? sid : default)
-                .Where(g => g.Key != default)
-                .ToDictionary(g => g.Key, g => Math.Round((double)g.Count(x => x.IsPresent) / g.Count() * 100, 1));
-
             var subjectDetails = grades.Select(g =>
             {
-                var att    = attBySubject.TryGetValue(g.SubjectId, out var a) ? a : 100.0;
                 var status = g.FinalScore >= 85 ? "Excellent"
                            : g.FinalScore >= 70 ? "Good"
                            : g.FinalScore >= 50 ? "Average"
                            : "Failing";
-                return new StudentPerformanceDto(g.SubjectName, g.FinalScore, att, status);
+                return new StudentPerformanceDto(g.SubjectName, g.FinalScore, status);
             }).ToList();
 
-            return Ok(new StudentDashboardDto(currentGpa, overallAtt, enrolledCourses, subjectDetails));
+            return Ok(new StudentDashboardDto(currentGpa, enrolledCourses, subjectDetails));
         }
     }
 }

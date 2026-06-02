@@ -51,10 +51,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 int atRisk = snap.Count(s => s.RiskLevel is RiskLevel.High or RiskLevel.Critical);
                 double avgGrade = total > 0 ? snap.Where(s => s.FinalScore.HasValue)
                     .Select(s => s.FinalScore!.Value).DefaultIfEmpty(0).Average() : 0;
-                double avgAtt = total > 0 ? snap.Average(s => s.AttendancePercent) : 0;
                 double completion = total > 0 ? snap.Average(s => s.AssignmentCompletionRate) : 0;
 
-                string health = ComputeClassHealth(avgGrade, avgAtt, atRisk, total);
+                string health = ComputeClassHealth(avgGrade, atRisk, total);
 
                 result.Add(new DoctorOfferingSummaryDto(
                     OfferingId: offering.Id.ToString(),
@@ -68,7 +67,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     TotalStudents: total,
                     AtRiskCount: atRisk,
                     AverageGrade: Math.Round(avgGrade, 1),
-                    AverageAttendance: Math.Round(avgAtt, 1),
                     AssignmentCompletionRate: Math.Round(completion, 1),
                     OverallHealth: health
                 ));
@@ -98,7 +96,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 MediumRiskCount:           allSnapshots.Count(s => s.RiskLevel == RiskLevel.Medium),
                 OverallAverageGrade:       allSnapshots.Any(s => s.FinalScore.HasValue)
                     ? Math.Round(allSnapshots.Where(s => s.FinalScore.HasValue).Average(s => s.FinalScore!.Value), 1) : 0,
-                OverallAttendanceRate:     allSnapshots.Any() ? Math.Round(allSnapshots.Average(s => s.AttendancePercent), 1) : 0,
                 OverallAssignmentCompletion: allSnapshots.Any() ? Math.Round(allSnapshots.Average(s => s.AssignmentCompletionRate), 1) : 0,
                 MostImprovedCount:         allSnapshots.Count(s => s.OverallTrend == "improving"),
                 DecliningCount:            allSnapshots.Count(s => s.OverallTrend == "declining")
@@ -152,10 +149,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
             // Sort
             query = filter.SortBy.ToLower() switch
             {
-                "name"       => filter.SortDir == "desc" ? query.OrderByDescending(s => s.StudentName) : query.OrderBy(s => s.StudentName),
-                "grade"      => filter.SortDir == "desc" ? query.OrderByDescending(s => s.FinalScore) : query.OrderBy(s => s.FinalScore),
-                "attendance" => filter.SortDir == "desc" ? query.OrderByDescending(s => s.AttendancePercent) : query.OrderBy(s => s.AttendancePercent),
-                _            => query.OrderByDescending(s => s.RiskScore),
+                "name"  => filter.SortDir == "desc" ? query.OrderByDescending(s => s.StudentName) : query.OrderBy(s => s.StudentName),
+                "grade" => filter.SortDir == "desc" ? query.OrderByDescending(s => s.FinalScore) : query.OrderBy(s => s.FinalScore),
+                _       => query.OrderByDescending(s => s.RiskScore),
             };
 
             var snapshots = await query.ToListAsync();
@@ -183,7 +179,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             double avgGrade = total > 0 && snapshots.Any(s => s.FinalScore.HasValue)
                 ? Math.Round(snapshots.Where(s => s.FinalScore.HasValue).Average(s => s.FinalScore!.Value), 1) : 0;
-            double avgAtt = total > 0 ? Math.Round(snapshots.Average(s => s.AttendancePercent), 1) : 0;
             double avgCompletion = total > 0 ? Math.Round(snapshots.Average(s => s.AssignmentCompletionRate), 1) : 0;
             double avgQuiz = snapshots.Any(s => s.AvgQuizScore.HasValue)
                 ? Math.Round(snapshots.Where(s => s.AvgQuizScore.HasValue).Average(s => s.AvgQuizScore!.Value), 1) : 0;
@@ -193,7 +188,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             int atRisk = snapshots.Count(s => s.RiskLevel is RiskLevel.High or RiskLevel.Critical);
             int critical = snapshots.Count(s => s.RiskLevel == RiskLevel.Critical);
-            string health = ComputeClassHealth(avgGrade, avgAtt, atRisk, total);
+            string health = ComputeClassHealth(avgGrade, atRisk, total);
 
             int improving = snapshots.Count(s => s.OverallTrend == "improving");
             int declining  = snapshots.Count(s => s.OverallTrend == "declining");
@@ -209,7 +204,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 GroupName: offering?.Group?.Name ?? "",
                 TotalStudents: total,
                 AverageGrade: avgGrade,
-                AverageAttendance: avgAtt,
                 AssignmentCompletionRate: avgCompletion,
                 AverageQuizScore: avgQuiz > 0 ? avgQuiz : null,
                 AverageExamScore: avgExam > 0 ? avgExam : null,
@@ -281,7 +275,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return await _context.StudentIntelligenceSnapshots
                 .Where(s => s.SubjectOfferingId == subjectOfferingId
                          && s.OverallTrend == "improving")
-                .OrderByDescending(s => s.GradeTrend + s.AttendanceTrend)
+                .OrderByDescending(s => s.GradeTrend)
                 .Take(limit)
                 .Select(s => MapToStudentDto(s))
                 .ToListAsync();
@@ -402,9 +396,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 FinalExamScore: s.FinalExamScore.HasValue ? Math.Round(s.FinalExamScore.Value, 1) : null,
                 GradeCategory: s.FinalScore.HasValue
                     ? (s.FinalScore.Value >= 50 ? "Pass" : "Fail") : "Pending",
-                TotalSessions: s.TotalSessions,
-                AttendedSessions: s.AttendedSessions,
-                AttendancePercent: Math.Round(s.AttendancePercent, 1),
                 TotalAssignments: s.TotalAssignments,
                 SubmittedAssignments: s.SubmittedAssignments,
                 MissingAssignments: s.MissingAssignments,
@@ -466,9 +457,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 FinalExamScore: s.FinalExamScore.HasValue ? Math.Round(s.FinalExamScore.Value, 1) : null,
                 GradeCategory: s.FinalScore.HasValue
                     ? (s.FinalScore.Value >= 50 ? "Pass" : "Fail") : "Pending",
-                TotalSessions: s.TotalSessions,
-                AttendedSessions: s.AttendedSessions,
-                AttendancePercent: Math.Round(s.AttendancePercent, 1),
                 TotalAssignments: s.TotalAssignments,
                 SubmittedAssignments: s.SubmittedAssignments,
                 MissingAssignments: s.MissingAssignments,
@@ -529,17 +517,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Where(s => assignments.Contains(s.AssignmentId))
                 .ToListAsync();
 
-            // Attendance: sessions for this subject (AttendanceSession.SubjectId → not OfferingId)
-            var subjectId = offering.SubjectId;
-            var attendanceSessions = await _context.AttendanceSessions
-                .Where(s => s.SubjectId == subjectId && s.DeletedAt == null)
-                .Select(s => s.Id)
-                .ToListAsync();
-
-            var allAttendances = await _context.StudentAttendances
-                .Where(a => attendanceSessions.Contains(a.AttendanceSessionId))
-                .ToListAsync();
-
             // Exams
             var exams = await _context.Exams
                 .Where(e => e.SubjectOfferingId == subjectOfferingId && e.Status != ExamStatus.Draft)
@@ -582,17 +559,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 double gradeScore = finalScore.HasValue
                     ? Math.Min(100, finalScore.Value) : 0;
 
-                // ── Attendance ───────────────────────────────────────────
-                var studentAtt = allAttendances.Where(a => a.StudentId == student.Id).ToList();
-                int totalSessions   = attendanceSessions.Count;
-                int attendedSessions = studentAtt.Count(a => a.IsPresent);
-                double attPercent = totalSessions > 0
-                    ? Math.Round((double)attendedSessions / totalSessions * 100, 1) : 0;
-                double attScore = attPercent >= 90 ? 100
-                    : attPercent >= 75 ? 75
-                    : attPercent >= 60 ? 50
-                    : attPercent >= 50 ? 25 : 0;
-
                 // ── Assignments ──────────────────────────────────────────
                 int totalAssignments = assignments.Count;
                 var studentSubs = allSubmissions.Where(s => s.StudentId == student.Id).ToList();
@@ -627,19 +593,18 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 // ── Risk Score ───────────────────────────────────────────
                 var (riskScore, riskLevel, riskFactors, riskExplanation, recommendedAction) =
                     ComputeRiskScore(
-                        gradeScore, attPercent, completion, missing, totalAssignments,
+                        gradeScore, completion, missing, totalAssignments,
                         takenExams, totalExams, engagement, streakDays
                     );
 
                 // ── Trends ───────────────────────────────────────────────
-                double gradeTrend = 0, attTrend = 0;
+                double gradeTrend = 0;
                 string overallTrend = "stable";
                 if (prevSnapshots.TryGetValue(student.Id, out var prev))
                 {
                     gradeTrend = gradeScore - prev.GradeScore;
-                    attTrend   = attPercent - prev.AttendancePercent;
-                    overallTrend = (gradeTrend > 5 || attTrend > 5) ? "improving"
-                        : (gradeTrend < -5 || attTrend < -5) ? "declining"
+                    overallTrend = gradeTrend > 5 ? "improving"
+                        : gradeTrend < -5 ? "declining"
                         : "stable";
                 }
 
@@ -647,12 +612,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 if (prevSnapshots.TryGetValue(student.Id, out var existing))
                 {
                     UpdateSnapshot(existing, student, offering, grade,
-                        totalSessions, attendedSessions, attPercent, attScore,
                         totalAssignments, submitted, late, missing, completion, avgAssignmentGrade,
                         totalExams, takenExams, avgExamScore, avgQuizScore,
                         aiSessions, aiMinutes, streakDays, engagement,
                         riskScore, riskLevel, riskFactors, riskExplanation, recommendedAction,
-                        gradeTrend, attTrend, overallTrend, now);
+                        gradeTrend, overallTrend, now);
                 }
                 else
                 {
@@ -670,12 +634,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         SubjectName        = offering.Subject?.Name ?? "",
                     };
                     UpdateSnapshot(snap, student, offering, grade,
-                        totalSessions, attendedSessions, attPercent, attScore,
                         totalAssignments, submitted, late, missing, completion, avgAssignmentGrade,
                         totalExams, takenExams, avgExamScore, avgQuizScore,
                         aiSessions, aiMinutes, streakDays, engagement,
                         riskScore, riskLevel, riskFactors, riskExplanation, recommendedAction,
-                        0, 0, "stable", now);
+                        0, "stable", now);
                     _context.StudentIntelligenceSnapshots.Add(snap);
                 }
             }
@@ -711,47 +674,39 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private static (double score, RiskLevel level, string factorsJson,
             string explanation, string action)
         ComputeRiskScore(
-            double gradeScore, double attPercent, double completionRate,
+            double gradeScore, double completionRate,
             int missingAssignments, int totalAssignments,
             int takenExams, int totalExams, double engagement, int streakDays)
         {
             var factors = new List<string>();
             double risk = 0;
 
-            // Grade component (35 pts max)
-            double gradeRisk = gradeScore < 40 ? 35
-                : gradeScore < 50 ? 25
-                : gradeScore < 60 ? 15
-                : gradeScore < 70 ? 8 : 0;
+            // Grade component (50 pts max)
+            double gradeRisk = gradeScore < 40 ? 50
+                : gradeScore < 50 ? 38
+                : gradeScore < 60 ? 25
+                : gradeScore < 70 ? 12 : 0;
             risk += gradeRisk;
-            if (gradeRisk >= 15) factors.Add("Low academic grade");
+            if (gradeRisk >= 25) factors.Add("Low academic grade");
 
-            // Attendance component (30 pts max)
-            double attRisk = attPercent < 50 ? 30
-                : attPercent < 60 ? 22
-                : attPercent < 70 ? 15
-                : attPercent < 75 ? 8 : 0;
-            risk += attRisk;
-            if (attRisk >= 15) factors.Add($"Low attendance ({attPercent:F0}%)");
-
-            // Assignment component (20 pts max)
+            // Assignment component (30 pts max)
             double assignRisk = 0;
             if (totalAssignments > 0)
             {
                 double missingRate = (double)missingAssignments / totalAssignments;
-                assignRisk = missingRate >= 0.6 ? 20
-                    : missingRate >= 0.4 ? 14
-                    : missingRate >= 0.2 ? 8 : 0;
+                assignRisk = missingRate >= 0.6 ? 30
+                    : missingRate >= 0.4 ? 20
+                    : missingRate >= 0.2 ? 10 : 0;
                 risk += assignRisk;
-                if (assignRisk >= 8) factors.Add($"Missing {missingAssignments} assignment(s)");
+                if (assignRisk >= 10) factors.Add($"Missing {missingAssignments} assignment(s)");
             }
 
-            // Engagement component (15 pts max)
-            double engagementRisk = engagement < 10 && streakDays == 0 ? 15
-                : engagement < 25 ? 8
-                : engagement < 40 ? 4 : 0;
+            // Engagement component (20 pts max)
+            double engagementRisk = engagement < 10 && streakDays == 0 ? 20
+                : engagement < 25 ? 12
+                : engagement < 40 ? 5 : 0;
             risk += engagementRisk;
-            if (engagementRisk >= 8) factors.Add("Low AI platform engagement");
+            if (engagementRisk >= 12) factors.Add("Low AI platform engagement");
 
             risk = Math.Min(100, Math.Round(risk, 1));
 
@@ -781,8 +736,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
         {
             if (level == RiskLevel.Critical) return "Schedule immediate office hour meeting. Notify academic advisor.";
             if (level == RiskLevel.High) return "Send personalized support message. Assign remedial exercises.";
-            if (factors.Contains("Low attendance (0%)") || factors.Any(f => f.Contains("attendance")))
-                return "Follow up on attendance. Check for personal issues.";
             if (factors.Any(f => f.Contains("assignment")))
                 return "Send assignment reminder with extension offer.";
             return "Monitor closely. Encourage AI companion usage.";
@@ -981,7 +934,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 if (!snap.Any()) continue;
 
                 double avg = snap.Where(s => s.FinalScore.HasValue).Select(s => s.FinalScore!.Value).DefaultIfEmpty(0).Average();
-                double att = snap.Average(s => s.AttendancePercent);
                 double comp = snap.Average(s => s.AssignmentCompletionRate);
                 int atRisk = snap.Count(s => s.RiskLevel is RiskLevel.High or RiskLevel.Critical);
 
@@ -989,10 +941,9 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     OfferingId: offering.Id.ToString(),
                     Label: $"{offering.Subject?.Name} — {offering.Batch?.Name}{(offering.Group != null ? " / " + offering.Group.Name : "")}",
                     AverageGrade: Math.Round(avg, 1),
-                    AttendanceRate: Math.Round(att, 1),
                     CompletionRate: Math.Round(comp, 1),
                     AtRiskCount: atRisk,
-                    Health: ComputeClassHealth(avg, att, atRisk, snap.Count)
+                    Health: ComputeClassHealth(avg, atRisk, snap.Count)
                 ));
             }
             return result.OrderBy(c => c.AverageGrade).ToList();
@@ -1008,9 +959,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             if (stats.CriticalRiskCount > 0)
                 recs.Add($"⚠️ {stats.CriticalRiskCount} student(s) are at CRITICAL risk. Schedule intervention meetings immediately.");
-
-            if (stats.OverallAttendanceRate < 70)
-                recs.Add($"📉 Overall attendance is {stats.OverallAttendanceRate:F0}% — below the 75% threshold. Consider reviewing attendance policy.");
 
             if (weakTopics.Any(t => t.Severity is "critical" or "high"))
             {
@@ -1031,7 +979,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             try
             {
                 var prompt = $"Doctor has {stats.TotalStudents} students, {stats.CriticalRiskCount} critical risk, " +
-                             $"attendance {stats.OverallAttendanceRate:F0}%, avg grade {stats.OverallAverageGrade:F0}%. " +
+                             $"avg grade {stats.OverallAverageGrade:F0}%. " +
                              "Give 1 specific teaching recommendation in Arabic (Egyptian dialect), max 20 words.";
                 var aiRec = await _aiService.SendQuickPromptAsync(prompt);
                 if (!string.IsNullOrEmpty(aiRec))
@@ -1062,17 +1010,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         GeneratedAt: now
                     ));
 
-                if (offering.AverageAttendance < 70)
-                    insights.Add(new TeachingInsightDto(
-                        InsightId: Ulid.NewUlid().ToString(),
-                        Type: "attendance_alert",
-                        Priority: "warning",
-                        Title: $"Low attendance in {offering.SubjectName}",
-                        Insight: $"Average attendance in {offering.SubjectName} is {offering.AverageAttendance:F0}%.",
-                        Action: "Send attendance reminder to enrolled students.",
-                        OfferingId: offering.OfferingId,
-                        GeneratedAt: now
-                    ));
             }
 
             foreach (var topic in dashboard.WeakTopics.Take(3))
@@ -1095,24 +1032,19 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private static void UpdateSnapshot(
             StudentIntelligenceSnapshot snap, Student student, SubjectOffering offering,
             StudentGrade? grade,
-            int totalSessions, int attendedSessions, double attPercent, double attScore,
             int totalAssignments, int submitted, int late, int missing,
             double completion, double? avgAssignmentGrade,
             int totalExams, int takenExams, double? avgExamScore, double? avgQuizScore,
             int aiSessions, int aiMinutes, int streakDays, double engagement,
             double riskScore, RiskLevel riskLevel, string riskFactors,
             string riskExplanation, string recommendedAction,
-            double gradeTrend, double attTrend, string overallTrend, DateTime now)
+            double gradeTrend, string overallTrend, DateTime now)
         {
             snap.FinalScore            = grade?.FinalScore;
             snap.MidtermScore          = grade?.MidtermScore;
             snap.CourseworkScore       = grade?.CourseworkScore;
             snap.FinalExamScore        = grade?.FinalExamScore;
             snap.GradeScore            = snap.FinalScore ?? 0;
-            snap.TotalSessions         = totalSessions;
-            snap.AttendedSessions      = attendedSessions;
-            snap.AttendancePercent     = attPercent;
-            snap.AttendanceScore       = attScore;
             snap.TotalAssignments      = totalAssignments;
             snap.SubmittedAssignments  = submitted;
             snap.LateSubmissions       = late;
@@ -1133,7 +1065,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
             snap.RiskExplanation       = riskExplanation;
             snap.RecommendedAction     = recommendedAction;
             snap.GradeTrend            = gradeTrend;
-            snap.AttendanceTrend       = attTrend;
             snap.OverallTrend          = overallTrend;
             snap.ComputedAt            = now;
         }
@@ -1151,7 +1082,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 CollegeName: s.CollegeName,
                 FinalScore: s.FinalScore.HasValue ? Math.Round(s.FinalScore.Value, 1) : null,
                 MidtermScore: s.MidtermScore.HasValue ? Math.Round(s.MidtermScore.Value, 1) : null,
-                AttendancePercent: Math.Round(s.AttendancePercent, 1),
                 AssignmentCompletionRate: Math.Round(s.AssignmentCompletionRate, 1),
                 AvgExamScore: s.AvgExamScore.HasValue ? Math.Round(s.AvgExamScore.Value, 1) : null,
                 AvgQuizScore: s.AvgQuizScore.HasValue ? Math.Round(s.AvgQuizScore.Value, 1) : null,
@@ -1169,18 +1099,17 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 RecommendedAction: s.RecommendedAction,
                 OverallTrend: s.OverallTrend,
                 GradeTrend: Math.Round(s.GradeTrend, 1),
-                AttendanceTrend: Math.Round(s.AttendanceTrend, 1),
                 ComputedAt: s.ComputedAt
             );
         }
 
-        private static string ComputeClassHealth(double avg, double att, int atRisk, int total)
+        private static string ComputeClassHealth(double avg, int atRisk, int total)
         {
             if (total == 0) return "unknown";
             double atRiskPct = (double)atRisk / total * 100;
-            if (avg >= 70 && att >= 80 && atRiskPct < 10) return "excellent";
-            if (avg >= 60 && att >= 70 && atRiskPct < 25) return "good";
-            if (avg >= 50 && att >= 60 && atRiskPct < 40) return "concerning";
+            if (avg >= 70 && atRiskPct < 10) return "excellent";
+            if (avg >= 60 && atRiskPct < 25) return "good";
+            if (avg >= 50 && atRiskPct < 40) return "concerning";
             return "critical";
         }
 
@@ -1226,6 +1155,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
         }
 
         private static TeachingDashboardDto EmptyDashboard() =>
-            new([], new DashboardStatsDto(0,0,0,0,0,0,0,0,0,0), [], [], [], [], []);
+            new([], new DashboardStatsDto(0,0,0,0,0,0,0,0,0), [], [], [], [], []);
     }
 }

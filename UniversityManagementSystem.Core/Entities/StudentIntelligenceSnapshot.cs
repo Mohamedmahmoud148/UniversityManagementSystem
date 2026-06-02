@@ -40,14 +40,6 @@ namespace UniversityManagementSystem.Core.Entities
         /// Normalized grade score 0-100 used in risk calculation
         public double GradeScore { get; set; } = 0;
 
-        // ── Attendance metrics ────────────────────────────────────────────
-        public int TotalSessions { get; set; } = 0;
-        public int AttendedSessions { get; set; } = 0;
-        /// Attendance percentage 0-100
-        public double AttendancePercent { get; set; } = 0;
-        /// Normalized attendance score used in risk calculation
-        public double AttendanceScore { get; set; } = 0;
-
         // ── Assignment metrics ────────────────────────────────────────────
         public int TotalAssignments { get; set; } = 0;
         public int SubmittedAssignments { get; set; } = 0;
@@ -84,8 +76,6 @@ namespace UniversityManagementSystem.Core.Entities
         public string RecommendedAction { get; set; } = string.Empty;
 
         // ── Trend indicators ──────────────────────────────────────────────
-        /// Change in attendance since last snapshot (positive = improving)
-        public double AttendanceTrend { get; set; } = 0;
         /// Change in grade since last snapshot
         public double GradeTrend { get; set; } = 0;
         /// "improving" | "declining" | "stable"

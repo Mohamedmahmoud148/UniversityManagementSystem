@@ -18,7 +18,6 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
         int TotalStudents,
         int AtRiskCount,
         double AverageGrade,
-        double AverageAttendance,
         double AssignmentCompletionRate,
         string OverallHealth  // "excellent" | "good" | "concerning" | "critical"
     );
@@ -42,7 +41,6 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
         int HighRiskCount,
         int MediumRiskCount,
         double OverallAverageGrade,
-        double OverallAttendanceRate,
         double OverallAssignmentCompletion,
         int MostImprovedCount,
         int DecliningCount
@@ -62,7 +60,6 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
         // Metrics
         double? FinalScore,
         double? MidtermScore,
-        double AttendancePercent,
         double AssignmentCompletionRate,
         double? AvgExamScore,
         double? AvgQuizScore,
@@ -83,7 +80,6 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
         // Trend
         string OverallTrend,
         double GradeTrend,
-        double AttendanceTrend,
         DateTime ComputedAt
     );
 
@@ -96,7 +92,6 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
         string GroupName,
         int TotalStudents,
         double AverageGrade,
-        double AverageAttendance,
         double AssignmentCompletionRate,
         double? AverageQuizScore,
         double? AverageExamScore,
@@ -120,16 +115,15 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
     );
 
     public record PerformanceTrendPointDto(
-        string Label,   // exam name or date
+        string Label,
         double AverageScore,
         double PassRate
     );
 
     public record ClassComparisonDto(
         string OfferingId,
-        string Label,   // e.g. "G1 - Database", "Batch 2023 - ML"
+        string Label,
         double AverageGrade,
-        double AttendanceRate,
         double CompletionRate,
         int AtRiskCount,
         string Health
@@ -141,7 +135,7 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
         string TopicName,
         string SourceType,   // "exam" | "quiz" | "assignment"
         double AverageScore,
-        double ErrorRate,    // % of students who got wrong
+        double ErrorRate,
         int AffectedStudents,
         string Severity,     // "low" | "medium" | "high" | "critical"
         string AiRecommendation
@@ -167,7 +161,7 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
 
     public record TeachingAlertDto(
         string AlertId,
-        string AlertType,   // "risk_escalation" | "attendance_drop" | "missing_assignment" | "performance_drop"
+        string AlertType,   // "risk_escalation" | "missing_assignment" | "performance_drop"
         string Severity,    // "info" | "warning" | "critical"
         string Title,
         string Message,
@@ -180,13 +174,8 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
 
     // ── Excel export ──────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Row structure for the Excel export.
-    /// The frontend receives this JSON array and builds the .xlsx file.
-    /// Columns match exactly what teachers expect in a student report sheet.
-    /// </summary>
     public record StudentExcelRowDto(
-        // Columns 1-7: Identity
+        // Identity
         string UniversityId,
         string StudentName,
         string BatchName,
@@ -194,30 +183,26 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
         string DepartmentName,
         string CollegeName,
         string SubjectName,
-        // Columns 8-13: Grades
+        // Grades
         double? FinalScore,
         double? MidtermScore,
         double? CourseworkScore,
         double? FinalExamScore,
         string GradeCategory,   // "Pass" | "Fail" | "Pending"
-        // Columns 14-16: Attendance
-        int TotalSessions,
-        int AttendedSessions,
-        double AttendancePercent,
-        // Columns 17-20: Assignments
+        // Assignments
         int TotalAssignments,
         int SubmittedAssignments,
         int MissingAssignments,
         double AssignmentCompletionRate,
-        // Columns 21-23: Exams/Quizzes
+        // Exams/Quizzes
         int TotalExams,
         double? AvgExamScore,
         double? AvgQuizScore,
-        // Columns 24-26: Risk
+        // Risk
         double RiskScore,
         string RiskLevel,
         string RiskFactors,
-        // Columns 27-29: AI Companion
+        // AI Companion
         int AiSessions,
         int StudyMinutes,
         int StreakDays
@@ -241,12 +226,12 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
         string? BatchId = null,
         string? GroupId = null,
         string? DepartmentId = null,
-        string? RiskLevel = null,       // filter by risk level
-        string? Trend = null,           // "declining" | "improving"
+        string? RiskLevel = null,
+        string? Trend = null,
         bool AtRiskOnly = false,
         int Page = 1,
         int PageSize = 50,
-        string SortBy = "RiskScore",    // RiskScore | Name | Grade | Attendance
+        string SortBy = "RiskScore",    // RiskScore | Name | Grade
         string SortDir = "desc"
     );
 
@@ -254,7 +239,7 @@ namespace UniversityManagementSystem.Core.DTOs.TeachingIntelligence
 
     public record TeachingInsightDto(
         string InsightId,
-        string Type,    // "weak_topic" | "class_declining" | "attendance_alert" | "risk_escalation"
+        string Type,    // "weak_topic" | "class_declining" | "risk_escalation"
         string Priority,
         string Title,
         string Insight,

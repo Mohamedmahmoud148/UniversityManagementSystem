@@ -278,10 +278,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task DeleteSubjectAsync(Ulid id)
         {
-            // Validation: Check for active AttendanceSessions
-            var hasActiveSessions = await _context.AttendanceSessions.AnyAsync(s => s.SubjectId == id && s.IsActive);
-            if (hasActiveSessions) throw new Exception("Cannot delete subject with active attendance sessions.");
-
             // Validation: Check for SubjectOfferings
             var hasOfferings = await _context.SubjectOfferings.AnyAsync(so => so.SubjectId == id);
             if (hasOfferings) throw new Exception("Cannot delete subject with existing offerings.");

@@ -125,33 +125,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
             if (enrollments.Count == 0) return (0, 0, 0);
 
-            // --- 2. Attendance sessions for this subject within the semester ---
-            var sessions = await _context.AttendanceSessions
-                .AsNoTracking()
-                .Where(s => s.SubjectId == subjectId
-                         && s.SessionDate >= semesterStart
-                         && s.SessionDate <= semesterEnd)
-                .Select(s => s.Id)
-                .ToListAsync();
-
-            int totalSessions = sessions.Count;
-
-            // --- 3. All attendance records for those sessions ---
-            Dictionary<Ulid, int> attendedCountByStudent = new();
-            if (totalSessions > 0)
-            {
-                var attendanceRecords = await _context.StudentAttendances
-                    .AsNoTracking()
-                    .Where(a => sessions.Contains(a.AttendanceSessionId) && a.IsPresent)
-                    .GroupBy(a => a.StudentId)
-                    .Select(g => new { StudentId = g.Key, Count = g.Count() })
-                    .ToListAsync();
-
-                foreach (var r in attendanceRecords)
-                    attendedCountByStudent[r.StudentId] = r.Count;
-            }
-
-            // --- 4. All grades for this offering ---
+            // --- 2. All grades for this offering ---
             var gradesLookup = await _context.StudentGrades
                 .AsNoTracking()
                 .Where(g => g.SubjectOfferingId == offeringId)
@@ -171,15 +145,10 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
                     var studentId = student.Id;
 
                     // --- 5. Compute metrics ---
-                    double attendancePercent = totalSessions > 0
-                        ? (attendedCountByStudent.TryGetValue(studentId, out var attended) ? attended : 0)
-                          / (double)totalSessions * 100.0
-                        : 100.0; // no sessions yet → no risk from attendance
-
                     double averageGrade = gradesByStudent.TryGetValue(studentId, out var grade) ? grade : 0.0;
 
-                    // --- 6. Determine risk level ---
-                    var riskLevel = DetermineRiskLevel(attendancePercent, averageGrade);
+                    // --- 6. Determine risk level (grade-based only) ---
+                    var riskLevel = DetermineRiskLevel(averageGrade);
 
                     analysed++;
 
@@ -193,7 +162,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
                         studentId.ToString(),
                         student.FullName,
                         subjectName,
-                        attendancePercent,
+                        0,
                         averageGrade,
                         riskLevel.ToString(),
                         string.Empty);
@@ -202,12 +171,12 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
                     // --- 8. Upsert AcademicRiskScore ---
                     await UpsertRiskScoreAsync(
-                        studentId, offeringId, attendancePercent, averageGrade, riskLevel, recommendation);
+                        studentId, offeringId, 0, averageGrade, riskLevel, recommendation);
 
                     // --- 9. Send notification ---
                     var notifSent = await SendRiskNotificationAsync(
                         student.SystemUserId, student.FullName, subjectName,
-                        attendancePercent, averageGrade, riskLevel);
+                        0, averageGrade, riskLevel);
 
                     if (notifSent) notifications++;
                 }
@@ -222,14 +191,11 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
             return (analysed, atRisk, notifications);
         }
 
-        private static RiskLevel DetermineRiskLevel(double attendancePercent, double averageGrade)
+        private static RiskLevel DetermineRiskLevel(double averageGrade)
         {
-            if (attendancePercent < 70 || averageGrade < 40)
-                return RiskLevel.Critical;
-            if (attendancePercent < 75 || averageGrade < 50)
-                return RiskLevel.High;
-            if (attendancePercent < 80 || averageGrade < 60)
-                return RiskLevel.Medium;
+            if (averageGrade < 40) return RiskLevel.Critical;
+            if (averageGrade < 50) return RiskLevel.High;
+            if (averageGrade < 60) return RiskLevel.Medium;
             return RiskLevel.Low;
         }
 

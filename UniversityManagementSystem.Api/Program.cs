@@ -128,7 +128,6 @@ builder.Services.AddHangfireServer();
 // 5. MassTransit
 builder.Services.AddMassTransit(x =>
 {
-    x.AddConsumer<AttendanceConsumer>();
     x.AddConsumer<UniversityManagementSystem.Infrastructure.Consumers.NotificationConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
@@ -387,7 +386,6 @@ builder.Services.AddHttpClient<IAiService, AiService>(client =>
     // a final backstop set slightly above Polly's 65 s pipeline timeout.
     client.Timeout = TimeSpan.FromSeconds(90);
 });
-builder.Services.AddScoped<IAttendanceService, AttendanceService>();
 builder.Services.AddScoped<IExamService, ExamService>();
 builder.Services.AddScoped<IAcademicYearService, AcademicYearService>();
 builder.Services.AddScoped<IAcademicYearDepartmentService, AcademicYearDepartmentService>();

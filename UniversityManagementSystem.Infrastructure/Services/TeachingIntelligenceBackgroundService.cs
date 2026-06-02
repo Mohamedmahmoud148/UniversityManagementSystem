@@ -161,37 +161,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
                 if (snapshots.Count >= 5)
                 {
-                    double avgAtt = snapshots.Average(s => s.AttendancePercent);
-                    if (avgAtt < 65)
-                    {
-                        var attDedupeKey = $"teaching_alert:att:{offeringId}:{DateTime.UtcNow:yyyy-MM}";
-                        var attExists = await context.AiInsights
-                            .AnyAsync(i => i.DeduplicationKey == attDedupeKey, ct);
-
-                        if (!attExists)
-                        {
-                            var doctorUserId = await context.Doctors
-                                .Where(d => d.Id == offering.DoctorId)
-                                .Select(d => d.SystemUserId)
-                                .FirstOrDefaultAsync(ct);
-
-                            if (doctorUserId != default)
-                            {
-                                context.AiInsights.Add(new AiInsight
-                                {
-                                    UserId = doctorUserId,
-                                    InsightType = InsightType.ClassPerformanceAlert,
-                                    Priority = avgAtt < 50 ? InsightPriority.Urgent : InsightPriority.High,
-                                    Title = $"📉 Low attendance in {offering.Subject?.Name}",
-                                    Message = $"Average attendance in {offering.Subject?.Name} dropped to {avgAtt:F0}%. " +
-                                              $"{snapshots.Count(s => s.AttendancePercent < 65)} students below threshold.",
-                                    DeduplicationKey = attDedupeKey,
-                                    ExpiresAt = DateTime.UtcNow.AddDays(14),
-                                });
-                            }
-                        }
-                    }
-
                     // Alert for low assignment completion
                     double avgCompletion = snapshots.Average(s => s.AssignmentCompletionRate);
                     if (avgCompletion < 50)

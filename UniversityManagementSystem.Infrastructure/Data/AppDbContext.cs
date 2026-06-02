@@ -27,8 +27,6 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<ChatMessage> ChatMessages { get; set; } = null!;
         public DbSet<AiMemory> AiMemories { get; set; } = null!;
         public DbSet<UploadedFile> UploadedFiles { get; set; } = null!;
-        public DbSet<AttendanceSession> AttendanceSessions { get; set; } = null!;
-        public DbSet<StudentAttendance> StudentAttendances { get; set; } = null!;
         public DbSet<AppNotification> AppNotifications { get; set; } = null!;
         public DbSet<RefreshToken> RefreshTokens { get; set; } = null!;
         public DbSet<Regulation> Regulations { get; set; } = null!;
@@ -555,43 +553,6 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasIndex(f => f.UploadedByDoctorId);
 
             // --------------------------------------------------------
-            // Attendance
-            // --------------------------------------------------------
-            modelBuilder.Entity<AttendanceSession>()
-                .HasOne(s => s.Subject)
-                .WithMany()
-                .HasForeignKey(s => s.SubjectId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<AttendanceSession>()
-                .HasOne(s => s.Doctor)
-                .WithMany()
-                .HasForeignKey(s => s.DoctorId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<AttendanceSession>()
-                .HasOne(s => s.TeachingAssistant)
-                .WithMany()
-                .HasForeignKey(s => s.TeachingAssistantId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<StudentAttendance>()
-                .HasOne(sa => sa.AttendanceSession)
-                .WithMany(s => s.Attendances)
-                .HasForeignKey(sa => sa.AttendanceSessionId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<StudentAttendance>()
-                .HasOne(sa => sa.Student)
-                .WithMany()
-                .HasForeignKey(sa => sa.StudentId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<StudentAttendance>()
-                .HasIndex(sa => new { sa.AttendanceSessionId, sa.StudentId })
-                .IsUnique();
-
-            // --------------------------------------------------------
             // Notifications
             // --------------------------------------------------------
             modelBuilder.Entity<AppNotification>()
@@ -1095,9 +1056,6 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 .HasDatabaseName("IX_AppNotifications_UserId_IsRead");
 
             // StudentAttendance: fast lookup by student across all sessions
-            modelBuilder.Entity<StudentAttendance>()
-                .HasIndex(sa => sa.StudentId)
-                .HasDatabaseName("IX_StudentAttendances_StudentId");
 
 // Enrollment: fast lookup by student
             modelBuilder.Entity<Enrollment>()
