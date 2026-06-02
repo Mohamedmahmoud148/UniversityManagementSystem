@@ -100,10 +100,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task<IReadOnlyList<Enrollment>> GetStudentEnrollmentsAsync(Ulid studentId)
         {
             return await _context.Enrollments
+                .Include(e => e.Student)
                 .Include(e => e.SubjectOffering)
-                .ThenInclude(so => so.Subject)
+                    .ThenInclude(so => so.Subject)
                 .Include(e => e.SubjectOffering)
-                .ThenInclude(so => so.Doctor)
+                    .ThenInclude(so => so.Doctor)
+                .Include(e => e.SubjectOffering)
+                    .ThenInclude(so => so.Semester)
+                .Include(e => e.SubjectOffering)
+                    .ThenInclude(so => so.Department)
                 .Where(e => e.StudentId == studentId && e.IsActive)
                 .OrderByDescending(e => e.EnrolledAt)
                 .ToListAsync();
