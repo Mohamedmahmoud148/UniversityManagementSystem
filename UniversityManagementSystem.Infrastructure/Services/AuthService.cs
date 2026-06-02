@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -6,6 +7,7 @@ using System.Text;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Core.Settings;
 using UniversityManagementSystem.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
@@ -21,11 +23,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly string _jwtIssuer;
         private readonly string _jwtAudience;
         private readonly double _jwtExpirationHours;
+        private readonly UniversitySettings _uniSettings;
 
-        public AuthService(AppDbContext context, IConfiguration configuration)
+        public AuthService(AppDbContext context, IConfiguration configuration, IOptions<UniversitySettings> uniOptions)
         {
             _context = context;
             _configuration = configuration;
+            _uniSettings = uniOptions.Value;
 
             _jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET")
                          ?? configuration["JwtSettings:SecretKey"]
@@ -151,8 +155,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Auto-generate credentials
-                string password = GeneratePassword();
+                // Auto-generate credentials — use DefaultPassword for consistency with Excel import
+                string password = _uniSettings.DefaultPassword;
                 string universityEmail = await GenerateUniversityEmailAsync("student", UserRole.Student);
                 string universityIdStr = await GenerateUniversityIdAsync(UserRole.Student);
 
@@ -257,7 +261,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                string password = GeneratePassword();
+                string password = _uniSettings.DefaultPassword;
                 string universityEmail = await GenerateUniversityEmailAsync("doctor", UserRole.Doctor);
                 string universityId = await GenerateUniversityIdAsync(UserRole.Doctor);
 
@@ -322,7 +326,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                string password = GeneratePassword();
+                string password = _uniSettings.DefaultPassword;
                 string universityEmail = await GenerateUniversityEmailAsync("admin", UserRole.Admin);
                 string universityId = await GenerateUniversityIdAsync(UserRole.Admin);
 
