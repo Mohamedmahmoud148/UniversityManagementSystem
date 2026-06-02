@@ -145,7 +145,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     query = query.Where(s => s.RiskLevel == rl);
             }
             if (filter.AtRiskOnly)
-                query = query.Where(s => s.RiskLevel is RiskLevel.High or RiskLevel.Critical);
+                query = query.Where(s => s.RiskLevel == RiskLevel.High || s.RiskLevel == RiskLevel.Critical);
             if (!string.IsNullOrEmpty(filter.Trend))
                 query = query.Where(s => s.OverallTrend == filter.Trend);
 
@@ -246,6 +246,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     s.SubjectOfferingId == subjectOfferingId &&
                     s.DoctorId == doctor!.Id);
             return snap == null ? null : MapToStudentDto(snap);
+        }
+
+        public async Task<List<ClassComparisonDto>> GetClassComparisonAsync(
+            string subjectName, Ulid doctorUserId)
+        {
+            var doctor = await GetDoctorAsync(doctorUserId);
+            if (doctor == null) return [];
+            var all = await GetClassComparisonsForDashboardAsync(doctor.Id);
+            if (string.IsNullOrEmpty(subjectName)) return all;
+            return all.Where(c => c.Label.Contains(subjectName, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
         public async Task<List<StudentIntelligenceDto>> GetAtRiskStudentsAsync(
@@ -602,10 +612,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 var quizSubs  = studentExamSubs.Where(s => exams.Any(e => e.Id == s.ExamId && e.Type == ExamType.Quiz)).ToList();
                 var examSubsF = studentExamSubs.Where(s => exams.Any(e => e.Id == s.ExamId && e.Type != ExamType.Quiz)).ToList();
 
-                double? avgExamScore = examSubsF.Any(s => s.TotalScore.HasValue)
-                    ? examSubsF.Where(s => s.TotalScore.HasValue).Average(s => s.TotalScore!.Value) : null;
-                double? avgQuizScore = quizSubs.Any(s => s.TotalScore.HasValue)
-                    ? quizSubs.Where(s => s.TotalScore.HasValue).Average(s => s.TotalScore!.Value) : null;
+                double? avgExamScore = examSubsF.Any(s => s.Score.HasValue)
+                    ? examSubsF.Where(s => s.Score.HasValue).Average(s => s.Score!.Value) : null;
+                double? avgQuizScore = quizSubs.Any(s => s.Score.HasValue)
+                    ? quizSubs.Where(s => s.Score.HasValue).Average(s => s.Score!.Value) : null;
 
                 // ── AI Companion ─────────────────────────────────────────
                 profileByUserId.TryGetValue(student.SystemUserId.ToString(), out var profile);
@@ -789,43 +799,42 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             if (!examIds.Any()) return [];
 
-            var questionStats = await _context.ExamSubmissions
-                .Where(es => examIds.Contains(es.ExamId))
-                .SelectMany(es => es.Answers.Select(a => new
+            // Derive weak topics from exam-level performance (AnswersJson is a blob, not navigable)
+            var examStats = await _context.Exams
+                .Where(e => examIds.Contains(e.Id))
+                .Select(e => new
                 {
-                    Topic = a.Question.Topic ?? "Unknown",
-                    IsCorrect = a.IsCorrect,
-                }))
-                .GroupBy(a => a.Topic)
-                .Select(g => new
-                {
-                    Topic     = g.Key,
-                    Total     = g.Count(),
-                    Incorrect = g.Count(a => !a.IsCorrect),
+                    e.Title,
+                    e.TotalMarks,
+                    SubmissionCount = e.Submissions.Count(s => s.Score.HasValue),
+                    AvgScore = e.Submissions.Where(s => s.Score.HasValue)
+                                           .Average(s => (double?)s.Score) ?? 0,
+                    FailCount = e.Submissions.Count(s => s.Score.HasValue && s.Score < e.TotalMarks * 0.5),
                 })
-                .Where(t => t.Total >= 3)
+                .Where(e => e.SubmissionCount >= 2)
                 .ToListAsync();
 
             var weakTopics = new List<WeakTopicDto>();
-            foreach (var stat in questionStats.OrderByDescending(t => (double)t.Incorrect / t.Total).Take(10))
+            foreach (var stat in examStats.OrderBy(e => e.AvgScore).Take(10))
             {
-                double errorRate = Math.Round((double)stat.Incorrect / stat.Total * 100, 1);
-                if (errorRate < 40) continue;  // only genuinely weak topics
+                double passThreshold = stat.TotalMarks * 0.5;
+                double errorRate = stat.SubmissionCount > 0
+                    ? Math.Round((double)stat.FailCount / stat.SubmissionCount * 100, 1) : 0;
+                if (errorRate < 40) continue;
 
                 string severity = errorRate >= 80 ? "critical"
                     : errorRate >= 65 ? "high"
                     : errorRate >= 50 ? "medium" : "low";
-
                 string rec = errorRate >= 70
-                    ? $"Conduct a dedicated revision session on '{stat.Topic}' before next exam."
-                    : $"Provide additional exercises and examples for '{stat.Topic}'.";
+                    ? $"Conduct a revision session for '{stat.Title}' topics before the next exam."
+                    : $"Provide additional exercises for '{stat.Title}' topics.";
 
                 weakTopics.Add(new WeakTopicDto(
-                    TopicName: stat.Topic,
+                    TopicName: stat.Title,
                     SourceType: "exam",
-                    AverageScore: Math.Round((1 - errorRate / 100) * 100, 1),
+                    AverageScore: Math.Round(stat.AvgScore, 1),
                     ErrorRate: errorRate,
-                    AffectedStudents: stat.Incorrect,
+                    AffectedStudents: stat.FailCount,
                     Severity: severity,
                     AiRecommendation: rec
                 ));
@@ -839,63 +848,70 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Where(e => e.SubjectOfferingId == subjectOfferingId)
                 .Select(e => e.Id)
                 .ToListAsync();
-
             if (!examIds.Any()) return [];
 
-            var stats = await _context.ExamSubmissions
-                .Where(es => examIds.Contains(es.ExamId))
-                .SelectMany(es => es.Answers.Select(a => new
+            var examStats = await _context.Exams
+                .Where(e => examIds.Contains(e.Id))
+                .Select(e => new
                 {
-                    Topic = a.Question.Topic ?? "Unknown",
-                    IsCorrect = a.IsCorrect,
-                }))
-                .GroupBy(a => a.Topic)
-                .Select(g => new { Topic = g.Key, Total = g.Count(), Correct = g.Count(a => a.IsCorrect) })
-                .Where(t => t.Total >= 3 && (double)t.Correct / t.Total >= 0.75)
-                .Take(5)
+                    e.Title,
+                    e.TotalMarks,
+                    SubmissionCount = e.Submissions.Count(s => s.Score.HasValue),
+                    AvgScore = e.Submissions.Where(s => s.Score.HasValue)
+                                           .Average(s => (double?)s.Score) ?? 0,
+                })
+                .Where(e => e.SubmissionCount >= 2)
                 .ToListAsync();
 
-            return stats.Select(s => new WeakTopicDto(
-                TopicName: s.Topic,
-                SourceType: "exam",
-                AverageScore: Math.Round((double)s.Correct / s.Total * 100, 1),
-                ErrorRate: Math.Round((1 - (double)s.Correct / s.Total) * 100, 1),
-                AffectedStudents: s.Total - s.Correct,
-                Severity: "low",
-                AiRecommendation: "Students are performing well on this topic."
-            )).ToList();
+            return examStats
+                .Where(e => e.TotalMarks > 0 && e.AvgScore / e.TotalMarks >= 0.75)
+                .Select(e => new WeakTopicDto(
+                    TopicName: e.Title,
+                    SourceType: "exam",
+                    AverageScore: Math.Round(e.AvgScore, 1),
+                    ErrorRate: Math.Round((1 - e.AvgScore / e.TotalMarks) * 100, 1),
+                    AffectedStudents: 0,
+                    Severity: "low",
+                    AiRecommendation: "Students are performing well on this exam."
+                ))
+                .Take(5)
+                .ToList();
         }
 
         private async Task<List<QuestionPerformanceDto>> GetQuestionPerformanceAsync(Ulid subjectOfferingId)
         {
+            // ExamQuestion.Topic does not exist — return exam-level stats instead
             var examIds = await _context.Exams
                 .Where(e => e.SubjectOfferingId == subjectOfferingId)
                 .Select(e => e.Id)
                 .ToListAsync();
-
             if (!examIds.Any()) return [];
 
-            return await _context.ExamSubmissions
-                .Where(es => examIds.Contains(es.ExamId))
-                .SelectMany(es => es.Answers.Select(a => new
+            var raw = await _context.Exams
+                .Where(e => examIds.Contains(e.Id))
+                .Select(e => new
                 {
-                    QuestionText = a.Question.Text.Substring(0, Math.Min(a.Question.Text.Length, 80)),
-                    Topic = a.Question.Topic ?? "Unknown",
-                    IsCorrect = a.IsCorrect,
-                    Score = a.IsCorrect ? a.Question.Mark : 0.0,
-                }))
-                .GroupBy(a => a.QuestionText)
-                .Select(g => new QuestionPerformanceDto(
-                    QuestionText: g.Key,
-                    Topic: g.First().Topic,
-                    CorrectRate: Math.Round((double)g.Count(a => a.IsCorrect) / g.Count() * 100, 1),
-                    AverageScore: Math.Round(g.Average(a => a.Score), 1),
-                    TotalAttempts: g.Count()
-                ))
-                .Where(q => q.TotalAttempts >= 3)
-                .OrderBy(q => q.CorrectRate)
+                    e.Title,
+                    TypeStr  = e.Type.ToString(),
+                    HasSubs  = e.Submissions.Any(s => s.Score.HasValue),
+                    PassCount = e.Submissions.Count(s => s.Score.HasValue && s.Score >= e.TotalMarks * 0.5),
+                    SubCount  = e.Submissions.Count(s => s.Score.HasValue),
+                    AvgScore  = e.Submissions.Any(s => s.Score.HasValue)
+                        ? e.Submissions.Where(s => s.Score.HasValue).Average(s => (double)s.Score!.Value)
+                        : 0.0,
+                })
+                .Where(e => e.SubCount >= 2)
+                .OrderBy(e => e.HasSubs ? e.AvgScore : 100)
                 .Take(20)
                 .ToListAsync();
+
+            return raw.Select(e => new QuestionPerformanceDto(
+                QuestionText: e.Title,
+                Topic: e.TypeStr,
+                CorrectRate: e.SubCount > 0 ? Math.Round((double)e.PassCount / e.SubCount * 100, 1) : 0,
+                AverageScore: Math.Round(e.AvgScore, 1),
+                TotalAttempts: e.SubCount
+            )).ToList();
         }
 
         private async Task<List<WeakTopicDto>> GetAllWeakTopicsAsync(Ulid doctorId)
@@ -933,8 +949,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
             foreach (var exam in exams)
             {
                 var submissions = await _context.ExamSubmissions
-                    .Where(s => s.ExamId == exam.Id && s.TotalScore.HasValue)
-                    .Select(s => s.TotalScore!.Value)
+                    .Where(s => s.ExamId == exam.Id && s.Score.HasValue)
+                    .Select(s => s.Score!.Value)
                     .ToListAsync();
 
                 if (!submissions.Any()) continue;

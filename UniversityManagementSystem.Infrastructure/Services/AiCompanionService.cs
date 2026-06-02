@@ -79,7 +79,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return new CompanionDashboardDto(
                 Profile: profile,
                 RecentInsights: insights.Take(5).ToList(),
-                DueFlashcards: dueCards,
+                DueFlashcards: dueCards.ToList(),
                 WeeklyProgress: weeklyProgress,
                 TodayRecommendations: recommendations);
         }
@@ -299,30 +299,28 @@ namespace UniversityManagementSystem.Infrastructure.Services
             Ulid subjectOfferingId, Ulid doctorUserId)
         {
             // Verify the doctor owns this offering
-            var offering = await _context.SubjectOfferings
-                .Include(o => o.Subject)
-                .Include(o => o.SubjectDoctors)
-                .FirstOrDefaultAsync(o => o.Id == subjectOfferingId)
-                ?? throw new KeyNotFoundException("Subject offering not found.");
-
             var doctorProfile = await _context.Doctors
                 .FirstOrDefaultAsync(d => d.SystemUserId == doctorUserId);
 
-            if (doctorProfile != null &&
-                !offering.SubjectDoctors.Any(sd => sd.DoctorId == doctorProfile.Id))
+            var offering = await _context.SubjectOfferings
+                .Include(o => o.Subject)
+                .FirstOrDefaultAsync(o => o.Id == subjectOfferingId)
+                ?? throw new KeyNotFoundException("Subject offering not found.");
+
+            if (doctorProfile != null && offering.DoctorId != doctorProfile.Id)
                 throw new UnauthorizedAccessException("You are not assigned to this subject.");
 
             // Aggregate grade data
             var grades = await _context.StudentGrades
                 .Where(g => g.SubjectOfferingId == subjectOfferingId)
-                .Select(g => new { g.FinalGrade, g.StudentId })
+                .Select(g => new { g.FinalScore, g.StudentId })
                 .ToListAsync();
 
             var totalStudents = grades.Count;
-            var avgGrade = totalStudents > 0 ? grades.Average(g => g.FinalGrade ?? 0) : 0;
-            var passCount = grades.Count(g => (g.FinalGrade ?? 0) >= 50);
+            var avgGrade = totalStudents > 0 ? grades.Average(g => g.FinalScore) : 0;
+            var passCount = grades.Count(g => g.FinalScore >= 50);
             var passRate = totalStudents > 0 ? (double)passCount / totalStudents * 100 : 0;
-            var atRisk = grades.Count(g => (g.FinalGrade ?? 0) < 50);
+            var atRisk = grades.Count(g => g.FinalScore < 50);
             var atRiskPct = totalStudents > 0 ? (double)atRisk / totalStudents * 100 : 0;
 
             // Build grade trend from exam results
@@ -349,34 +347,36 @@ namespace UniversityManagementSystem.Infrastructure.Services
         public async Task<IList<WeakTopicDto>> GetClassWeakTopicsAsync(
             Ulid subjectOfferingId, Ulid doctorUserId)
         {
-            // Identify weak exam topics by question-level performance
-            var questionStats = await _context.ExamSubmissions
-                .Where(es => es.Exam.SubjectOfferingId == subjectOfferingId)
-                .SelectMany(es => es.Answers)
-                .GroupBy(a => a.Question.Topic ?? a.Question.Text.Substring(0, 30))
-                .Select(g => new
+            // Derive weak topics from exam-level scores (AnswersJson is a blob, not navigable)
+            var examStats = await _context.Exams
+                .Where(e => e.SubjectOfferingId == subjectOfferingId)
+                .Select(e => new
                 {
-                    Topic = g.Key,
-                    AvgScore = g.Average(a => a.IsCorrect ? 100.0 : 0.0),
-                    TotalAnswers = g.Count(),
+                    e.Title,
+                    e.TotalMarks,
+                    SubmissionCount = e.Submissions.Count(s => s.Score.HasValue),
+                    AvgScore = e.Submissions.Any(s => s.Score.HasValue)
+                        ? e.Submissions.Where(s => s.Score.HasValue).Average(s => (double)s.Score!.Value) : 0.0,
+                    FailCount = e.Submissions.Count(s => s.Score.HasValue && s.Score < e.TotalMarks * 0.5),
                 })
-                .Where(t => t.AvgScore < 60)
-                .OrderBy(t => t.AvgScore)
+                .Where(e => e.SubmissionCount >= 2)
+                .OrderBy(e => e.AvgScore)
                 .Take(10)
                 .ToListAsync();
 
             var weakTopics = new List<WeakTopicDto>();
-            foreach (var stat in questionStats)
+            foreach (var stat in examStats)
             {
-                var struggling = (int)(stat.TotalAnswers * (1 - stat.AvgScore / 100));
-                var rec = await GenerateTopicRecommendationAsync(stat.Topic, stat.AvgScore);
+                double avgPercent = stat.TotalMarks > 0
+                    ? Math.Round(stat.AvgScore / stat.TotalMarks * 100, 1) : 0;
+                if (avgPercent >= 65) continue; // not weak enough
+                var rec = await GenerateTopicRecommendationAsync(stat.Title, avgPercent);
                 weakTopics.Add(new WeakTopicDto(
-                    TopicName: stat.Topic,
-                    AverageScore: Math.Round(stat.AvgScore, 1),
-                    StudentsStruggling: struggling,
+                    TopicName: stat.Title,
+                    AverageScore: avgPercent,
+                    StudentsStruggling: stat.FailCount,
                     AiRecommendation: rec));
             }
-
             return weakTopics;
         }
 
@@ -520,16 +520,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .Select(e => new
                 {
                     e.Title,
-                    Submissions = e.ExamSubmissions.Where(s => s.TotalScore != null)
+                    Submissions = e.Submissions.Where(s => s.Score != null)
                 })
                 .ToListAsync();
 
             return exams.Select(e => new PerformanceTrendDto(
                 Label: e.Title,
                 Average: e.Submissions.Any()
-                    ? Math.Round(e.Submissions.Average(s => s.TotalScore ?? 0), 1) : 0,
+                    ? Math.Round(e.Submissions.Average(s => s.Score ?? 0), 1) : 0,
                 PassRate: e.Submissions.Any()
-                    ? Math.Round(e.Submissions.Count(s => (s.TotalScore ?? 0) >= 50.0) * 100.0 / e.Submissions.Count(), 1) : 0
+                    ? Math.Round(e.Submissions.Count(s => (s.Score ?? 0) >= 50.0) * 100.0 / e.Submissions.Count(), 1) : 0
             )).ToList();
         }
 
@@ -537,7 +537,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         {
             var recs = new List<string>();
 
-            if (profile.DueFlashcards is null && profile.CurrentStreakDays == 0)
+            if (profile.CurrentStreakDays == 0)
                 recs.Add("ابدأ جلسة مذاكرة اليوم لتبدأ streak جديدة 🔥");
 
             if (profile.WeakSubjects.Any())

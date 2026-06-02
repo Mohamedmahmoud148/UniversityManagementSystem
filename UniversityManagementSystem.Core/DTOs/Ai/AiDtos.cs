@@ -169,19 +169,4 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
         public string Period        { get; set; } = "weekly";  // "weekly" | "monthly"
     }
 
-    // ── Complaint analysis ────────────────────────────────────────────────────
-
-    public class AiAnalyzeComplaintRequestDto
-    {
-        public string ComplaintText { get; set; } = string.Empty;
-        public string Category { get; set; } = string.Empty;
-    }
-
-    public class AiComplaintAnalysisResponseDto
-    {
-        [JsonPropertyName("severity")]   public string Severity  { get; set; } = string.Empty;
-        [JsonPropertyName("sentiment")]  public string Sentiment { get; set; } = string.Empty;
-        [JsonPropertyName("summary")]    public string Summary   { get; set; } = string.Empty;
-        [JsonPropertyName("tags")]       public List<string> Tags { get; set; } = new();
-    }
 }

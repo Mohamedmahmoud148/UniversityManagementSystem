@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NUlid;
 using UniversityManagementSystem.Core.Entities;
+using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
 
 namespace UniversityManagementSystem.Infrastructure.Services
@@ -138,7 +139,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var upcomingExams = await ctx.Exams
                 .Include(e => e.SubjectOffering)
                     .ThenInclude(o => o!.Subject)
-                .Where(e => e.ScheduledAt >= now && e.ScheduledAt <= soon
+                .Where(e => e.StartTime >= now && e.StartTime <= soon
                          && e.Status == ExamStatus.Published)
                 .ToListAsync(ct);
 
@@ -147,7 +148,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 var enrollments = await ctx.Enrollments
                     .Where(en => en.SubjectOfferingId == exam.SubjectOfferingId
-                              && en.Status == EnrollmentStatus.Enrolled)
+                              && en.IsActive)
                     .Select(en => en.StudentId)
                     .ToListAsync(ct);
 
@@ -163,7 +164,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         i => i.DeduplicationKey == dedupeKey, ct);
                     if (alreadyExists) continue;
 
-                    var daysLeft = (int)(exam.ScheduledAt!.Value - now).TotalDays;
+                    var daysLeft = (int)(exam.StartTime - now).TotalDays;
                     var subjectName = exam.SubjectOffering?.Subject?.Name ?? "المادة";
 
                     await CreateInsightAsync(ctx, new AiInsight
@@ -172,11 +173,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         InsightType = InsightType.ExamApproaching,
                         Priority = daysLeft <= 2 ? InsightPriority.Urgent : InsightPriority.High,
                         Title = $"امتحان {subjectName} بعد {daysLeft} يوم ⚡",
-                        Message = $"امتحان {subjectName} هيكون {exam.ScheduledAt!.Value:dd/MM} — " +
+                        Message = $"امتحان {subjectName} هيكون {exam.StartTime:dd/MM} — " +
                                   $"عندك {daysLeft} يوم للمراجعة. تحتاج مساعدة في التحضير؟",
                         ActionUrl = $"/ai-companion?topic={Uri.EscapeDataString(subjectName)}&mode=exam_prep",
-                        DeduplicationKey: dedupeKey,
-                        ExpiresAt = exam.ScheduledAt,
+                        DeduplicationKey = dedupeKey,
+                        ExpiresAt = exam.StartTime,
                     }, ct);
                     count++;
                 }
@@ -196,7 +197,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var dueSoon = await ctx.Assignments
                 .Include(a => a.SubjectOffering)
                     .ThenInclude(o => o!.Subject)
-                .Where(a => a.DueDate >= now && a.DueDate <= now.AddHours(48)
+                .Where(a => a.Deadline >= now && a.Deadline <= now.AddHours(48)
                          && a.DeletedAt == null)
                 .ToListAsync(ct);
 
@@ -204,7 +205,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 var enrollments = await ctx.Enrollments
                     .Where(en => en.SubjectOfferingId == assignment.SubjectOfferingId
-                              && en.Status == EnrollmentStatus.Enrolled)
+                              && en.IsActive)
                     .Select(en => en.StudentId)
                     .ToListAsync(ct);
 
@@ -225,7 +226,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     if (await ctx.AiInsights.AnyAsync(i => i.DeduplicationKey == dedupeKey, ct))
                         continue;
 
-                    var hoursLeft = (int)(assignment.DueDate - now).TotalHours;
+                    var hoursLeft = (int)(assignment.Deadline - now).TotalHours;
                     var subjectName = assignment.SubjectOffering?.Subject?.Name ?? "المادة";
 
                     await CreateInsightAsync(ctx, new AiInsight
@@ -237,8 +238,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         Message = $"لسه ما سلمتش واجب {subjectName} ({assignment.Title}). " +
                                   $"باقي {hoursLeft} ساعة. محتاج مساعدة في الحل؟",
                         ActionUrl = $"/assignments/{assignment.Id}",
-                        DeduplicationKey: dedupeKey,
-                        ExpiresAt = assignment.DueDate,
+                        DeduplicationKey = dedupeKey,
+                        ExpiresAt = assignment.Deadline,
                     }, ct);
                     count++;
                 }
@@ -254,7 +255,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var monthKey = $"atrisk:{DateTime.UtcNow:yyyy-MM}";
 
             var atRisk = await ctx.StudentGrades
-                .Where(g => g.FinalGrade < 50 && g.FinalGrade != null
+                .Where(g => g.FinalScore < 50 && g.FinalScore != null
                          && !ctx.AiInsights.Any(i =>
                              i.UserId == g.Student!.SystemUserId
                              && i.InsightType == InsightType.RiskAlert
@@ -277,10 +278,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     InsightType = InsightType.RiskAlert,
                     Priority = InsightPriority.High,
                     Title = $"درجتك في {subjectName} تحتاج اهتمام ⚠️",
-                    Message = $"يا {studentName}، درجتك في {subjectName} هي {grade.FinalGrade:F0}%. " +
+                    Message = $"يا {studentName}، درجتك في {subjectName} هي {grade.FinalScore:F0}%. " +
                               "عندي خطة مذاكرة مخصصة تقدر ترفع درجتك. عايز تبدأ؟",
                     ActionUrl = $"/ai-companion?mode=weakness_review&subject={Uri.EscapeDataString(subjectName)}",
-                    DeduplicationKey: monthKey,
+                    DeduplicationKey = monthKey,
                     ExpiresAt = DateTime.UtcNow.AddDays(30),
                 }, ct);
                 count++;
@@ -318,7 +319,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     Title = $"{emoji} {profile.CurrentStreakDays} يوم streak!",
                     Message = $"وصلت لـ {profile.CurrentStreakDays} يوم متواصل من المذاكرة! " +
                               "هذا الثبات هو مفتاح النجاح الحقيقي. استمر!",
-                    DeduplicationKey: dedupeKey,
+                    DeduplicationKey = dedupeKey,
                     ExpiresAt = DateTime.UtcNow.AddDays(7),
                 }, ct);
                 count++;
@@ -356,7 +357,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     Title = "تحسن ملحوظ في أدائك! 📈",
                     Message = $"حققت {session.AccuracyPercent:F0}% دقة في موضوع '{session.TopicName}'! " +
                               "هذا تقدم رائع. استمر في هذا المستوى!",
-                    DeduplicationKey: dedupeKey,
+                    DeduplicationKey = dedupeKey,
                     ExpiresAt = DateTime.UtcNow.AddDays(7),
                 }, ct);
                 count++;
@@ -416,7 +417,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         avg_accuracy = Math.Round(avgAccuracy, 1),
                         streak = profile.CurrentStreakDays,
                     }),
-                    DeduplicationKey: weekKey,
+                    DeduplicationKey = weekKey,
                     ExpiresAt = DateTime.UtcNow.AddDays(7),
                 }, ct);
                 count++;
