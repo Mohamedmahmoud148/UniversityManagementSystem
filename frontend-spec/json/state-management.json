@@ -1,0 +1,62 @@
+{
+  "state_management": {
+    "tools": {
+      "server_state": "TanStack React Query",
+      "client_state": "Zustand",
+      "form_state": "React Hook Form + Zod",
+      "url_state": "React Router v6 search params"
+    },
+    "zustand_stores": [
+      {
+        "name": "authStore",
+        "state": ["user: UserProfile|null", "accessToken: string|null", "refreshToken: string|null", "isAuthenticated: boolean"],
+        "actions": ["login(credentials)", "logout()", "refreshTokens()", "setUser(user)"],
+        "persistence": "localStorage (tokens)"
+      },
+      {
+        "name": "notificationStore",
+        "state": ["notifications: NotificationDto[]", "unreadCount: number"],
+        "actions": ["setNotifications()", "addNotification()", "markRead(id)", "markAllRead()"],
+        "persistence": null
+      },
+      {
+        "name": "chatStore",
+        "state": ["conversations: Conversation[]", "activeConversationId: string|null", "messages: Record<string, Message[]>", "isTyping: boolean"],
+        "actions": ["setActiveConversation(id)", "addMessage(convId, msg)", "setTyping(bool)", "createConversation(title)"],
+        "persistence": null
+      },
+      {
+        "name": "examStore",
+        "state": ["activeExamId: string|null", "answers: Record<string, string>", "startTime: number", "lastSaved: number"],
+        "actions": ["startExam(id)", "setAnswer(qId, answer)", "endExam()"],
+        "persistence": "sessionStorage (prevents loss on refresh)"
+      }
+    ],
+    "react_query_keys": {
+      "auth.me": "['auth', 'me']",
+      "students": "['students', filters]",
+      "exams.mine": "['exams', 'mine']",
+      "exam": "['exams', id]",
+      "companion.dashboard": "['companion', 'dashboard']",
+      "flashcards.due": "['companion', 'flashcards', 'due']",
+      "teaching.dashboard": "['teaching', 'dashboard']",
+      "offering.analytics": "['teaching', 'offerings', id, 'analytics']",
+      "offering.students": "['teaching', 'offerings', id, 'students', filters]",
+      "notifications": "['notifications']",
+      "roadmap": "['regulations', 'roadmap']"
+    },
+    "stale_times": {
+      "auth.me": "10min",
+      "grades": "10min",
+      "gpa": "10min",
+      "roadmap": "30min",
+      "regulations": "30min",
+      "materials": "10min",
+      "dashboard": "5min",
+      "exams": "5min",
+      "notifications": "1min",
+      "teaching_intelligence": "10min",
+      "companion": "5min"
+    }
+  }
+}

@@ -1,0 +1,130 @@
+{
+  "widgets": [
+    {
+      "id": "GPACard",
+      "component": "MetricCard",
+      "data_source": "GET /api/gpa/my-gpa",
+      "displays": ["gpa", "cgpa", "lastSemesterGpa", "totalCreditHours"],
+      "page": "student_dashboard",
+      "size": "1/3",
+      "onClick": "/student/grades"
+    },
+    {
+      "id": "AttendanceCard",
+      "component": "AttendanceSummaryCard",
+      "data_source": "GET /api/attendance/student/{id}/report",
+      "displays": ["overallPercent", "perSubject"],
+      "page": "student_dashboard",
+      "size": "1/3",
+      "onClick": "/student/attendance"
+    },
+    {
+      "id": "StreakBadge",
+      "component": "StreakBadge",
+      "data_source": "GET /api/companion/dashboard",
+      "field": "profile.currentStreakDays",
+      "page": "student_dashboard, companion_hub, navbar",
+      "size": "inline"
+    },
+    {
+      "id": "UpcomingExams",
+      "component": "ExamList",
+      "data_source": "GET /api/exams/my-enrolled-exams",
+      "filter": "status === 'Published' && startTime > now && within 7 days",
+      "page": "student_dashboard",
+      "size": "1/2",
+      "empty": "No upcoming exams"
+    },
+    {
+      "id": "DueAssignments",
+      "component": "AssignmentList",
+      "data_source": "per offering from enrollments",
+      "filter": "deadline > now && no submission",
+      "page": "student_dashboard",
+      "size": "1/2",
+      "empty": "All caught up!"
+    },
+    {
+      "id": "AIInsightsFeed",
+      "component": "InsightsFeed",
+      "data_source": "GET /api/companion/insights?unreadOnly=true",
+      "page": "student_dashboard, companion_hub",
+      "size": "1/2",
+      "max_items": 5
+    },
+    {
+      "id": "DueFlashcards",
+      "component": "DueFlashcardsWidget",
+      "data_source": "GET /api/companion/flashcards/due?limit=5",
+      "page": "companion_hub",
+      "size": "1/3",
+      "action": "Review Now",
+      "onClick": "/student/companion/flashcards"
+    },
+    {
+      "id": "WeeklyProgress",
+      "component": "WeeklyProgressChart",
+      "data_source": "GET /api/companion/dashboard",
+      "field": "weeklyProgress",
+      "chart_type": "bar",
+      "page": "companion_hub",
+      "size": "2/3"
+    },
+    {
+      "id": "TeachingStats",
+      "component": "StatsRow",
+      "data_source": "GET /api/teaching-intelligence/dashboard",
+      "field": "overallStats",
+      "displays": ["totalStudents", "criticalRiskCount", "highRiskCount", "overallAverageGrade", "overallAttendanceRate"],
+      "page": "teaching_dashboard",
+      "size": "full"
+    },
+    {
+      "id": "OfferingHealthCards",
+      "component": "OfferingHealthCard (grid)",
+      "data_source": "GET /api/teaching-intelligence/offerings",
+      "page": "teaching_dashboard",
+      "size": "2/3",
+      "onClick": "/doctor/analytics/{offeringId}"
+    },
+    {
+      "id": "AtRiskStudentsTable",
+      "component": "DataTable",
+      "data_source": "GET /api/teaching-intelligence/students/at-risk?minRiskLevel=medium",
+      "columns": ["name", "course", "riskScore", "riskLevel", "riskFactors", "action"],
+      "page": "teaching_dashboard",
+      "size": "full",
+      "max_rows": 20
+    },
+    {
+      "id": "WeakTopicsList",
+      "component": "WeakTopicsPanel",
+      "data_source": "teaching_dashboard.weakTopics",
+      "page": "teaching_dashboard",
+      "size": "1/2",
+      "max_items": 5
+    },
+    {
+      "id": "AdminSystemStats",
+      "component": "MetricCard (row of 5)",
+      "data_source": "GET /api/analytics/dashboard/admin",
+      "displays": ["totalStudents", "totalDoctors", "activeCourses", "passRate", "atRiskCount"],
+      "page": "admin_dashboard",
+      "size": "full"
+    },
+    {
+      "id": "GradeDistribution",
+      "component": "DonutChart",
+      "data_source": "GET /api/analytics/grades/distribution",
+      "page": "admin_analytics, class_analytics",
+      "size": "1/2"
+    },
+    {
+      "id": "ClassPerformanceTrend",
+      "component": "LineChart",
+      "data_source": "teaching intelligence performanceTrend",
+      "page": "class_analytics",
+      "size": "full"
+    }
+  ]
+}

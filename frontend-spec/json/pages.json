@@ -1,0 +1,110 @@
+{
+  "pages": [
+    {
+      "id": "student_dashboard",
+      "path": "/student/dashboard",
+      "title": "Student Dashboard",
+      "roles": ["Student", "SuperAdmin"],
+      "apis": [
+        "GET /api/analytics/dashboard/student",
+        "GET /api/gpa/my-gpa",
+        "GET /api/exams/my-enrolled-exams",
+        "GET /api/companion/dashboard",
+        "GET /api/notification"
+      ],
+      "widgets": ["GPACard", "AttendanceCard", "UpcomingExams", "DueAssignments", "CourseGrid", "AIInsightsFeed", "TodayStudyPlan"],
+      "loading": "DashboardSkeleton",
+      "empty": null
+    },
+    {
+      "id": "teaching_dashboard",
+      "path": "/doctor/dashboard",
+      "title": "Teaching Intelligence Dashboard",
+      "roles": ["Doctor", "SuperAdmin"],
+      "apis": [
+        "GET /api/teaching-intelligence/dashboard",
+        "GET /api/teaching-intelligence/alerts?unreadOnly=true"
+      ],
+      "widgets": ["StatsRow", "AIRecommendations", "OfferingHealthCards", "AtRiskTable", "WeakTopicsList", "ClassComparisonChart", "AlertsFeed"],
+      "loading": "DashboardSkeleton",
+      "empty": null
+    },
+    {
+      "id": "admin_dashboard",
+      "path": "/admin/dashboard",
+      "title": "Admin Dashboard",
+      "roles": ["Admin", "SuperAdmin"],
+      "apis": [
+        "GET /api/analytics/dashboard/admin",
+        "GET /api/analytics/summary",
+        "GET /api/risk/at-risk-students"
+      ],
+      "widgets": ["SystemStats", "EnrollmentTrend", "DepartmentPie", "AtRiskList", "RecentActivity"],
+      "loading": "DashboardSkeleton",
+      "empty": null
+    },
+    {
+      "id": "exam_taking",
+      "path": "/student/exams/:id/take",
+      "title": "Exam",
+      "roles": ["Student", "SuperAdmin"],
+      "apis": [
+        "GET /api/exams/{id}",
+        "POST /api/exams/{id}/save-progress",
+        "POST /api/exams/{id}/submit",
+        "POST /api/proctoring/event"
+      ],
+      "fullscreen": true,
+      "disableNavigation": true,
+      "loading": "ExamLoadingSkeleton"
+    },
+    {
+      "id": "companion_hub",
+      "path": "/student/companion",
+      "title": "AI Companion",
+      "roles": ["Student", "SuperAdmin"],
+      "apis": [
+        "GET /api/companion/dashboard",
+        "GET /api/companion/flashcards/due",
+        "GET /api/companion/insights?unreadOnly=true",
+        "GET /api/companion/sessions?page=1&size=5"
+      ],
+      "layout": "three-column",
+      "widgets": ["CompanionProfile", "StreakBadge", "DueFlashcards", "WeeklyProgress", "TodayRecs", "RecentSessions", "InsightsFeed"]
+    },
+    {
+      "id": "class_analytics",
+      "path": "/doctor/analytics/:offeringId",
+      "title": "Class Analytics",
+      "roles": ["Doctor", "SuperAdmin"],
+      "apis": [
+        "GET /api/teaching-intelligence/offerings/{id}/analytics",
+        "GET /api/teaching-intelligence/offerings/{id}/topics"
+      ],
+      "tabs": ["Overview", "Students", "Topics", "Trends", "Export"],
+      "loading": "TableSkeleton"
+    },
+    {
+      "id": "academic_roadmap",
+      "path": "/student/roadmap",
+      "title": "Academic Roadmap",
+      "roles": ["Student", "SuperAdmin"],
+      "apis": ["GET /api/Regulations/my-roadmap"],
+      "layout": "full-width",
+      "loading": "RoadmapSkeleton"
+    },
+    {
+      "id": "chat",
+      "path": "/chat",
+      "title": "AI Chat",
+      "roles": [],
+      "apis": [
+        "GET /api/Chat/conversations",
+        "POST /api/Chat/conversations",
+        "GET /api/Chat/conversations/{id}/messages",
+        "POST /api/Chat/messages"
+      ],
+      "layout": "sidebar-main"
+    }
+  ]
+}
