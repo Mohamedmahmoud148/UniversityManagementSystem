@@ -148,5 +148,26 @@ namespace UniversityManagementSystem.Api.Controllers
             await _mapping.RemoveMappingAsync(mId);
             return NoContent();
         }
+
+        /// <summary>
+        /// POST /api/academic-years/{yearId}/departments/assign-to-all
+        /// Assigns a department to this year AND all subsequent years in the same college.
+        /// Example: if yearId = Year 2, assigns to Years 2, 3, 4 (NOT Year 1).
+        /// Skips years that already have the mapping. Returns newly created mappings.
+        /// </summary>
+        [HttpPost("{yearId}/departments/assign-to-all")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> AssignDepartmentToAllYears(
+            string yearId, [FromBody] AssignDepartmentToYearDto dto)
+        {
+            if (!Ulid.TryParse(yearId, out var uid)) return BadRequest("Invalid Academic Year ID.");
+            try
+            {
+                var result = await _mapping.AssignDepartmentToAllYearsAsync(uid, dto.DepartmentId, dto.IsActive);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)   { return NotFound(ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
     }
 }

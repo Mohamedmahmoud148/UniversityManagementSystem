@@ -64,20 +64,24 @@ namespace UniversityManagementSystem.Api.Controllers
         {
             var studentDict = await GetStudentCountsByDepartmentAsync();
 
-            var doctorCounts = await _context.Doctors
-                .AsNoTracking()
-                .Where(d => d.DeletedAt == null)
-                .GroupBy(d => d.DepartmentId)
-                .Select(g => new { DepartmentId = g.Key, DoctorCount = g.Count() })
-                .ToListAsync();
-
             var departments = await _context.Departments
                 .AsNoTracking()
                 .Include(d => d.College)
                 .Select(d => new { d.Id, d.Name, CollegeName = d.College != null ? d.College.Name : "" })
                 .ToListAsync();
 
-            var doctorDict  = doctorCounts.ToDictionary(x => x.DepartmentId, x => x.DoctorCount);
+            // Fetch only DepartmentId for all active doctors, then count in memory
+            // (avoids EF Core GroupBy translation issues with ULID keys)
+            var doctorDeptIds = await _context.Doctors
+                .AsNoTracking()
+                .IgnoreQueryFilters()
+                .Where(d => d.DeletedAt == null)
+                .Select(d => d.DepartmentId)
+                .ToListAsync();
+
+            var doctorDict = doctorDeptIds
+                .GroupBy(id => id)
+                .ToDictionary(g => g.Key, g => g.Count());
 
             var result = departments
                 .Select(d => new DepartmentCountDto
