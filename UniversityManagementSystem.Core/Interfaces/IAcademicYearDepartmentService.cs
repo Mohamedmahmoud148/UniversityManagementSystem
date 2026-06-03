@@ -32,7 +32,8 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task RemoveMappingAsync(Ulid mappingId);
 
         /// <summary>
-        /// Assigns a department to ALL academic years within the same college.
+        /// Assigns a department to all academic years FROM the given year onward (same college).
+        /// Example: department opens in Year 2 → assigned to Years 2, 3, 4 (NOT Year 1).
         /// Skips years that already have the mapping. Returns only the newly created mappings.
         /// </summary>
         Task<IEnumerable<AcademicYearDepartmentDto>> AssignDepartmentToAllYearsAsync(

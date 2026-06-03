@@ -157,9 +157,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 throw new InvalidOperationException(
                     $"Department '{department.Name}' belongs to a different college.");
 
-            // 3. Get ALL academic years in the same college
+            // 3. Get academic years in the same college FROM this year onward (order >= source)
+            // e.g. if department opens in Year 2 → assign to Years 2, 3, 4 (NOT Year 1)
             var allYears = await _context.Set<AcademicYear>()
-                .Where(y => y.CollegeId == sourceYear.CollegeId && y.DeletedAt == null)
+                .Where(y => y.CollegeId == sourceYear.CollegeId
+                         && y.DeletedAt == null
+                         && y.Order >= sourceYear.Order)
                 .ToListAsync();
 
             // 4. Get existing mappings to avoid duplicates
