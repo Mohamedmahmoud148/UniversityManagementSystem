@@ -30,5 +30,12 @@ namespace UniversityManagementSystem.Core.Interfaces
 
         /// <summary>Permanently removes a mapping (hard delete — it's a config record).</summary>
         Task RemoveMappingAsync(Ulid mappingId);
+
+        /// <summary>
+        /// Assigns a department to ALL academic years within the same college.
+        /// Skips years that already have the mapping. Returns only the newly created mappings.
+        /// </summary>
+        Task<IEnumerable<AcademicYearDepartmentDto>> AssignDepartmentToAllYearsAsync(
+            Ulid sourceYearId, Ulid departmentId, bool isActive);
     }
 }

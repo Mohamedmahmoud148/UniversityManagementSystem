@@ -141,6 +141,66 @@ namespace UniversityManagementSystem.Infrastructure.Services
             _logger.LogInformation("Mapping {MappingId} IsActive set to {IsActive}", mappingId, isActive);
         }
 
+        public async Task<IEnumerable<AcademicYearDepartmentDto>> AssignDepartmentToAllYearsAsync(
+            Ulid sourceyearId, Ulid departmentId, bool isActive)
+        {
+            // 1. Resolve source year to get college
+            var sourceYear = await _context.Set<AcademicYear>()
+                .FirstOrDefaultAsync(y => y.Id == sourceyearId)
+                ?? throw new KeyNotFoundException($"Academic Year {sourceyearId} not found.");
+
+            // 2. Verify department exists and belongs to same college
+            var department = await _context.Departments.FindAsync(departmentId)
+                ?? throw new KeyNotFoundException($"Department {departmentId} not found.");
+
+            if (department.CollegeId != sourceYear.CollegeId)
+                throw new InvalidOperationException(
+                    $"Department '{department.Name}' belongs to a different college.");
+
+            // 3. Get ALL academic years in the same college
+            var allYears = await _context.Set<AcademicYear>()
+                .Where(y => y.CollegeId == sourceYear.CollegeId && y.DeletedAt == null)
+                .ToListAsync();
+
+            // 4. Get existing mappings to avoid duplicates
+            var existing = await _context.AcademicYearDepartments
+                .Where(m => m.DepartmentId == departmentId &&
+                            allYears.Select(y => y.Id).Contains(m.AcademicYearId))
+                .Select(m => m.AcademicYearId)
+                .ToListAsync();
+
+            // 5. Add to years that don't already have this department
+            var added = new List<AcademicYearDepartment>();
+            foreach (var year in allYears)
+            {
+                if (existing.Contains(year.Id)) continue;
+
+                var mapping = new AcademicYearDepartment
+                {
+                    AcademicYearId = year.Id,
+                    DepartmentId   = departmentId,
+                    IsActive       = isActive,
+                };
+                _context.AcademicYearDepartments.Add(mapping);
+                added.Add(mapping);
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "Department {DeptId} assigned to {Count} academic years in college {CollegeId}",
+                departmentId, added.Count, sourceYear.CollegeId);
+
+            // Reload navigation for response
+            foreach (var m in added)
+            {
+                await _context.Entry(m).Reference(x => x.AcademicYear).LoadAsync();
+                await _context.Entry(m).Reference(x => x.Department).LoadAsync();
+            }
+
+            return added.Select(MapToDto);
+        }
+
         public async Task RemoveMappingAsync(Ulid mappingId)
         {
             var mapping = await _context.AcademicYearDepartments.FindAsync(mappingId)
