@@ -20,23 +20,6 @@ namespace UniversityManagementSystem.Api.Controllers
         IUserContextService userContext,
         IAiService aiService) : ControllerBase
     {
-        private static readonly System.Collections.Generic.HashSet<string> AllowedMimeTypes = new(System.StringComparer.OrdinalIgnoreCase)
-        {
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.ms-powerpoint",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            "application/vnd.ms-excel",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "image/jpeg",
-            "image/png",
-            "image/gif",
-            "video/mp4",
-            "video/webm",
-            "text/plain",
-            "application/zip"
-        };
         private const long MaxFileSizeBytes = 500L * 1024 * 1024; // 500 MB
 
         [HttpPost("upload")]
@@ -51,9 +34,6 @@ namespace UniversityManagementSystem.Api.Controllers
 
             if (dto.File == null || dto.File.Length == 0)
                 return BadRequest("No file provided.");
-
-            if (!AllowedMimeTypes.Contains(dto.File.ContentType))
-                return BadRequest($"File type '{dto.File.ContentType}' is not allowed.");
 
             if (dto.File.Length > MaxFileSizeBytes)
                 return BadRequest("File exceeds the 500 MB size limit.");
