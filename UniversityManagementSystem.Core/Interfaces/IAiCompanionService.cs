@@ -17,6 +17,11 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<LearningSessionDto> CompleteSessionAsync(Ulid sessionId, CompleteSessionDto dto);
         Task<IList<LearningSessionDto>> GetSessionHistoryAsync(Ulid userId, int page = 1, int pageSize = 20);
 
+        // ── Interactive Session (AI questions + auto-grading) ─────────────
+        Task<List<DTOs.Companion.SessionQuestionDto>> GenerateSessionQuestionsAsync(Ulid sessionId);
+        Task<DTOs.Companion.AnswerResultDto> SubmitAnswerAsync(Ulid sessionId, DTOs.Companion.SubmitAnswerDto dto);
+        Task<DTOs.Companion.SessionReportDto> GetSessionReportAsync(Ulid sessionId);
+
         // ── Flashcards ────────────────────────────────────────────────────
         Task<FlashcardDeckDto> GenerateFlashcardsAsync(Ulid userId, GenerateFlashcardsDto dto);
         Task<IList<FlashcardDeckDto>> GetMyDecksAsync(Ulid userId);

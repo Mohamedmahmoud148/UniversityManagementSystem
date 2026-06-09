@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -107,6 +108,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
             if (Ulid.TryParse(dto.SubjectOfferingId, out var oid))
                 offeringId = oid;
 
+            var initialMeta = JsonSerializer.Serialize(new
+            {
+                difficulty     = dto.Difficulty ?? "medium",
+                question_count = dto.QuestionCount > 0 ? dto.QuestionCount : 5,
+                questions      = Array.Empty<object>(),
+                answers        = new { }
+            });
+
             var session = new LearningSession
             {
                 UserId = userId,
@@ -116,6 +125,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 TopicName = dto.TopicName,
                 Status = LearningSessionStatus.Active,
                 StartedAt = DateTime.UtcNow,
+                SessionData = initialMeta,
             };
 
             _context.LearningSessions.Add(session);
@@ -167,6 +177,265 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .ToListAsync();
 
             return sessions.Select(MapToSessionDto).ToList();
+        }
+
+        // ── Interactive Session ───────────────────────────────────────────
+
+        public async Task<List<SessionQuestionDto>> GenerateSessionQuestionsAsync(Ulid sessionId)
+        {
+            var session = await _context.LearningSessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId)
+                ?? throw new KeyNotFoundException("Session not found.");
+
+            if (session.Status != LearningSessionStatus.Active)
+                throw new InvalidOperationException("Session is not active.");
+
+            var sessionMeta = ParseSessionMeta(session.SessionData);
+            var difficulty = sessionMeta.TryGetValue("difficulty", out var d) ? d : "medium";
+            var count = sessionMeta.TryGetValue("question_count", out var qc)
+                && int.TryParse(qc, out var n) ? n : 5;
+
+            var aiQuestions = await _aiService.GenerateStudyQuestionsAsync(
+                session.TopicName,
+                session.SessionType.ToString().ToLower(),
+                difficulty,
+                count);
+
+            // store questions in SessionData so we can grade later
+            var stored = new StoredSessionData
+            {
+                Difficulty = difficulty,
+                QuestionCount = count,
+                Questions = aiQuestions.Select(q => new StoredQuestion
+                {
+                    Id            = q.Id,
+                    Type          = q.Type,
+                    Text          = q.Text,
+                    Options       = q.Options,
+                    CorrectAnswer = q.CorrectAnswer,
+                    Explanation   = q.Explanation,
+                }).ToList()
+            };
+            session.SessionData = JsonSerializer.Serialize(stored);
+            await _context.SaveChangesAsync();
+
+            return stored.Questions.Select((q, i) => new SessionQuestionDto(
+                Id:             q.Id,
+                QuestionNumber: i + 1,
+                QuestionType:   q.Type,
+                Text:           q.Text,
+                Options:        q.Options)).ToList();
+        }
+
+        public async Task<AnswerResultDto> SubmitAnswerAsync(Ulid sessionId, SubmitAnswerDto dto)
+        {
+            var session = await _context.LearningSessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId)
+                ?? throw new KeyNotFoundException("Session not found.");
+
+            if (session.Status != LearningSessionStatus.Active)
+                throw new InvalidOperationException("Session is not active.");
+
+            var stored = JsonSerializer.Deserialize<StoredSessionData>(session.SessionData ?? "{}")
+                         ?? new StoredSessionData();
+
+            var question = stored.Questions.FirstOrDefault(q => q.Id == dto.QuestionId)
+                ?? throw new KeyNotFoundException("Question not found in this session.");
+
+            if (stored.Answers.ContainsKey(dto.QuestionId))
+                throw new InvalidOperationException("Question already answered.");
+
+            bool isCorrect;
+            double score;
+            string feedback;
+            string explanation = question.Explanation;
+
+            if (question.Type == "mcq")
+            {
+                isCorrect = string.Equals(dto.Answer.Trim(), question.CorrectAnswer.Trim(),
+                    StringComparison.OrdinalIgnoreCase);
+                score     = isCorrect ? 100 : 0;
+                feedback  = isCorrect
+                    ? "أحسنت! إجابة صحيحة ✅"
+                    : $"إجابة خاطئة. الإجابة الصحيحة هي: {question.CorrectAnswer}";
+            }
+            else
+            {
+                var gradeResult = await _aiService.GradeOpenAnswerAsync(
+                    question.Text, dto.Answer,
+                    session.TopicName,
+                    stored.Difficulty);
+
+                if (gradeResult != null)
+                {
+                    isCorrect   = gradeResult.IsCorrect;
+                    score       = gradeResult.Score;
+                    feedback    = gradeResult.Feedback;
+                    explanation = gradeResult.Explanation.Length > 0 ? gradeResult.Explanation : explanation;
+                }
+                else
+                {
+                    // AI unavailable — basic keyword check fallback
+                    isCorrect = dto.Answer.Length > 10;
+                    score     = isCorrect ? 60 : 0;
+                    feedback  = "تم تسجيل إجابتك. سيتم مراجعتها.";
+                }
+            }
+
+            stored.Answers[dto.QuestionId] = new StoredAnswer
+            {
+                StudentAnswer = dto.Answer,
+                IsCorrect     = isCorrect,
+                Score         = score,
+            };
+
+            session.SessionData = JsonSerializer.Serialize(stored);
+            await _context.SaveChangesAsync();
+
+            return new AnswerResultDto(
+                QuestionId:    dto.QuestionId,
+                IsCorrect:     isCorrect,
+                Score:         score,
+                CorrectAnswer: question.CorrectAnswer,
+                Explanation:   explanation,
+                AiFeedback:    feedback);
+        }
+
+        public async Task<SessionReportDto> GetSessionReportAsync(Ulid sessionId)
+        {
+            var session = await _context.LearningSessions
+                .FirstOrDefaultAsync(s => s.Id == sessionId)
+                ?? throw new KeyNotFoundException("Session not found.");
+
+            var stored = JsonSerializer.Deserialize<StoredSessionData>(session.SessionData ?? "{}")
+                         ?? new StoredSessionData();
+
+            var answered = stored.Questions
+                .Where(q => stored.Answers.ContainsKey(q.Id))
+                .ToList();
+
+            int total   = stored.Questions.Count;
+            int correct = stored.Answers.Values.Count(a => a.IsCorrect);
+            double accuracy = total > 0 ? Math.Round((double)correct / total * 100, 1) : 0;
+
+            // auto-complete session if not already done
+            if (session.Status == LearningSessionStatus.Active)
+            {
+                session.Status          = LearningSessionStatus.Completed;
+                session.TotalQuestions  = total;
+                session.CorrectAnswers  = correct;
+                session.AccuracyPercent = accuracy;
+                session.CompletedAt     = DateTime.UtcNow;
+                session.DurationMinutes = (int)(DateTime.UtcNow - session.StartedAt).TotalMinutes;
+
+                session.AiFeedback = await GenerateSessionFeedbackAsync(session);
+
+                if (session.AiCompanionProfile == null)
+                    await _context.Entry(session).Reference(s => s.AiCompanionProfile).LoadAsync();
+                if (session.AiCompanionProfile != null)
+                    UpdateEngagementMetrics(session.AiCompanionProfile, session);
+
+                await _context.SaveChangesAsync();
+            }
+
+            string level = accuracy switch
+            {
+                >= 90 => "Excellent",
+                >= 75 => "Good",
+                >= 50 => "Needs Improvement",
+                _     => "Poor"
+            };
+
+            var recommendations = BuildSessionRecommendations(accuracy, stored.Questions, stored.Answers);
+
+            var review = stored.Questions.Select((q, i) =>
+            {
+                stored.Answers.TryGetValue(q.Id, out var ans);
+                return new QuestionReviewDto(
+                    QuestionNumber: i + 1,
+                    QuestionText:   q.Text,
+                    StudentAnswer:  ans?.StudentAnswer ?? "لم يُجب",
+                    CorrectAnswer:  q.CorrectAnswer,
+                    IsCorrect:      ans?.IsCorrect ?? false,
+                    Explanation:    q.Explanation);
+            }).ToList();
+
+            return new SessionReportDto(
+                SessionId:        sessionId.ToString(),
+                TopicName:        session.TopicName,
+                SessionType:      session.SessionType.ToString(),
+                Difficulty:       stored.Difficulty,
+                TotalQuestions:   total,
+                CorrectAnswers:   correct,
+                AccuracyPercent:  accuracy,
+                DurationMinutes:  session.DurationMinutes,
+                PerformanceLevel: level,
+                OverallFeedback:  session.AiFeedback ?? string.Empty,
+                QuestionReview:   review,
+                Recommendations:  recommendations);
+        }
+
+        // ── Internal helpers ──────────────────────────────────────────────
+
+        private static Dictionary<string, string> ParseSessionMeta(string? json)
+        {
+            if (string.IsNullOrEmpty(json)) return new();
+            try
+            {
+                var doc = JsonDocument.Parse(json);
+                var dict = new Dictionary<string, string>();
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                    dict[prop.Name] = prop.Value.ToString();
+                return dict;
+            }
+            catch { return new(); }
+        }
+
+        private static List<string> BuildSessionRecommendations(
+            double accuracy, List<StoredQuestion> questions, Dictionary<string, StoredAnswer> answers)
+        {
+            var recs = new List<string>();
+            var wrong = questions.Where(q =>
+                !answers.TryGetValue(q.Id, out var a) || !a.IsCorrect).ToList();
+
+            if (accuracy >= 90)
+                recs.Add("ممتاز! جرب مستوى صعوبة أعلى في الجلسة القادمة.");
+            else if (accuracy >= 75)
+                recs.Add("أداء جيد! راجع الأسئلة اللي غلطت فيها مرة تانية.");
+            else
+                recs.Add("نصيحة: اذاكر الموضوع ده تاني وارجع لجلسة جديدة.");
+
+            if (wrong.Count > 0)
+                recs.Add($"ركز على هذه النقاط: {string.Join("، ", wrong.Take(3).Select(q => q.Text.Length > 40 ? q.Text[..40] + "..." : q.Text))}");
+
+            return recs;
+        }
+
+        // ── Stored session data model (JSON in SessionData column) ────────
+
+        private class StoredSessionData
+        {
+            [JsonPropertyName("difficulty")]     public string Difficulty   { get; set; } = "medium";
+            [JsonPropertyName("question_count")] public int QuestionCount   { get; set; } = 5;
+            [JsonPropertyName("questions")]      public List<StoredQuestion> Questions { get; set; } = [];
+            [JsonPropertyName("answers")]        public Dictionary<string, StoredAnswer> Answers { get; set; } = [];
+        }
+
+        private class StoredQuestion
+        {
+            [JsonPropertyName("id")]             public string Id           { get; set; } = string.Empty;
+            [JsonPropertyName("type")]           public string Type         { get; set; } = "mcq";
+            [JsonPropertyName("text")]           public string Text         { get; set; } = string.Empty;
+            [JsonPropertyName("options")]        public List<string>? Options { get; set; }
+            [JsonPropertyName("correct_answer")] public string CorrectAnswer { get; set; } = string.Empty;
+            [JsonPropertyName("explanation")]    public string Explanation  { get; set; } = string.Empty;
+        }
+
+        private class StoredAnswer
+        {
+            [JsonPropertyName("student_answer")] public string StudentAnswer { get; set; } = string.Empty;
+            [JsonPropertyName("is_correct")]     public bool IsCorrect       { get; set; }
+            [JsonPropertyName("score")]          public double Score         { get; set; }
         }
 
         // ── Flashcards ────────────────────────────────────────────────────

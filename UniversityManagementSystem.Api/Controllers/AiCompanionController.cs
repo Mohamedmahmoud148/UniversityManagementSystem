@@ -80,6 +80,62 @@ public class AiCompanionController(
         return Ok(session);
     }
 
+    /// <summary>
+    /// Generate AI questions for an active session.
+    /// Returns questions WITHOUT correct answers (hidden from student).
+    /// </summary>
+    [HttpPost("sessions/{sessionId}/generate-questions")]
+    [Authorize(Roles = "Student,SuperAdmin")]
+    public async Task<IActionResult> GenerateQuestions(string sessionId)
+    {
+        if (!Ulid.TryParse(sessionId, out var id))
+            return BadRequest("Invalid session ID.");
+        try
+        {
+            var questions = await companionService.GenerateSessionQuestionsAsync(id);
+            return Ok(questions);
+        }
+        catch (KeyNotFoundException ex)   { return NotFound(ex.Message); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+
+    /// <summary>
+    /// Submit a single answer. AI grades it immediately and returns result.
+    /// </summary>
+    [HttpPost("sessions/{sessionId}/submit-answer")]
+    [Authorize(Roles = "Student,SuperAdmin")]
+    public async Task<IActionResult> SubmitAnswer(
+        string sessionId, [FromBody] Core.DTOs.Companion.SubmitAnswerDto dto)
+    {
+        if (!Ulid.TryParse(sessionId, out var id))
+            return BadRequest("Invalid session ID.");
+        try
+        {
+            var result = await companionService.SubmitAnswerAsync(id, dto);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)      { return NotFound(ex.Message); }
+        catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+    }
+
+    /// <summary>
+    /// Get the full session report with score, per-question review, and AI recommendations.
+    /// Also auto-completes the session if still active.
+    /// </summary>
+    [HttpGet("sessions/{sessionId}/report")]
+    [Authorize(Roles = "Student,SuperAdmin")]
+    public async Task<IActionResult> GetSessionReport(string sessionId)
+    {
+        if (!Ulid.TryParse(sessionId, out var id))
+            return BadRequest("Invalid session ID.");
+        try
+        {
+            var report = await companionService.GetSessionReportAsync(id);
+            return Ok(report);
+        }
+        catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+    }
+
     /// <summary>Get the user's learning session history.</summary>
     [HttpGet("sessions")]
     public async Task<IActionResult> GetSessionHistory(

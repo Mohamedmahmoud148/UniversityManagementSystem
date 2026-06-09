@@ -399,5 +399,52 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 return null;
             }
         }
+
+        // ----------------------------------------------------------------
+        // Study Session: Generate Questions  —  POST /api/companion/generate-questions
+        // ----------------------------------------------------------------
+
+        public async Task<List<AiStudyQuestionDto>> GenerateStudyQuestionsAsync(
+            string topic, string sessionType, string difficulty, int count)
+        {
+            try
+            {
+                var payload = new { topic, session_type = sessionType, difficulty, count };
+                var response = await _httpClient.PostAsJsonAsync(
+                    "/api/companion/generate-questions", payload, _jsonOptions);
+                response.EnsureSuccessStatusCode();
+                var result = await response.Content
+                    .ReadFromJsonAsync<List<AiStudyQuestionDto>>(_jsonOptions);
+                return result ?? [];
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AiService] GenerateStudyQuestionsAsync – error for topic {Topic}.", topic);
+                return [];
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // Study Session: Grade Open Answer  —  POST /api/companion/grade-open-answer
+        // ----------------------------------------------------------------
+
+        public async Task<AiGradeOpenAnswerResponseDto?> GradeOpenAnswerAsync(
+            string question, string studentAnswer, string topic, string difficulty)
+        {
+            try
+            {
+                var payload = new { question, student_answer = studentAnswer, topic, difficulty };
+                var response = await _httpClient.PostAsJsonAsync(
+                    "/api/companion/grade-open-answer", payload, _jsonOptions);
+                response.EnsureSuccessStatusCode();
+                return await response.Content
+                    .ReadFromJsonAsync<AiGradeOpenAnswerResponseDto>(_jsonOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("[AiService] GradeOpenAnswerAsync – error: {Error}", ex.Message);
+                return null;
+            }
+        }
     }
 }

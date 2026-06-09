@@ -169,4 +169,24 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
         public string Period        { get; set; } = "weekly";  // "weekly" | "monthly"
     }
 
+    // ── Study Session Questions ───────────────────────────────────────────────
+
+    public class AiStudyQuestionDto
+    {
+        [JsonPropertyName("id")]             public string Id           { get; set; } = Guid.NewGuid().ToString();
+        [JsonPropertyName("type")]           public string Type         { get; set; } = "mcq"; // "mcq" | "open"
+        [JsonPropertyName("text")]           public string Text         { get; set; } = string.Empty;
+        [JsonPropertyName("options")]        public List<string>? Options { get; set; }
+        [JsonPropertyName("correct_answer")] public string CorrectAnswer { get; set; } = string.Empty;
+        [JsonPropertyName("explanation")]    public string Explanation  { get; set; } = string.Empty;
+    }
+
+    public class AiGradeOpenAnswerResponseDto
+    {
+        [JsonPropertyName("score")]         public double Score        { get; set; }
+        [JsonPropertyName("is_correct")]    public bool IsCorrect      { get; set; }
+        [JsonPropertyName("feedback")]      public string Feedback     { get; set; } = string.Empty;
+        [JsonPropertyName("explanation")]   public string Explanation  { get; set; } = string.Empty;
+    }
+
 }

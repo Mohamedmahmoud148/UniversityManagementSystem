@@ -29,9 +29,54 @@ namespace UniversityManagementSystem.Core.DTOs.Companion
     // ── Learning Session ──────────────────────────────────────────────────────
 
     public record StartLearningSessionDto(
-        string SessionType,          // "quiz" | "flashcards" | "concept_review" | "exam_prep"
+        string SessionType,          // "quiz" | "active_recall" | "concept_check" | "exam_prep"
         string TopicName,
-        string? SubjectOfferingId);
+        string? SubjectOfferingId,
+        string Difficulty = "medium", // "easy" | "medium" | "hard"
+        int QuestionCount = 5);
+
+    // ── Interactive Session Questions ─────────────────────────────────────────
+
+    public record SessionQuestionDto(
+        string Id,
+        int QuestionNumber,
+        string QuestionType,         // "mcq" | "open"
+        string Text,
+        List<string>? Options);      // A/B/C/D for MCQ, null for open
+
+    public record SubmitAnswerDto(
+        string QuestionId,
+        string Answer);
+
+    public record AnswerResultDto(
+        string QuestionId,
+        bool IsCorrect,
+        double Score,
+        string CorrectAnswer,
+        string Explanation,
+        string AiFeedback);
+
+    public record QuestionReviewDto(
+        int QuestionNumber,
+        string QuestionText,
+        string StudentAnswer,
+        string CorrectAnswer,
+        bool IsCorrect,
+        string Explanation);
+
+    public record SessionReportDto(
+        string SessionId,
+        string TopicName,
+        string SessionType,
+        string Difficulty,
+        int TotalQuestions,
+        int CorrectAnswers,
+        double AccuracyPercent,
+        int DurationMinutes,
+        string PerformanceLevel,
+        string OverallFeedback,
+        List<QuestionReviewDto> QuestionReview,
+        List<string> Recommendations);
 
     public record CompleteSessionDto(
         int TotalQuestions,

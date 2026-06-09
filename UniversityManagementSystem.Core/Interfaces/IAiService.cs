@@ -57,6 +57,19 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<AiStudyPlanDto?> GenerateStudyPlanAsync(AiStudyPlanRequestDto request);
 
         /// <summary>
+        /// Generate study session questions (MCQ or open-ended) for a given topic/type/difficulty.
+        /// </summary>
+        Task<List<DTOs.Ai.AiStudyQuestionDto>> GenerateStudyQuestionsAsync(
+            string topic, string sessionType, string difficulty, int count);
+
+        /// <summary>
+        /// Grade a single open-ended answer against the correct answer.
+        /// Returns score 0-100 + explanation + feedback.
+        /// </summary>
+        Task<DTOs.Ai.AiGradeOpenAnswerResponseDto?> GradeOpenAnswerAsync(
+            string question, string studentAnswer, string topic, string difficulty);
+
+        /// <summary>
         /// Generate an academic progress report for a student.
         /// </summary>
         Task<string?> GenerateProgressReportAsync(AiProgressReportRequestDto request);
