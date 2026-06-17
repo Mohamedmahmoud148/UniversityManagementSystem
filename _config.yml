@@ -16,13 +16,6 @@ kramdown:
 include:
   - "Project-Documentation"
 
-# Disable Liquid processing for all docs — prevents {{ }} in code examples from breaking the build
-defaults:
-  - scope:
-      path: "Project-Documentation"
-    values:
-      render_with_liquid: false
-
 exclude:
   - "UniversityManagementSystem.Api/"
   - "UniversityManagementSystem.Core/"
