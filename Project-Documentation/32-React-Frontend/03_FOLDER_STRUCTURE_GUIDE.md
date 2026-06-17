@@ -200,7 +200,7 @@ MainLayoutSuperAdmin.jsx ← /super_admin/* routes
 **Responsibilities:**
 1. Load the logged-in user's profile from `users/{uid}` in Firestore
 2. Render the role-appropriate Sidebar and Topbar
-3. Render `<Outlet context={{ user, profile, profileLoading }} />` — passes loaded data to all child pages
+3. Render `<Outlet context={...} />` — passes `user`, `profile`, `profileLoading` to all child pages
 
 **Why load profile in layout?**  
 Multiple pages within a role need the user's `collegeId`, `departmentId`, `yearId`. Loading in the layout means it's fetched **once per session** and passed to all children, not fetched independently by each page.
