@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 22 — Feature Documentation
 ## Every Feature Module: Purpose, Design, Data, and Flow
 

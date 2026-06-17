@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 10 — Component Library Documentation
 ## Every Reusable Component — Props, State, Behavior, and Dependencies
 

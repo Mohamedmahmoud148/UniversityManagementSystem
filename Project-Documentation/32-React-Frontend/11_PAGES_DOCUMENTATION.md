@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 11 — Pages Documentation
 ## Every Page Explained — Purpose, User Journey, APIs, and State
 

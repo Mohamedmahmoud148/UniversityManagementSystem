@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 05 — Configuration Guide
 ## Every Config File Explained — package.json, Firebase, Environment Variables, Tailwind
 

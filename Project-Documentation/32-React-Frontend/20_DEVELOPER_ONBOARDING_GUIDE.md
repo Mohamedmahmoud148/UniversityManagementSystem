@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 20 — Developer Onboarding Guide
 ## Get Up and Running in 30 Minutes
 

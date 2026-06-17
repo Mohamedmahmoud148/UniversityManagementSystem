@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 01 — Project Overview
 ## University Management System — React Frontend
 ### Enterprise Documentation | Graduation Project 2026

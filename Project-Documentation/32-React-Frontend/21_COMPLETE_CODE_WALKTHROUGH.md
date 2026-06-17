@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 21 — Complete Code Walkthrough
 ## The Application From Startup to User Interaction
 

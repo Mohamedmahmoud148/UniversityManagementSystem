@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 04 — Technology Stack Documentation
 ## Every Library Explained — Why, How, and What Would Break Without It
 

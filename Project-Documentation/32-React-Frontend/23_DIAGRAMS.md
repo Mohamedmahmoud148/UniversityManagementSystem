@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 23 — System Diagrams
 ## Visual Architecture Using Mermaid Diagrams
 

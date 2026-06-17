@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 19 — Testing Guide
 ## Current Test Coverage, Testing Strategy, and Recommendations
 

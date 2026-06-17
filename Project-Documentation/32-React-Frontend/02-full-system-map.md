@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # Full System Map — Three Components Together
 
 > How the React Frontend, .NET Backend, and FastAPI AI Service fit together as one complete platform.

@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # Project Presentation Summary
 ## University Management System — Graduation Project
 

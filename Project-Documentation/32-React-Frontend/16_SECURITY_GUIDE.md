@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 16 — Security Guide
 ## Authentication Security, Data Protection, XSS Prevention, and Best Practices
 

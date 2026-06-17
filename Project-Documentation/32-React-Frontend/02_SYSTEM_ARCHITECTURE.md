@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 02 — System Architecture
 ## React Frontend — Architecture Deep Dive
 

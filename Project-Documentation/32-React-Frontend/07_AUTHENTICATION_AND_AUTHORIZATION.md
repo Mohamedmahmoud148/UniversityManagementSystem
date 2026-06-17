@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 07 — Authentication & Authorization
 ## Complete Security System — Login, Roles, JWT Claims, Guards, and Sessions
 

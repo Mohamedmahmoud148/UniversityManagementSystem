@@ -1,3 +1,7 @@
+---
+render_with_liquid: false
+---
+
 # 15 — Performance Optimization Guide
 ## Current State, Opportunities, and Recommendations
 
