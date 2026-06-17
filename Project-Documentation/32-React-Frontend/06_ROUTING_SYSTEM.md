@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 06 — Routing System
 ## Complete Route Architecture, Guards, Navigation Flows, and Diagrams
 

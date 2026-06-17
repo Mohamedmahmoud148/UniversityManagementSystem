@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 14 — UI/UX Guide
 ## Design System, Color Palette, Typography, Responsive Design, and Patterns
 

@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 08 — State Management Guide
 ## How Data Flows Through the Application
 

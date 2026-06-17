@@ -4,6 +4,8 @@ description: "AI-Powered University ERP Platform — ASP.NET Core 9 · FastAPI �
 url: "https://mohamedmahmoud148.github.io"
 baseurl: "/UniversityManagementSystem"
 
+render_with_liquid: false
+
 markdown: kramdown
 highlighter: rouge
 

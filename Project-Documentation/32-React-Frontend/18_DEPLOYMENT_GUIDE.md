@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 18 — Deployment Guide
 ## Development, Build, and Production Deployment
 

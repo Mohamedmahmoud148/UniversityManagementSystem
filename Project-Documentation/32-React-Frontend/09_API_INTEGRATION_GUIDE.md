@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 09 — API Integration Guide
 ## Every Data Source Documented — Firestore, Firebase Functions, FastAPI
 

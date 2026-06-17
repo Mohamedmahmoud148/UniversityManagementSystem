@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # React Frontend — Complete Documentation
 ## University Management System — Student & Staff Portal
 

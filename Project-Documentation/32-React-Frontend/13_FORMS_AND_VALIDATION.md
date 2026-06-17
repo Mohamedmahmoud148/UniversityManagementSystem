@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 13 — Forms and Validation
 ## Form Architecture, Validation Rules, and Submission Flows
 

@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 03 — Folder Structure Guide
 ## Every Directory Explained — Purpose, Responsibilities, and Design Decisions
 

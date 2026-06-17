@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 12 — Custom Hooks Guide
 ## Every Custom Hook — Purpose, Parameters, Return Values, and Internal Logic
 

@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 17 — Error Handling Guide
 ## How Errors Are Caught, Displayed, and Recovered
 

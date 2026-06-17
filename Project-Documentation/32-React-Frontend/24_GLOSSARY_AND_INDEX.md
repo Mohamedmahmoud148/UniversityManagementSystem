@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # 24 — Glossary, Acronyms, and Master Index
 ## Complete Reference for Terms, Files, Components, and APIs
 

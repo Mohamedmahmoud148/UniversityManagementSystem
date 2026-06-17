@@ -1,7 +1,3 @@
----
-render_with_liquid: false
----
-
 # Frontend Integration Report
 ## Backend API Changes — Action Required
 
