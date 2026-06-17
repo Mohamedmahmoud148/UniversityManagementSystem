@@ -109,30 +109,35 @@ namespace UniversityManagementSystem.Infrastructure.Data
             // Ensures fast O(log n) lookup for all code-based API routes and
             // enforces uniqueness at the DB level.
             // ─────────────────────────────────────────────────────────────────
+            // Filtered unique indexes — only enforce uniqueness among non-deleted rows.
+            // Plain unique indexes would block re-creation after soft-delete because
+            // the DB sees the deleted row but EF's global query filter hides it.
+            const string notDeleted = "\"DeletedAt\" IS NULL";
+
             modelBuilder.Entity<University>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Universities_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_Universities_Code");
             modelBuilder.Entity<College>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Colleges_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_Colleges_Code");
             modelBuilder.Entity<Department>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Departments_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_Departments_Code");
             modelBuilder.Entity<Batch>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Batches_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_Batches_Code");
             modelBuilder.Entity<Group>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Groups_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_Groups_Code");
             modelBuilder.Entity<Subject>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Subjects_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_Subjects_Code");
             modelBuilder.Entity<Student>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Students_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_Students_Code");
             modelBuilder.Entity<Doctor>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Doctors_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_Doctors_Code");
             modelBuilder.Entity<TeachingAssistant>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_TeachingAssistants_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_TeachingAssistants_Code");
             modelBuilder.Entity<SystemUser>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_SystemUsers_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_SystemUsers_Code");
             modelBuilder.Entity<Regulation>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Regulations_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_Regulations_Code");
             modelBuilder.Entity<Exam>()
-                .HasIndex(e => e.Code).IsUnique().HasDatabaseName("IX_Exams_Code");
+                .HasIndex(e => e.Code).IsUnique().HasFilter(notDeleted).HasDatabaseName("IX_Exams_Code");
 
             // --------------------------------------------------------
             // Configure RefreshToken
@@ -287,7 +292,8 @@ namespace UniversityManagementSystem.Infrastructure.Data
 
             modelBuilder.Entity<SystemUser>()
                 .HasIndex(u => u.Email)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter(notDeleted);
 
             modelBuilder.Entity<SystemUser>()
                 .Property(u => u.UniversityEmail)
@@ -295,23 +301,28 @@ namespace UniversityManagementSystem.Infrastructure.Data
 
             modelBuilder.Entity<SystemUser>()
                 .HasIndex(u => u.UniversityEmail)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter(notDeleted);
 
             modelBuilder.Entity<SystemUser>()
                 .HasIndex(u => u.NationalId)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter(notDeleted);
 
             modelBuilder.Entity<Student>()
                 .HasIndex(s => s.UniversityStudentId)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter(notDeleted);
 
             modelBuilder.Entity<Doctor>()
                 .HasIndex(d => d.UniversityStaffId)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter(notDeleted);
 
             modelBuilder.Entity<TeachingAssistant>()
                 .HasIndex(ta => ta.UniversityStaffId)
-                .IsUnique();
+                .IsUnique()
+                .HasFilter(notDeleted);
 
             // --------------------------------------------------------
             // AcademicYear & Semester
@@ -328,17 +339,20 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<AcademicYear>()
                 .HasIndex(y => new { y.CollegeId, y.Order })
                 .IsUnique()
+                .HasFilter(notDeleted)
                 .HasDatabaseName("IX_AcademicYears_College_Order");
 
             // Name unique per college — two different colleges can both have "First Year"
             modelBuilder.Entity<AcademicYear>()
                 .HasIndex(y => new { y.CollegeId, y.Name })
                 .IsUnique()
+                .HasFilter(notDeleted)
                 .HasDatabaseName("IX_AcademicYears_College_Name");
 
             modelBuilder.Entity<Semester>()
                 .HasIndex(s => new { s.Name, s.AcademicYearId })
-                .IsUnique();
+                .IsUnique()
+                .HasFilter(notDeleted);
 
             // --------------------------------------------------------
             // AcademicYearDepartment (junction / config table)

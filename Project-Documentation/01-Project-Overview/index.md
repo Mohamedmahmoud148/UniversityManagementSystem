@@ -36,7 +36,10 @@ Three user roles share one unified backend:
 | ORM | Entity Framework Core | 9 |
 | Authentication | JWT Bearer | — |
 | Deployment | Railway (PaaS) | — |
-| Frontend | React (bsnu.web.app) | — |
+| Frontend | React 18 + Firebase + MUI + Tailwind | — |
+| Classroom Data | Firebase Firestore + Auth + Storage | — |
+| Serverless Functions | Firebase Functions (Node.js) | — |
+| In-browser AI | Google MediaPipe (face detection) | — |
 
 ---
 

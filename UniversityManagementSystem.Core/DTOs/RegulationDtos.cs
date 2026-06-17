@@ -79,6 +79,21 @@ namespace UniversityManagementSystem.Core.DTOs
 
     // ── Academic Roadmap DTOs ─────────────────────────────────────────────────
 
+    /// <summary>A single activity (assignment / exam) attached to a course.</summary>
+    public record RoadmapActivityDto
+    {
+        public string   Id            { get; init; } = string.Empty;
+        /// <summary>assignment | quiz | midterm | final</summary>
+        public string   Type          { get; init; } = string.Empty;
+        public string   Title         { get; init; } = string.Empty;
+        public DateTime DueDate       { get; init; }
+        public DateTime? SubmittedAt  { get; init; }
+        /// <summary>pending | submitted | graded | overdue | missed</summary>
+        public string   Status        { get; init; } = "pending";
+        public double?  Score         { get; init; }
+        public double   MaxScore      { get; init; }
+    }
+
     /// <summary>Status of a single subject in the student's academic roadmap.</summary>
     public record SubjectStatusDto
     {
@@ -88,26 +103,46 @@ namespace UniversityManagementSystem.Core.DTOs
         public int    CreditHours   { get; init; }
         public bool   IsRequired    { get; init; }
 
-        /// <summary>passed | failed | enrolled | upcoming</summary>
+        /// <summary>passed | failed | in_progress | withdrawn | upcoming</summary>
         public string Status        { get; init; } = "upcoming";
 
         public string? GradeLetter  { get; init; }
         public double? GradePoints  { get; init; }
         public double? FinalScore   { get; init; }
+
+        // ── New journey fields ──
+        public bool   IsRetake      { get; init; }
+        public int    RetakeCount   { get; init; }
+        public List<RoadmapActivityDto> Activities { get; init; } = [];
     }
 
-    /// <summary>One semester's worth of subjects with aggregate stats.</summary>
+    /// <summary>One real semester in the student's journey with aggregate stats.</summary>
     public record SemesterRoadmapDto
     {
+        // ── Identity (new: real semester data) ──
+        public string   SemesterId        { get; init; } = string.Empty;
+        public string   SemesterName      { get; init; } = string.Empty;
+        public string   AcademicYearName  { get; init; } = string.Empty;
+        public DateTime StartDate         { get; init; }
+        public DateTime EndDate           { get; init; }
+
+        /// <summary>Chronological position in student's journey (1 = first semester).</summary>
         public int    SemesterNumber    { get; init; }
 
         /// <summary>completed | in_progress | upcoming</summary>
         public string Status            { get; init; } = "upcoming";
 
+        // ── GPA (new) ──
+        public double? SemesterGpa         { get; init; }
+        public double? CumulativeGpaAfter  { get; init; }
+
+        // ── Counters ──
         public int    TotalSubjects     { get; init; }
         public int    PassedSubjects    { get; init; }
         public int    FailedSubjects    { get; init; }
+        /// <summary>Courses currently in progress (kept as EnrolledSubjects for AI compat).</summary>
         public int    EnrolledSubjects  { get; init; }
+        public int    WithdrawnSubjects { get; init; }
         public int    TotalCreditHours  { get; init; }
         public int    EarnedCreditHours { get; init; }
 
@@ -115,18 +150,25 @@ namespace UniversityManagementSystem.Core.DTOs
     }
 
     /// <summary>
-    /// Full personalized academic roadmap for a student.
+    /// Full personalized academic roadmap — student-journey-centric.
     /// Returned by GET /api/Regulations/my-roadmap.
-    /// Enables the AI to answer ANY regulation or progress question with one call.
+    /// Semesters are built from REAL enrollments, not the static regulation.
     /// </summary>
     public record AcademicRoadmapDto
     {
-        public string RegulationId      { get; init; } = string.Empty;
-        public string RegulationTitle   { get; init; } = string.Empty;
+        // ── Student info (new) ──
+        public string StudentId     { get; init; } = string.Empty;
+        public string StudentName   { get; init; } = string.Empty;
+        public string StudentCode   { get; init; } = string.Empty;
+
+        // ── Regulation context (optional) ──
+        public string? RegulationId      { get; init; }
+        public string? RegulationTitle   { get; init; }
         public string DepartmentName    { get; init; } = string.Empty;
         public string CollegeName       { get; init; } = string.Empty;
         public string BatchName         { get; init; } = string.Empty;
 
+        // ── Overall progress ──
         public int    TotalSemesters         { get; init; }
         public int    TotalCreditHours       { get; init; }
         public int    CompletedCreditHours   { get; init; }
@@ -136,13 +178,19 @@ namespace UniversityManagementSystem.Core.DTOs
         public int    FailedSubjects         { get; init; }
         public int    CurrentlyEnrolled      { get; init; }
         public double? CurrentGpa            { get; init; }
+        public double GraduationProgressPercent { get; init; }
 
+        // ── Journey (real semesters ordered by date) ──
         public List<SemesterRoadmapDto>  Semesters          { get; init; } = [];
 
-        /// <summary>Subjects in the next semester not yet enrolled in.</summary>
+        // ── What's next ──
+        /// <summary>Subjects from regulation not yet enrolled in.</summary>
         public List<SubjectStatusDto>    RecommendedNext    { get; init; } = [];
-
         /// <summary>Required subjects the student failed and must retake.</summary>
         public List<SubjectStatusDto>    MustRetake         { get; init; } = [];
+
+        // ── AI recommendations (new) ──
+        public List<string> Recommendations  { get; init; } = [];
+        public List<string> AcademicWarnings { get; init; } = [];
     }
 }

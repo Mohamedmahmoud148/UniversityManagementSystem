@@ -77,12 +77,13 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     context.Entry(gradeRecord).State = EntityState.Modified;
                 }
 
-                // Calculate weighted Final Score
-                double finalScore = 
-                    ((gradeRecord.MidtermScore ?? 0) * offering.MidtermWeight) +
-                    ((gradeRecord.CourseworkScore ?? 0) * offering.CourseworkWeight) +
-                    ((gradeRecord.FinalExamScore ?? 0) * offering.FinalExamWeight) +
-                    ((gradeRecord.PlatformScore ?? 0) * offering.PlatformWeight);
+                // Calculate weighted Final Score (normalized: score/max × 100 × weight)
+                // This gives FinalScore on a 0-100 scale regardless of per-component max.
+                double finalScore =
+                    (offering.MidtermMaxScore   > 0 ? (gradeRecord.MidtermScore   ?? 0) / offering.MidtermMaxScore   * 100 * offering.MidtermWeight   : 0) +
+                    (offering.CourseworkMaxScore > 0 ? (gradeRecord.CourseworkScore ?? 0) / offering.CourseworkMaxScore * 100 * offering.CourseworkWeight : 0) +
+                    (offering.FinalExamMaxScore  > 0 ? (gradeRecord.FinalExamScore  ?? 0) / offering.FinalExamMaxScore  * 100 * offering.FinalExamWeight  : 0) +
+                    (offering.PlatformMaxScore   > 0 ? (gradeRecord.PlatformScore   ?? 0) / offering.PlatformMaxScore   * 100 * offering.PlatformWeight   : 0);
 
                 var (letter, points) = CalculateGradeScale(finalScore);
 
@@ -137,11 +138,11 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             gradeRecord.PlatformScore = platformScore;
 
-            double finalScore = 
-                    ((gradeRecord.MidtermScore ?? 0) * offering.MidtermWeight) +
-                    ((gradeRecord.CourseworkScore ?? 0) * offering.CourseworkWeight) +
-                    ((gradeRecord.FinalExamScore ?? 0) * offering.FinalExamWeight) +
-                    ((gradeRecord.PlatformScore ?? 0) * offering.PlatformWeight);
+            double finalScore =
+                    (offering.MidtermMaxScore   > 0 ? (gradeRecord.MidtermScore   ?? 0) / offering.MidtermMaxScore   * 100 * offering.MidtermWeight   : 0) +
+                    (offering.CourseworkMaxScore > 0 ? (gradeRecord.CourseworkScore ?? 0) / offering.CourseworkMaxScore * 100 * offering.CourseworkWeight : 0) +
+                    (offering.FinalExamMaxScore  > 0 ? (gradeRecord.FinalExamScore  ?? 0) / offering.FinalExamMaxScore  * 100 * offering.FinalExamWeight  : 0) +
+                    (offering.PlatformMaxScore   > 0 ? (gradeRecord.PlatformScore   ?? 0) / offering.PlatformMaxScore   * 100 * offering.PlatformWeight   : 0);
 
             var (letter, points) = CalculateGradeScale(finalScore);
 
@@ -290,7 +291,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .AsNoTracking()
                 .Include(g => g.SubjectOffering).ThenInclude(so => so.Subject)
                 .Include(g => g.Student)
-                .Where(g => g.StudentId == studentId && g.DeletedAt == null)
+                .Where(g => g.StudentId == studentId)
                 .OrderByDescending(g => g.CalculatedAt)
                 .ToListAsync();
 

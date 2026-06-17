@@ -39,6 +39,7 @@
 | [29](./29-API-Reference/index.md) | **API Reference — Complete Endpoint List** | Frontend developers, testers |
 | [30](./30-Feature-Guide/index.md) | **Feature Guide — "I want to do X, how?"** | Frontend developers |
 | [31](./31-What-Makes-Us-Different/index.md) | **What Makes Us Different** | Committee, presentations |
+| [32](./32-React-Frontend/index.md) | **React Frontend — Complete Guide** | Frontend devs, committee |
 | — | [**Randomized Exam Guide**](./RANDOMIZED_EXAM_FRONTEND_GUIDE.md) | Frontend developers |
 
 ---
@@ -98,22 +99,29 @@ GET    /api/analytics/dashboard/doctor    → Doctor-scoped analytics dashboard
 ## 🏗️ Architecture at a Glance
 
 ```
-Browser/App
+React Frontend (bsnu.web.app)
     │
-    ├──── REST API ────────────► .NET Backend (ASP.NET Core 9)
-    │                                 ├── 34 Controllers
-    │                                 ├── 40+ Services  
+    ├──── Firebase SDK ───────► Firebase (Google Cloud)
+    │                                 ├── Firestore (quizzes, attendance, chat)
+    │                                 ├── Auth (login + role claims)
+    │                                 ├── Storage (lecture PDFs)
+    │                                 └── Functions (AI chat, attendance, bulk import)
+    │
+    ├──── REST API ────────────► .NET Backend (ASP.NET Core 9) — Railway
+    │                                 ├── 35 Controllers / 120+ Endpoints
     │                                 ├── PostgreSQL (50+ tables)
     │                                 ├── Hangfire (8 background jobs)
-    │                                 └── Cloudflare R2 (files)
+    │                                 ├── SignalR (real-time notifications)
+    │                                 └── Cloudflare R2 (assignment files)
     │
-    ├──── AI Chat ────────────► FastAPI (Python)
-    │                                 ├── PlannerAgent (Claude LLM)
-    │                                 ├── Layer-2 Keyword Engine
-    │                                 └── DynamicApiModule (rule engine)
+    ├──── AI HTTP ────────────► FastAPI AI Service (Python 3.12)
+    │                                 ├── 15 Modules / 17 Intents
+    │                                 ├── Claude LLM via OpenRouter
+    │                                 ├── ChromaDB (RAG vectors)
+    │                                 └── Redis (conversation memory)
     │
-    └──── WebSocket ──────────► SignalR Hub
-                                      └── Real-time notifications
+    └──── WebSocket ──────────► SignalR Hub (.NET)
+                                      └── Real-time push notifications
 ```
 
 ---
