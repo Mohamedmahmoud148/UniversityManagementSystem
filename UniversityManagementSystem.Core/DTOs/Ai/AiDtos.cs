@@ -169,6 +169,23 @@ namespace UniversityManagementSystem.Core.DTOs.Ai
         public string Period        { get; set; } = "weekly";  // "weekly" | "monthly"
     }
 
+    // ── Explain File ─────────────────────────────────────────────────────────
+
+    public class AiExplainFileResponseDto
+    {
+        [JsonPropertyName("explanation")]     public string Explanation    { get; set; } = string.Empty;
+        [JsonPropertyName("flashcards")]      public List<AiFileFlashcardDto> Flashcards { get; set; } = new();
+        [JsonPropertyName("filename")]        public string Filename       { get; set; } = string.Empty;
+        [JsonPropertyName("chars_extracted")] public int CharsExtracted    { get; set; }
+    }
+
+    public class AiFileFlashcardDto
+    {
+        [JsonPropertyName("id")]    public string Id    { get; set; } = string.Empty;
+        [JsonPropertyName("front")] public string Front { get; set; } = string.Empty;
+        [JsonPropertyName("back")]  public string Back  { get; set; } = string.Empty;
+    }
+
     // ── Study Session Questions ───────────────────────────────────────────────
 
     public class AiStudyQuestionDto

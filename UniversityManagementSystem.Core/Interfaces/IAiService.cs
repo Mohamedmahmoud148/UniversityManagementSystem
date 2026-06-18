@@ -73,5 +73,10 @@ namespace UniversityManagementSystem.Core.Interfaces
         /// Generate an academic progress report for a student.
         /// </summary>
         Task<string?> GenerateProgressReportAsync(AiProgressReportRequestDto request);
+
+        /// <summary>
+        /// Upload a file to FastAPI, extract its text, get AI explanation + flashcards.
+        /// </summary>
+        Task<AiExplainFileResponseDto?> ExplainFileAsync(byte[] fileBytes, string fileName, string contentType);
     }
 }

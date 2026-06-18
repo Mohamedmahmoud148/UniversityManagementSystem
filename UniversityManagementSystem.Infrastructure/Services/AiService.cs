@@ -446,5 +446,29 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 return null;
             }
         }
+
+        // ── Explain File  —  POST /api/companion/explain-file ────────────────
+
+        public async Task<AiExplainFileResponseDto?> ExplainFileAsync(
+            byte[] fileBytes, string fileName, string contentType)
+        {
+            try
+            {
+                using var content = new MultipartFormDataContent();
+                using var fileContent = new ByteArrayContent(fileBytes);
+                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+                content.Add(fileContent, "file", fileName);
+
+                var response = await _httpClient.PostAsync("/api/companion/explain-file", content);
+                response.EnsureSuccessStatusCode();
+                return await response.Content
+                    .ReadFromJsonAsync<AiExplainFileResponseDto>(_jsonOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AiService] ExplainFileAsync – error for {FileName}", fileName);
+                return null;
+            }
+        }
     }
 }
