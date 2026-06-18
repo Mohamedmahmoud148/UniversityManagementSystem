@@ -28,14 +28,14 @@ namespace UniversityManagementSystem.Api.Controllers
             "application/vnd.ms-excel",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         };
-        private const long MaxSizeBytes = 30 * 1024 * 1024; // 30 MB
+        private const long MaxSizeBytes = 100 * 1024 * 1024; // 100 MB
 
         /// <summary>
         /// Upload a file for AI processing.
         /// Extracted text is stored automatically for PDF/TXT files.
         /// </summary>
         [HttpPost("upload")]
-        [RequestSizeLimit(31_457_280)]
+        [RequestSizeLimit(104_857_600)]
         public async Task<IActionResult> Upload(IFormFile file)
         {
             var studentId = _userContext.GetProfileId();

@@ -266,7 +266,7 @@ public class AiCompanionController(
     /// </summary>
     [HttpPost("explain-file")]
     [Authorize(Roles = "Student,SuperAdmin")]
-    [RequestSizeLimit(31_457_280)]
+    [RequestSizeLimit(104_857_600)]
     public async Task<IActionResult> ExplainFile(IFormFile file)
     {
         if (file == null || file.Length == 0)
@@ -275,8 +275,8 @@ public class AiCompanionController(
         if (!_allowedMimes.Contains(file.ContentType))
             return BadRequest($"File type '{file.ContentType}' is not supported. Supported: PDF, Word, Excel, CSV, TXT, JPG, PNG.");
 
-        if (file.Length > 30 * 1024 * 1024)
-            return BadRequest("File exceeds the 30 MB size limit.");
+        if (file.Length > 100 * 1024 * 1024)
+            return BadRequest("File exceeds the 100 MB size limit.");
 
         using var ms = new System.IO.MemoryStream();
         await file.CopyToAsync(ms);

@@ -36,6 +36,10 @@ using UniversityManagementSystem.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Allow up to 100 MB request bodies (for student file uploads in AI Companion)
+builder.WebHost.ConfigureKestrel(options =>
+    options.Limits.MaxRequestBodySize = 104_857_600); // 100 MB
+
 // 1. Serilog
 builder.Host.UseSerilog((context, services, configuration) => configuration
     .ReadFrom.Configuration(context.Configuration)
@@ -403,6 +407,7 @@ builder.Services.AddHttpClient("FastApi", client =>
 });
 
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddScoped<SuspiciousActivityDetector>();
 builder.Services.AddScoped<IDeletionService, DeletionService>();
 builder.Services.AddScoped<IAssignmentService, AssignmentService>();
 builder.Services.AddScoped<IAcademicStatusService, AcademicStatusService>();
@@ -468,6 +473,7 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 });
 
 app.MapControllers();
+app.MapHub<AuditHub>("/hubs/audit");
 app.MapHub<NotificationHub>("/hubs/notifications", options =>
 {
     // Prefer WebSockets; fall back to SSE then long-polling.
