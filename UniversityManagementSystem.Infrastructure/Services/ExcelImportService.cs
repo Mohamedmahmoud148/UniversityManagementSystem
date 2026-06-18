@@ -855,14 +855,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
 
             // Dynamic Column Mapping (Case Insensitive)
+            // NOTE: Order matters — check specific columns first so "midterm" (which contains "id")
+            // never collides with the student-ID detection branch.
             int idCol = -1, midtermCol = -1, courseworkCol = -1, finalCol = -1;
             foreach (var cell in headerRow.Cells())
             {
                 var val = cell.GetValue<string>().ToLower().Trim();
-                if (val.Contains("id") || val.Contains("student")) idCol = cell.Address.ColumnNumber;
-                else if (val.Contains("midterm")) midtermCol = cell.Address.ColumnNumber;
+                if (val.Contains("midterm"))                            midtermCol    = cell.Address.ColumnNumber;
                 else if (val.Contains("coursework") || val.Contains("work")) courseworkCol = cell.Address.ColumnNumber;
-                else if (val.Contains("final")) finalCol = cell.Address.ColumnNumber;
+                else if (val.Contains("final"))                         finalCol      = cell.Address.ColumnNumber;
+                else if (val.Contains("student") || val == "id" || val.EndsWith("id")) idCol = cell.Address.ColumnNumber;
             }
 
             if (idCol == -1)

@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UniversityManagementSystem.Core.Interfaces;
+using System.Text.Json;
 using NUlid;
 
 using Microsoft.AspNetCore.Http;
@@ -11,7 +12,7 @@ namespace UniversityManagementSystem.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class GradesController(IGradeService gradeService, IExcelImportService excelImportService, IFileService fileService, IUserContextService userContextService) : ControllerBase
+    public class GradesController(IGradeService gradeService, IExcelImportService excelImportService, IFileService fileService, IUserContextService userContextService, IAuditService auditService) : ControllerBase
     {
         [HttpPost("import/{offeringId}")]
         [Authorize(Roles = "Doctor,Admin,SuperAdmin")]
@@ -36,6 +37,12 @@ namespace UniversityManagementSystem.Api.Controllers
             {
                 await gradeService.CalculateGradesForOfferingAsync(oId, doctorId);
             }
+
+            await auditService.LogAsync(
+                "ImportGrades", "SubjectOffering", oId.ToString(),
+                null,
+                JsonSerializer.Serialize(new { importResult.Imported, importResult.Skipped, importResult.TotalRows, FileId = importResult.UploadedFileId }),
+                doctorId);
 
             return Ok(importResult);
         }
