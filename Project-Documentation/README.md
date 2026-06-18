@@ -40,6 +40,7 @@
 | [30](./30-Feature-Guide/index.md) | **Feature Guide — "I want to do X, how?"** | Frontend developers |
 | [31](./31-What-Makes-Us-Different/index.md) | **What Makes Us Different** | Committee, presentations |
 | [32](./32-React-Frontend/index.md) | **React Frontend — Complete Guide** | Frontend devs, committee |
+| [33](./33-System-Design/index.md) | **System Design — Complete (AI + Backend + Frontend)** | Committee, architects, all devs |
 | — | [**Randomized Exam Guide**](./RANDOMIZED_EXAM_FRONTEND_GUIDE.md) | Frontend developers |
 
 ---

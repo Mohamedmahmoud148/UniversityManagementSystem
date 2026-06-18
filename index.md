@@ -51,6 +51,7 @@ title: University Management System
 | 30 | [Feature Guide — "How to do X"](Project-Documentation/30-Feature-Guide/) | 🆕 Step-by-step guide for every feature |
 | 31 | [What Makes Us Different](Project-Documentation/31-What-Makes-Us-Different/) | 🆕 Comparison vs typical university systems |
 | 32 | [React Frontend — Complete Guide](Project-Documentation/32-React-Frontend/) | 🆕 React 18 + Firebase + AI — full frontend docs |
+| 33 | [System Design — Complete](Project-Documentation/33-System-Design/) | 🆕 Architecture, DB, API, AI, Security, Data Flow |
 
 ---
 
