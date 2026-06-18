@@ -58,6 +58,13 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<Assignment> Assignments { get; set; } = null!;
         public DbSet<AssignmentSubmission> AssignmentSubmissions { get; set; } = null!;
         public DbSet<AcademicRiskScore> AcademicRiskScores { get; set; } = null!;
+
+        // ── Lecture Recording Intelligence ────────────────────────────────────
+        public DbSet<LectureRecording> LectureRecordings { get; set; } = null!;
+        public DbSet<LectureTranscript> LectureTranscripts { get; set; } = null!;
+        public DbSet<LectureSummary> LectureSummaries { get; set; } = null!;
+        public DbSet<LectureFlashcard> LectureFlashcards { get; set; } = null!;
+        public DbSet<LectureQuiz> LectureQuizzes { get; set; } = null!;
         public DbSet<ExamProctoringLog> ExamProctoringLogs { get; set; } = null!;
 
         // ── AI Companion Platform ──────────────────────────────────────────
@@ -710,12 +717,21 @@ namespace UniversityManagementSystem.Infrastructure.Data
             });
 
             // --------------------------------------------------------
-            // AuditLog (standalone, not BaseEntity)
+            // AuditLog (standalone, not BaseEntity — append-only, never soft-deleted)
             // --------------------------------------------------------
             modelBuilder.Entity<AuditLog>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                // Ulid → string conversion and MaxLength(26) are applied globally via ConfigureConventions.
+                entity.Property(e => e.Severity).HasConversion<int>();
+                entity.HasIndex(e => e.Timestamp).HasDatabaseName("IX_AuditLogs_Timestamp");
+                entity.HasIndex(e => e.Action).HasDatabaseName("IX_AuditLogs_Action");
+                entity.HasIndex(e => e.UserId).HasDatabaseName("IX_AuditLogs_UserId");
+                entity.HasIndex(e => e.Severity).HasDatabaseName("IX_AuditLogs_Severity");
+                // NotMapped aliases — ignore in model
+                entity.Ignore(e => e.ActionType);
+                entity.Ignore(e => e.EntityName);
+                entity.Ignore(e => e.PerformedByUserId);
+                entity.Ignore(e => e.PerformedAt);
             });
 
             // --------------------------------------------------------
@@ -1080,6 +1096,45 @@ namespace UniversityManagementSystem.Infrastructure.Data
             modelBuilder.Entity<Conversation>()
                 .HasIndex(c => c.UserId)
                 .HasDatabaseName("IX_Conversations_UserId");
+
+            // ── Lecture Recording Intelligence ────────────────────────────────
+            modelBuilder.Entity<LectureRecording>(e =>
+            {
+                e.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
+                e.HasOne(r => r.Student).WithMany().HasForeignKey(r => r.StudentId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                e.HasIndex(r => r.StudentId).HasDatabaseName("IX_LectureRecordings_StudentId");
+                e.HasIndex(r => r.Status).HasDatabaseName("IX_LectureRecordings_Status");
+            });
+
+            modelBuilder.Entity<LectureTranscript>(e =>
+            {
+                e.HasOne(t => t.Recording).WithMany().HasForeignKey(t => t.RecordingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(t => t.RecordingId).HasDatabaseName("IX_LectureTranscripts_RecordingId");
+            });
+
+            modelBuilder.Entity<LectureSummary>(e =>
+            {
+                e.HasOne(s => s.Recording).WithOne(r => r.Summary)
+                    .HasForeignKey<LectureSummary>(s => s.RecordingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(s => s.RecordingId).IsUnique().HasDatabaseName("IX_LectureSummaries_RecordingId");
+            });
+
+            modelBuilder.Entity<LectureFlashcard>(e =>
+            {
+                e.HasOne(f => f.Recording).WithMany().HasForeignKey(f => f.RecordingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(f => f.RecordingId).HasDatabaseName("IX_LectureFlashcards_RecordingId");
+            });
+
+            modelBuilder.Entity<LectureQuiz>(e =>
+            {
+                e.HasOne(q => q.Recording).WithMany().HasForeignKey(q => q.RecordingId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                e.HasIndex(q => q.RecordingId).HasDatabaseName("IX_LectureQuizzes_RecordingId");
+            });
         }
 
         // ── Soft Delete Intercept ────────────────────────────────────────────

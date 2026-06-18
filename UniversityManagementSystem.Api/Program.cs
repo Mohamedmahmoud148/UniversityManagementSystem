@@ -36,9 +36,9 @@ using UniversityManagementSystem.Infrastructure.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Allow up to 100 MB request bodies (for student file uploads in AI Companion)
+// Allow up to 200 MB request bodies (audio recordings + file uploads)
 builder.WebHost.ConfigureKestrel(options =>
-    options.Limits.MaxRequestBodySize = 104_857_600); // 100 MB
+    options.Limits.MaxRequestBodySize = 209_715_200); // 200 MB
 
 // 1. Serilog
 builder.Host.UseSerilog((context, services, configuration) => configuration
@@ -420,6 +420,11 @@ builder.Services.AddHostedService<AiFollowUpBackgroundService>();
 // ── AI Teaching Intelligence Platform ───────────────────────────────────────
 builder.Services.AddScoped<ITeachingIntelligenceService, TeachingIntelligenceService>();
 builder.Services.AddHostedService<TeachingIntelligenceBackgroundService>();
+
+// ── Lecture Recording Intelligence ───────────────────────────────────────────
+builder.Services.AddScoped<ISpeechToTextService, WhisperSpeechToTextService>();
+builder.Services.AddScoped<ILectureIntelligenceService, LectureIntelligenceService>();
+builder.Services.AddScoped<LectureProcessingJob>();
 builder.Services.AddScoped<IBulkUploadJob, BulkUploadJob>();
 builder.Services.AddScoped<IExcelImportService, ExcelImportService>();
 builder.Services.AddScoped<IStudentFileService, StudentFileService>();
