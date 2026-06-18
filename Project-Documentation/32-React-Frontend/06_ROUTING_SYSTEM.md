@@ -230,6 +230,7 @@ Routes are organized in a nested pattern where the layout component wraps all ch
 ```
 
 **How Outlet Context Works:**
+{% raw %}
 ```javascript
 // StudentLayout.jsx
 const { user } = useAuthUser()
@@ -252,6 +253,7 @@ return (
 const { user, profile, profileLoading } = useOutletContext()
 // Now has user and profile without fetching them again
 ```
+{% endraw %}
 
 **Why This Pattern?**  
 - Profile is fetched **once** per layout, not once per page

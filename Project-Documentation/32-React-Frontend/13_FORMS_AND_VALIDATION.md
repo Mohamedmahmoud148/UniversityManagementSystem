@@ -296,6 +296,7 @@ The transaction ensures that if two admins simultaneously try to book the same s
 ```
 
 ### Form-Level Error
+{% raw %}
 ```jsx
 {submitError && (
   <Alert severity="error" sx={{ mb: 2 }}>
@@ -303,6 +304,7 @@ The transaction ensures that if two admins simultaneously try to book the same s
   </Alert>
 )}
 ```
+{% endraw %}
 
 ### Loading State on Submit Button
 ```jsx

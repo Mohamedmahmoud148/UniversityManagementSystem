@@ -10,6 +10,7 @@ The application uses a **dual-library design system**: Material UI (MUI) for int
 - Tailwind uses utility classes directly in `className`
 - Both can coexist on the same element
 
+{% raw %}
 ```jsx
 // MUI component with Tailwind layout classes
 <Button
@@ -20,6 +21,7 @@ The application uses a **dual-library design system**: Material UI (MUI) for int
   Submit
 </Button>
 ```
+{% endraw %}
 
 ---
 
@@ -90,6 +92,7 @@ The application uses MUI's default typography system (Roboto font) with the foll
 
 Used for: courses, quizzes, buildings, assignments
 
+{% raw %}
 ```jsx
 <Card sx={{ borderRadius: 2, boxShadow: 2, '&:hover': { boxShadow: 4 } }}>
   <CardContent>
@@ -103,11 +106,13 @@ Used for: courses, quizzes, buildings, assignments
   </CardContent>
 </Card>
 ```
+{% endraw %}
 
 ### 4.2 Modal Pattern
 
 All modals follow this structure:
 
+{% raw %}
 ```jsx
 <Modal open={open} onClose={handleClose}>
   <Box sx={{
@@ -146,9 +151,11 @@ All modals follow this structure:
   </Box>
 </Modal>
 ```
+{% endraw %}
 
 ### 4.3 Data Table Pattern (MUI DataGrid)
 
+{% raw %}
 ```jsx
 <DataGrid
   rows={data}
@@ -178,9 +185,11 @@ All modals follow this structure:
   sx={{ border: 0 }}
 />
 ```
+{% endraw %}
 
 ### 4.4 Loading State Pattern
 
+{% raw %}
 ```jsx
 // Full-page loading
 if (loading) return (
@@ -203,9 +212,11 @@ if (loading) return (
   courses.map(c => <CourseCard key={c.id} course={c} />)
 )}
 ```
+{% endraw %}
 
 ### 4.5 Empty State Pattern
 
+{% raw %}
 ```jsx
 {!loading && items.length === 0 && (
   <div className="flex flex-col items-center justify-center py-16 text-gray-500">
@@ -215,6 +226,7 @@ if (loading) return (
   </div>
 )}
 ```
+{% endraw %}
 
 ### 4.6 Error State Pattern
 
@@ -270,17 +282,21 @@ The application uses a **mobile-first responsive** approach with breakpoints fro
 ```
 
 **Modal Width:**
+{% raw %}
 ```jsx
 sx={{ width: { xs: '95%', sm: 500, md: 600 } }}
 ```
+{% endraw %}
 
 **Typography Sizing:**
+{% raw %}
 ```jsx
 <Typography
   variant="h4"
   sx={{ fontSize: { xs: '1.25rem', md: '2.125rem' } }}
 >
 ```
+{% endraw %}
 
 ---
 

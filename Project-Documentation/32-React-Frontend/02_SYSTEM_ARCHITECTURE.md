@@ -377,6 +377,7 @@ const [editTarget, setEditTarget] = useState(null)
 
 Layouts load the user profile once and pass it to all child pages:
 
+{% raw %}
 ```javascript
 // In ProfessorLayout.jsx
 return <Outlet context={{ user, profile, profileLoading }} />
@@ -384,6 +385,7 @@ return <Outlet context={{ user, profile, profileLoading }} />
 // In any professor page
 const { user, profile, profileLoading } = useOutletContext()
 ```
+{% endraw %}
 
 This avoids each page independently fetching the same profile.
 

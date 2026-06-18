@@ -61,6 +61,7 @@ The standard routing library for React. Enables navigation between pages without
 ```
 
 **`<Outlet>`** — In a layout component, renders the matched child route
+{% raw %}
 ```javascript
 // StudentLayout.jsx
 return (
@@ -70,6 +71,7 @@ return (
   </div>
 )
 ```
+{% endraw %}
 
 **`useOutletContext()`** — In a child page, gets data from parent layout
 ```javascript
@@ -270,6 +272,7 @@ Used in `ProfessorDashboard` to display:
 - Course performance comparison (column chart)
 - Student distribution (pie chart)
 
+{% raw %}
 ```jsx
 import ReactApexChart from 'react-apexcharts'
 
@@ -280,6 +283,7 @@ import ReactApexChart from 'react-apexcharts'
   height={300}
 />
 ```
+{% endraw %}
 
 ### What Would Break Without It
 Dashboard charts would disappear. Pages would still function.

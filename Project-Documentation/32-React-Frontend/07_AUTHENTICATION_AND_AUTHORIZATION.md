@@ -174,6 +174,7 @@ This project uses the default `browserLocalPersistence`.
 
 ## 6. AuthContext — Global Auth State
 
+{% raw %}
 ```javascript
 // src/context/AuthContext.jsx
 const AuthContext = createContext(null)
@@ -213,6 +214,7 @@ export function AuthProvider({ children }) {
 
 export const useAuth = () => useContext(AuthContext)
 ```
+{% endraw %}
 
 **Key Detail:** `onAuthStateChanged` fires:
 1. Immediately on mount (with current user if session exists, or null)

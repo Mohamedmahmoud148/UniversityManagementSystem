@@ -143,6 +143,7 @@ const role = tokenResult.claims.role  // "student"
 ```
 
 3. `<StudentLayout />` renders:
+{% raw %}
 ```javascript
 function StudentLayout() {
   const { user } = useAuthUser()
@@ -163,6 +164,7 @@ function StudentLayout() {
   )
 }
 ```
+{% endraw %}
 
 4. `<StudentHome />` renders (index route):
 ```javascript

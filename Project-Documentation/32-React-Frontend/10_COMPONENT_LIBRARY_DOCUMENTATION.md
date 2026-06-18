@@ -163,6 +163,7 @@ if (!facesDetected) {
 
 ### Renders
 
+{% raw %}
 ```jsx
 <div className="engagement-tracker">
   <video ref={videoRef} autoPlay muted playsInline
@@ -171,6 +172,7 @@ if (!facesDetected) {
   {error && <ErrorMessage text={error} />}
 </div>
 ```
+{% endraw %}
 
 ### Privacy Architecture
 

@@ -54,6 +54,7 @@ if (role !== 'professor') return <Redirect to="/signin" />
 
 Layouts load profile data once and pass it to all child pages via React Router's Outlet Context pattern:
 
+{% raw %}
 ```javascript
 // StudentLayout.jsx — fetches once, serves all children
 const { user } = useAuth()
@@ -74,6 +75,7 @@ return <Outlet context={{ user, profile, profileLoading }} />
 const { user, profile, profileLoading } = useOutletContext()
 // profile.collegeId, profile.yearId, profile.departmentId available immediately
 ```
+{% endraw %}
 
 **Profile Shape:**
 ```javascript
