@@ -17,6 +17,7 @@ include:
   - "Project-Documentation"
 
 exclude:
+  - "Project-Documentation/32-React-Frontend/"
   - "UniversityManagementSystem.Api/"
   - "UniversityManagementSystem.Core/"
   - "UniversityManagementSystem.Infrastructure/"
