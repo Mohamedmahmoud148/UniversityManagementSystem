@@ -576,6 +576,97 @@ END $$;
         }
         catch (Exception ex) { Console.WriteLine($"[WARN] AuditLog patch failed (non-fatal): {ex.Message}"); }
 
+        // Patch: AddLectureRecordingIntelligence migration — create tables if not exist
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+DO $$
+BEGIN
+
+-- LectureRecordings
+CREATE TABLE IF NOT EXISTS ""LectureRecordings"" (
+    ""Id""               varchar(26) NOT NULL PRIMARY KEY,
+    ""StudentId""        varchar(26) NOT NULL,
+    ""FileName""         text NOT NULL DEFAULT '',
+    ""OriginalFileName"" text NOT NULL DEFAULT '',
+    ""StoragePath""      text NOT NULL DEFAULT '',
+    ""MimeType""         text NOT NULL DEFAULT '',
+    ""FileSize""         bigint NOT NULL DEFAULT 0,
+    ""DurationSeconds""  integer,
+    ""Status""           varchar(20) NOT NULL DEFAULT 'Uploading',
+    ""ErrorMessage""     text,
+    ""TranscriptChars""  integer NOT NULL DEFAULT 0,
+    ""ProcessedAt""      timestamp with time zone,
+    ""CreatedAt""        timestamp with time zone NOT NULL DEFAULT NOW(),
+    ""DeletedAt""        timestamp with time zone,
+    CONSTRAINT ""FK_LectureRecordings_Students"" FOREIGN KEY (""StudentId"") REFERENCES ""Students""(""Id"") ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS ""IX_LectureRecordings_StudentId"" ON ""LectureRecordings""(""StudentId"");
+CREATE INDEX IF NOT EXISTS ""IX_LectureRecordings_Status""    ON ""LectureRecordings""(""Status"");
+
+-- LectureTranscripts
+CREATE TABLE IF NOT EXISTS ""LectureTranscripts"" (
+    ""Id""          varchar(26) NOT NULL PRIMARY KEY,
+    ""RecordingId"" varchar(26) NOT NULL,
+    ""ChunkIndex""  integer NOT NULL DEFAULT 0,
+    ""Text""        text NOT NULL DEFAULT '',
+    ""StartSecond"" integer,
+    ""EndSecond""   integer,
+    ""EmbeddingId"" text,
+    ""CreatedAt""   timestamp with time zone NOT NULL DEFAULT NOW(),
+    ""DeletedAt""   timestamp with time zone,
+    CONSTRAINT ""FK_LectureTranscripts_LectureRecordings"" FOREIGN KEY (""RecordingId"") REFERENCES ""LectureRecordings""(""Id"") ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ""IX_LectureTranscripts_RecordingId"" ON ""LectureTranscripts""(""RecordingId"");
+
+-- LectureSummaries
+CREATE TABLE IF NOT EXISTS ""LectureSummaries"" (
+    ""Id""                     varchar(26) NOT NULL PRIMARY KEY,
+    ""RecordingId""            varchar(26) NOT NULL,
+    ""Summary""                text NOT NULL DEFAULT '',
+    ""KeyConceptsJson""        text NOT NULL DEFAULT '[]',
+    ""TimelineJson""           text NOT NULL DEFAULT '[]',
+    ""SuggestedQuestionsJson"" text NOT NULL DEFAULT '[]',
+    ""CreatedAt""              timestamp with time zone NOT NULL DEFAULT NOW(),
+    ""DeletedAt""              timestamp with time zone,
+    CONSTRAINT ""FK_LectureSummaries_LectureRecordings"" FOREIGN KEY (""RecordingId"") REFERENCES ""LectureRecordings""(""Id"") ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ""IX_LectureSummaries_RecordingId"" ON ""LectureSummaries""(""RecordingId"");
+
+-- LectureFlashcards
+CREATE TABLE IF NOT EXISTS ""LectureFlashcards"" (
+    ""Id""          varchar(26) NOT NULL PRIMARY KEY,
+    ""RecordingId"" varchar(26) NOT NULL,
+    ""Front""       text NOT NULL DEFAULT '',
+    ""Back""        text NOT NULL DEFAULT '',
+    ""CreatedAt""   timestamp with time zone NOT NULL DEFAULT NOW(),
+    ""DeletedAt""   timestamp with time zone,
+    CONSTRAINT ""FK_LectureFlashcards_LectureRecordings"" FOREIGN KEY (""RecordingId"") REFERENCES ""LectureRecordings""(""Id"") ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ""IX_LectureFlashcards_RecordingId"" ON ""LectureFlashcards""(""RecordingId"");
+
+-- LectureQuizzes
+CREATE TABLE IF NOT EXISTS ""LectureQuizzes"" (
+    ""Id""            varchar(26) NOT NULL PRIMARY KEY,
+    ""RecordingId""   varchar(26) NOT NULL,
+    ""Question""      text NOT NULL DEFAULT '',
+    ""OptionA""       text NOT NULL DEFAULT '',
+    ""OptionB""       text NOT NULL DEFAULT '',
+    ""OptionC""       text NOT NULL DEFAULT '',
+    ""OptionD""       text NOT NULL DEFAULT '',
+    ""CorrectAnswer"" text NOT NULL DEFAULT '',
+    ""Explanation""   text NOT NULL DEFAULT '',
+    ""CreatedAt""     timestamp with time zone NOT NULL DEFAULT NOW(),
+    ""DeletedAt""     timestamp with time zone,
+    CONSTRAINT ""FK_LectureQuizzes_LectureRecordings"" FOREIGN KEY (""RecordingId"") REFERENCES ""LectureRecordings""(""Id"") ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS ""IX_LectureQuizzes_RecordingId"" ON ""LectureQuizzes""(""RecordingId"");
+
+END $$;
+            ");
+        }
+        catch (Exception ex) { Console.WriteLine($"[WARN] LectureRecording patch failed (non-fatal): {ex.Message}"); }
+
         // Patch: AddStorageKeyToUploadedFiles migration was empty — add column manually
         try
         {
