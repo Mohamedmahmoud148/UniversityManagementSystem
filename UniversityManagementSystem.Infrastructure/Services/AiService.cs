@@ -454,12 +454,16 @@ namespace UniversityManagementSystem.Infrastructure.Services
         {
             try
             {
-                using var content = new MultipartFormDataContent();
-                using var fileContent = new ByteArrayContent(fileBytes);
-                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-                content.Add(fileContent, "file", fileName);
+                // Send as base64 JSON to avoid multipart parsing limits on Railway
+                var payload = new
+                {
+                    filename     = fileName,
+                    content_b64  = Convert.ToBase64String(fileBytes),
+                    content_type = contentType
+                };
 
-                var response = await _httpClient.PostAsync("/api/companion/explain-file", content);
+                var response = await _httpClient.PostAsJsonAsync(
+                    "/api/companion/explain-file", payload, _jsonOptions);
                 response.EnsureSuccessStatusCode();
                 return await response.Content
                     .ReadFromJsonAsync<AiExplainFileResponseDto>(_jsonOptions);
