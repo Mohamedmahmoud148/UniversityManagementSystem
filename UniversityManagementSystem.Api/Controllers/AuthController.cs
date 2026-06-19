@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using UniversityManagementSystem.Core.Constants;
 using UniversityManagementSystem.Core.DTOs;
+using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
 
@@ -10,10 +12,15 @@ namespace UniversityManagementSystem.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController(IAuthService authService, IUserContextService userContext, AppDbContext context) : ControllerBase
+    public class AuthController(
+        IAuthService authService,
+        IUserContextService userContext,
+        IAuditService auditService,
+        AppDbContext context) : ControllerBase
     {
         private readonly IAuthService _authService = authService;
         private readonly IUserContextService _userContext = userContext;
+        private readonly IAuditService _auditService = auditService;
         private readonly AppDbContext _context = context;
 
         [AllowAnonymous]
@@ -21,9 +28,74 @@ namespace UniversityManagementSystem.Api.Controllers
         [EnableRateLimiting("LoginPolicy")]
         public async Task<ActionResult<AuthResponseDto>> Login(UserLoginDto loginDto)
         {
-            var result = await _authService.LoginAsync(loginDto);
-            if (result == null) return Unauthorized("Invalid credentials or account locked.");
-            return Ok(result);
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            var ua = Request.Headers["User-Agent"].ToString();
+
+            try
+            {
+                var result = await _authService.LoginAsync(loginDto);
+                if (result == null)
+                {
+                    await _auditService.LogAsync(new AuditLogEntry
+                    {
+                        Action      = AuditActions.FailedLogin,
+                        Entity      = "SystemUser",
+                        EntityId    = loginDto.Email,
+                        Description = $"Failed login attempt for {loginDto.Email}",
+                        Severity    = AuditSeverity.Warning,
+                        Status      = "Failed",
+                        Email       = loginDto.Email,
+                        IpAddress   = ip,
+                        UserAgent   = ua,
+                        Browser     = ParseBrowser(ua),
+                        Device      = ParseDevice(ua)
+                    });
+                    return Unauthorized("Invalid credentials or account locked.");
+                }
+
+                // Fetch user info for the audit log
+                var user = await _context.SystemUsers.AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Email == loginDto.Email.Trim()
+                                           || u.UniversityEmail == loginDto.Email.Trim());
+
+                await _auditService.LogAsync(new AuditLogEntry
+                {
+                    Action      = AuditActions.Login,
+                    Entity      = "SystemUser",
+                    EntityId    = user?.Id.ToString() ?? loginDto.Email,
+                    Description = $"{user?.FullName ?? loginDto.Email} logged in",
+                    Severity    = AuditSeverity.Info,
+                    Status      = "Success",
+                    UserId      = user?.Id,
+                    UserName    = user?.FullName,
+                    Email       = user?.Email ?? loginDto.Email,
+                    Role        = user?.Role.ToString(),
+                    IpAddress   = ip,
+                    UserAgent   = ua,
+                    Browser     = ParseBrowser(ua),
+                    Device      = ParseDevice(ua)
+                });
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                await _auditService.LogAsync(new AuditLogEntry
+                {
+                    Action      = AuditActions.FailedLogin,
+                    Entity      = "SystemUser",
+                    EntityId    = loginDto.Email,
+                    Description = $"Login error for {loginDto.Email}: {ex.Message}",
+                    Severity    = AuditSeverity.Warning,
+                    Status      = "Failed",
+                    Email       = loginDto.Email,
+                    IpAddress   = ip,
+                    UserAgent   = ua,
+                    Browser     = ParseBrowser(ua),
+                    Device      = ParseDevice(ua)
+                });
+                throw;
+            }
         }
 
         [HttpPost("refresh-token")]
@@ -52,6 +124,19 @@ namespace UniversityManagementSystem.Api.Controllers
             var userId = _userContext.GetUserId();
             var result = await _authService.ChangePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
             if (!result) return BadRequest("Password change failed.");
+
+            await _auditService.LogAsync(new AuditLogEntry
+            {
+                Action      = AuditActions.ChangePassword,
+                Entity      = "SystemUser",
+                EntityId    = userId.ToString(),
+                Description = "Password changed",
+                Severity    = AuditSeverity.Info,
+                Status      = "Success",
+                UserId      = userId,
+                IpAddress   = HttpContext.Connection.RemoteIpAddress?.ToString()
+            });
+
             return Ok("Password changed successfully.");
         }
 
@@ -59,7 +144,22 @@ namespace UniversityManagementSystem.Api.Controllers
         [Authorize]
         public async Task<IActionResult> Logout(RevokeTokenRequestDto dto)
         {
+            var userId = _userContext.GetUserId();
             await _authService.RevokeTokenAsync(dto.RefreshToken);
+
+            await _auditService.LogAsync(new AuditLogEntry
+            {
+                Action      = AuditActions.Logout,
+                Entity      = "SystemUser",
+                EntityId    = userId.ToString(),
+                Description = "User logged out",
+                Severity    = AuditSeverity.Info,
+                Status      = "Success",
+                UserId      = userId,
+                IpAddress   = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                UserAgent   = Request.Headers["User-Agent"].ToString()
+            });
+
             return Ok("Logged out.");
         }
 
@@ -198,34 +298,15 @@ namespace UniversityManagementSystem.Api.Controllers
             return Ok(result);
         }
 
-        // ── POST /api/auth/admin/reset-password/{userId} ──────────────────────
-        /// <summary>
-        /// Admin resets any user's password without needing the old one.
-        /// Returns the new temporary password — share it with the user.
-        /// The user will be forced to change it on next login (MustChangePassword=true).
-        /// </summary>
-        [HttpPost("admin/reset-password/{userId}")]
-        [Authorize(Roles = "Admin,SuperAdmin")]
-        public async Task<IActionResult> ResetPassword(string userId)
-        {
-            if (!NUlid.Ulid.TryParse(userId, out var uid))
-                return BadRequest("Invalid user ID format.");
+        // ── Helpers ───────────────────────────────────────────────────────────
+        private static string ParseBrowser(string ua) =>
+            ua.Contains("Edg")     ? "Edge"    :
+            ua.Contains("Chrome")  ? "Chrome"  :
+            ua.Contains("Firefox") ? "Firefox" :
+            ua.Contains("Safari")  ? "Safari"  : "Unknown";
 
-            try
-            {
-                var newPassword = await _authService.ResetPasswordAsync(uid);
-                return Ok(new
-                {
-                    Message         = "Password reset successfully.",
-                    NewPassword     = newPassword,
-                    MustChangePassword = true,
-                    Note            = "Share this password with the user. They will be required to change it on first login."
-                });
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(ex.Message);
-            }
-        }
+        private static string ParseDevice(string ua) =>
+            ua.Contains("Mobile") || ua.Contains("Android") || ua.Contains("iPhone") || ua.Contains("iPad")
+                ? "Mobile" : "Desktop";
     }
 }
