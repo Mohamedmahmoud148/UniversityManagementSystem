@@ -25,6 +25,7 @@ public class AiCompanionController(
     IAiCompanionService companionService,
     IUserContextService userContext,
     IAiService aiService,
+    IStorageService storageService,
     AppDbContext context) : ControllerBase
 {
     private static readonly HashSet<string> _allowedMimes = new(StringComparer.OrdinalIgnoreCase)
