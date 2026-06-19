@@ -1,20 +1,18 @@
 using System;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using NUlid;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
-using UniversityManagementSystem.Api.Hubs;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
     public class AuditService(
         AppDbContext context,
         ILogger<AuditService> logger,
-        IHubContext<AuditHub> hubContext,
+        IRealtimeNotifier notifier,
         SuspiciousActivityDetector detector) : IAuditService
     {
         // ── Legacy signature — backwards compat ───────────────────────────────
@@ -67,7 +65,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 await context.SaveChangesAsync();
 
                 // Push real-time event to admin clients
-                await hubContext.Clients.Group("admins").SendAsync("AuditCreated", new
+                await notifier.SendToGroupAsync("admins", "AuditCreated", new
                 {
                     id          = log.Id.ToString(),
                     action      = log.Action,

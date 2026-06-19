@@ -3,14 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NUlid;
-using UniversityManagementSystem.Api.Hubs;
 using UniversityManagementSystem.Core.DTOs.Lecture;
 using UniversityManagementSystem.Core.Entities;
 using UniversityManagementSystem.Core.Interfaces;
@@ -23,7 +20,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
         IStorageService storage,
         ISpeechToTextService stt,
         HttpClient httpClient,
-        IHubContext<NotificationHub> hub,
+        IRealtimeNotifier notifier,
         ILogger<LectureIntelligenceService> logger) : ILectureIntelligenceService
     {
         private static readonly JsonSerializerOptions _json = new()
@@ -248,8 +245,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             async Task PushStatus(string eventName, object payload)
             {
                 if (studentUserId.HasValue)
-                    await hub.Clients.Group(studentUserId.Value.ToString())
-                        .SendAsync(eventName, payload);
+                    await notifier.SendToUserAsync(studentUserId.Value.ToString(), eventName, payload);
             }
 
             try
