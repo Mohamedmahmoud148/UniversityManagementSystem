@@ -349,9 +349,8 @@ public class AiCompanionController(
         if (string.IsNullOrEmpty(storageKey))
             return BadRequest("Material has no associated file.");
 
-        // Pass the file URL to the AI for explanation via chat context
-        // We use the material URL which the FastAPI MaterialExplanationModule can fetch
-        var fileUrl = material.FileUrl ?? "";
+        // Build the storage URL from the key
+        var fileUrl = material.File?.StorageKey ?? material.StorageKey ?? material.StoredFileName ?? "";
 
         // Build a compact explain request via QuickPrompt — we don't have file bytes here,
         // but the FastAPI explain-material route can fetch via fileUrl
