@@ -137,8 +137,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 var pending = new System.Collections.Generic.Queue<string>();
 
-                await ReadStreamIntoQueueAsync(resp, pending, fullText,
-                    ref intent, ref tool, ref model, ct);
+                var meta = await ReadStreamIntoQueueAsync(resp, pending, fullText, ct);
+                intent = meta.Intent;
+                tool   = meta.Tool;
+                model  = meta.Model;
 
                 resp.Dispose();
 
@@ -186,15 +188,17 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
         }
 
-        // ── Stream reader (no yield — fills a queue instead) ─────────────────
+        // ── Stream reader helper — returns meta, no ref params (async-safe) ────
 
-        private async Task ReadStreamIntoQueueAsync(
+        private sealed record StreamMeta(string? Intent, string? Tool, string? Model);
+
+        private async Task<StreamMeta> ReadStreamIntoQueueAsync(
             HttpResponseMessage resp,
             System.Collections.Generic.Queue<string> queue,
             StringBuilder fullText,
-            ref string? intent, ref string? tool, ref string? model,
             CancellationToken ct)
         {
+            string? intent = null, tool = null, model = null;
             try
             {
                 await using var stream = await resp.Content.ReadAsStreamAsync(ct);
@@ -238,10 +242,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         case "error":
                             var errMsg = frame.TryGetProperty("message", out var em) ? em.GetString() : "AI error";
                             queue.Enqueue(Sse("error", new { message = errMsg }));
-                            return;
+                            return new StreamMeta(intent, tool, model);
 
                         case "done":
-                            return;
+                            return new StreamMeta(intent, tool, model);
                     }
                 }
             }
@@ -249,6 +253,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 logger.LogWarning(ex, "ChatStreamingService: stream reading failed");
             }
+            return new StreamMeta(intent, tool, model);
         }
 
         // ── SSE frame builder ─────────────────────────────────────────────────
