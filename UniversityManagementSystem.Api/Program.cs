@@ -528,6 +528,54 @@ using (var scope = app.Services.CreateScope())
         // 1. Apply any pending EF Core migrations automatically
         db.Database.Migrate();
 
+        // Patch: ExpandAuditLog migration — rename legacy columns + add new columns idempotently
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+DO $$
+BEGIN
+    -- Rename ActionType → Action
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='AuditLogs' AND column_name='ActionType') THEN
+        ALTER TABLE ""AuditLogs"" RENAME COLUMN ""ActionType"" TO ""Action"";
+    END IF;
+    -- Rename EntityName → Entity
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='AuditLogs' AND column_name='EntityName') THEN
+        ALTER TABLE ""AuditLogs"" RENAME COLUMN ""EntityName"" TO ""Entity"";
+    END IF;
+    -- Rename PerformedByUserId → UserId
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='AuditLogs' AND column_name='PerformedByUserId') THEN
+        ALTER TABLE ""AuditLogs"" RENAME COLUMN ""PerformedByUserId"" TO ""UserId"";
+    END IF;
+    -- Rename PerformedAt → Timestamp
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='AuditLogs' AND column_name='PerformedAt') THEN
+        ALTER TABLE ""AuditLogs"" RENAME COLUMN ""PerformedAt"" TO ""Timestamp"";
+    END IF;
+    -- Add new columns (IF NOT EXISTS)
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""UserName""      text;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""Email""         text;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""Role""          text;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""Description""   text NOT NULL DEFAULT '';
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""Severity""      integer NOT NULL DEFAULT 0;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""Status""        text NOT NULL DEFAULT 'Success';
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""IpAddress""     text;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""UserAgent""     text;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""Browser""       text;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""Device""        text;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""CorrelationId"" text;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""RequestId""     text;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""DurationMs""    bigint;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""ChangedFields"" text;
+    ALTER TABLE ""AuditLogs"" ADD COLUMN IF NOT EXISTS ""Metadata""      text;
+    -- Indexes
+    CREATE INDEX IF NOT EXISTS ""IX_AuditLogs_Timestamp"" ON ""AuditLogs""(""Timestamp"");
+    CREATE INDEX IF NOT EXISTS ""IX_AuditLogs_Action""    ON ""AuditLogs""(""Action"");
+    CREATE INDEX IF NOT EXISTS ""IX_AuditLogs_UserId""    ON ""AuditLogs""(""UserId"");
+    CREATE INDEX IF NOT EXISTS ""IX_AuditLogs_Severity""  ON ""AuditLogs""(""Severity"");
+END $$;
+            ");
+        }
+        catch (Exception ex) { Console.WriteLine($"[WARN] AuditLog patch failed (non-fatal): {ex.Message}"); }
+
         // Patch: AddStorageKeyToUploadedFiles migration was empty — add column manually
         try
         {
