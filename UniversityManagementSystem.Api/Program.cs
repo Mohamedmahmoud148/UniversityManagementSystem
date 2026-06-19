@@ -424,8 +424,20 @@ builder.Services.AddScoped<ITeachingIntelligenceService, TeachingIntelligenceSer
 builder.Services.AddHostedService<TeachingIntelligenceBackgroundService>();
 
 // ── Lecture Recording Intelligence ───────────────────────────────────────────
-builder.Services.AddScoped<ISpeechToTextService, WhisperSpeechToTextService>();
-builder.Services.AddScoped<ILectureIntelligenceService, LectureIntelligenceService>();
+builder.Services.AddHttpClient<ISpeechToTextService, WhisperSpeechToTextService>(client =>
+{
+    var aiUrl = Environment.GetEnvironmentVariable("AI_SERVICE_URL")
+                ?? "https://ai-orchestration-service-production.up.railway.app";
+    client.BaseAddress = new Uri(aiUrl);
+    client.Timeout = TimeSpan.FromMinutes(10); // audio transcription can take a while
+});
+builder.Services.AddHttpClient<ILectureIntelligenceService, LectureIntelligenceService>(client =>
+{
+    var aiUrl = Environment.GetEnvironmentVariable("AI_SERVICE_URL")
+                ?? "https://ai-orchestration-service-production.up.railway.app";
+    client.BaseAddress = new Uri(aiUrl);
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
 builder.Services.AddScoped<LectureProcessingJob>();
 builder.Services.AddScoped<IBulkUploadJob, BulkUploadJob>();
 builder.Services.AddScoped<IExcelImportService, ExcelImportService>();
