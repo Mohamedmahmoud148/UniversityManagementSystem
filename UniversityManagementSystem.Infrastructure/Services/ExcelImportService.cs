@@ -16,11 +16,13 @@ using NUlid;
 
 namespace UniversityManagementSystem.Infrastructure.Services
 {
-    public class ExcelImportService(AppDbContext context, IIdentityProvisioningService provisioningService, IOptions<UniversitySettings> uniOptions) : IExcelImportService
+    public class ExcelImportService(AppDbContext context, IIdentityProvisioningService provisioningService,
+        IOptions<UniversitySettings> uniOptions, IUniversityEmailGenerator emailGenerator) : IExcelImportService
     {
         private readonly AppDbContext _context = context;
         private readonly IIdentityProvisioningService _provisioningService = provisioningService;
         private readonly UniversitySettings _uniSettings = uniOptions.Value;
+        private readonly IUniversityEmailGenerator _emailGenerator = emailGenerator;
 
         // ── Existing method (kept intact) ─────────────────────────────────────
         public async Task<ExcelImportResultDto> ImportStudentsAsync(IFormFile file)
@@ -84,7 +86,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     }
 
                     string password = _uniSettings.DefaultPassword;
-                    string universityEmail = $"student.{nationalId[8..]}@{_uniSettings.StudentEmailDomain}";
+                    string universityEmail = await _emailGenerator.GenerateStudentEmailAsync(fullName);
 
                     var user = new SystemUser
                     {
@@ -429,12 +431,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
                         else if (t is not "regular" or "منتظم") result.Warnings.Add($"Row {rowNum}: StudentType '{typeRaw}' not recognized — defaulting to Regular.");
                     }
 
-                    // ── 6h. Auto-generate university email ────────────────
+                    // ── 6h. Auto-generate university email (new format: name.studentN@benisuefnationaluniversity.edu) ──
                     var department = batch.Department;
                     var college    = department.College;
                     var university = college.University;
 
-                    string universityEmail = $"{uniStId.ToLower()}@{_uniSettings.StudentEmailDomain}";
+                    string universityEmail = await _emailGenerator.GenerateStudentEmailAsync(fullName);
                     string personalEmail   = string.IsNullOrWhiteSpace(email) ? "" : email;
 
                     // ── 6i. Build entities ────────────────────────────────

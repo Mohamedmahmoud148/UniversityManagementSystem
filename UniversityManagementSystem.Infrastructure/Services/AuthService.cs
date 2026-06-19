@@ -25,11 +25,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
         private readonly double _jwtExpirationHours;
         private readonly UniversitySettings _uniSettings;
 
-        public AuthService(AppDbContext context, IConfiguration configuration, IOptions<UniversitySettings> uniOptions)
+        private readonly IUniversityEmailGenerator _emailGenerator;
+
+        public AuthService(AppDbContext context, IConfiguration configuration,
+            IOptions<UniversitySettings> uniOptions, IUniversityEmailGenerator emailGenerator)
         {
             _context = context;
             _configuration = configuration;
             _uniSettings = uniOptions.Value;
+            _emailGenerator = emailGenerator;
 
             _jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET")
                          ?? configuration["JwtSettings:SecretKey"]
@@ -157,7 +161,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             {
                 // Auto-generate credentials — use DefaultPassword for consistency with Excel import
                 string password = _uniSettings.DefaultPassword;
-                string universityEmail = await GenerateUniversityEmailAsync("student", UserRole.Student);
+                string universityEmail = await _emailGenerator.GenerateStudentEmailAsync(dto.FullName);
                 string universityIdStr = await GenerateUniversityIdAsync(UserRole.Student);
 
                 // Ensure uniqueness checks

@@ -337,6 +337,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 
 builder.Services.AddScoped<IUserContextService, UserContextService>();
+builder.Services.AddScoped<IUniversityEmailGenerator, UniversityEmailGenerator>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
 
