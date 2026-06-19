@@ -584,6 +584,7 @@ BEGIN
 -- LectureRecordings
 CREATE TABLE IF NOT EXISTS ""LectureRecordings"" (
     ""Id""               varchar(26) NOT NULL PRIMARY KEY,
+    ""Code""             text NOT NULL DEFAULT '',
     ""StudentId""        varchar(26) NOT NULL,
     ""FileName""         text NOT NULL DEFAULT '',
     ""OriginalFileName"" text NOT NULL DEFAULT '',
@@ -599,12 +600,15 @@ CREATE TABLE IF NOT EXISTS ""LectureRecordings"" (
     ""DeletedAt""        timestamp with time zone,
     CONSTRAINT ""FK_LectureRecordings_Students"" FOREIGN KEY (""StudentId"") REFERENCES ""Students""(""Id"") ON DELETE RESTRICT
 );
+-- Add Code column if table existed without it
+ALTER TABLE ""LectureRecordings"" ADD COLUMN IF NOT EXISTS ""Code"" text NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS ""IX_LectureRecordings_StudentId"" ON ""LectureRecordings""(""StudentId"");
 CREATE INDEX IF NOT EXISTS ""IX_LectureRecordings_Status""    ON ""LectureRecordings""(""Status"");
 
 -- LectureTranscripts
 CREATE TABLE IF NOT EXISTS ""LectureTranscripts"" (
     ""Id""          varchar(26) NOT NULL PRIMARY KEY,
+    ""Code""        text NOT NULL DEFAULT '',
     ""RecordingId"" varchar(26) NOT NULL,
     ""ChunkIndex""  integer NOT NULL DEFAULT 0,
     ""Text""        text NOT NULL DEFAULT '',
@@ -617,9 +621,12 @@ CREATE TABLE IF NOT EXISTS ""LectureTranscripts"" (
 );
 CREATE INDEX IF NOT EXISTS ""IX_LectureTranscripts_RecordingId"" ON ""LectureTranscripts""(""RecordingId"");
 
+ALTER TABLE ""LectureTranscripts"" ADD COLUMN IF NOT EXISTS ""Code"" text NOT NULL DEFAULT '';
+
 -- LectureSummaries
 CREATE TABLE IF NOT EXISTS ""LectureSummaries"" (
     ""Id""                     varchar(26) NOT NULL PRIMARY KEY,
+    ""Code""                   text NOT NULL DEFAULT '',
     ""RecordingId""            varchar(26) NOT NULL,
     ""Summary""                text NOT NULL DEFAULT '',
     ""KeyConceptsJson""        text NOT NULL DEFAULT '[]',
@@ -631,9 +638,12 @@ CREATE TABLE IF NOT EXISTS ""LectureSummaries"" (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ""IX_LectureSummaries_RecordingId"" ON ""LectureSummaries""(""RecordingId"");
 
+ALTER TABLE ""LectureSummaries"" ADD COLUMN IF NOT EXISTS ""Code"" text NOT NULL DEFAULT '';
+
 -- LectureFlashcards
 CREATE TABLE IF NOT EXISTS ""LectureFlashcards"" (
     ""Id""          varchar(26) NOT NULL PRIMARY KEY,
+    ""Code""        text NOT NULL DEFAULT '',
     ""RecordingId"" varchar(26) NOT NULL,
     ""Front""       text NOT NULL DEFAULT '',
     ""Back""        text NOT NULL DEFAULT '',
@@ -643,9 +653,12 @@ CREATE TABLE IF NOT EXISTS ""LectureFlashcards"" (
 );
 CREATE INDEX IF NOT EXISTS ""IX_LectureFlashcards_RecordingId"" ON ""LectureFlashcards""(""RecordingId"");
 
+ALTER TABLE ""LectureFlashcards"" ADD COLUMN IF NOT EXISTS ""Code"" text NOT NULL DEFAULT '';
+
 -- LectureQuizzes
 CREATE TABLE IF NOT EXISTS ""LectureQuizzes"" (
     ""Id""            varchar(26) NOT NULL PRIMARY KEY,
+    ""Code""          text NOT NULL DEFAULT '',
     ""RecordingId""   varchar(26) NOT NULL,
     ""Question""      text NOT NULL DEFAULT '',
     ""OptionA""       text NOT NULL DEFAULT '',
@@ -659,6 +672,7 @@ CREATE TABLE IF NOT EXISTS ""LectureQuizzes"" (
     CONSTRAINT ""FK_LectureQuizzes_LectureRecordings"" FOREIGN KEY (""RecordingId"") REFERENCES ""LectureRecordings""(""Id"") ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS ""IX_LectureQuizzes_RecordingId"" ON ""LectureQuizzes""(""RecordingId"");
+ALTER TABLE ""LectureQuizzes"" ADD COLUMN IF NOT EXISTS ""Code"" text NOT NULL DEFAULT '';
 
 END $$;
             ");
