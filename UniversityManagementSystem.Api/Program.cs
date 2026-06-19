@@ -376,6 +376,7 @@ builder.Services.AddScoped<IAssignmentReminderJob, AssignmentReminderJob>();
 builder.Services.AddScoped<IRegulationService, RegulationService>();
 builder.Services.AddScoped<ISmartStringGenerator, SmartStringGenerator>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IChatStreamingService, ChatStreamingService>();
 builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();
 builder.Services.AddScoped<IComplaintService, ComplaintService>();
 builder.Services.AddScoped<IComplaintIntelligenceJob, ComplaintIntelligenceJob>();

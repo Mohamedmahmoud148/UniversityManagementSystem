@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
+using System.Text;
+using System.Threading;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Services;
@@ -12,9 +14,14 @@ namespace UniversityManagementSystem.Api.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class ChatController(IChatService chatService, ISystemUserResolver systemUserResolver, IAiInputSanitizer sanitizer) : ControllerBase
+    public class ChatController(
+        IChatService chatService,
+        IChatStreamingService streamingService,
+        ISystemUserResolver systemUserResolver,
+        IAiInputSanitizer sanitizer) : ControllerBase
     {
         private readonly IChatService _chatService = chatService;
+        private readonly IChatStreamingService _streamingService = streamingService;
         private readonly ISystemUserResolver _systemUserResolver = systemUserResolver;
         private readonly IAiInputSanitizer _sanitizer = sanitizer;
 
@@ -57,6 +64,39 @@ namespace UniversityManagementSystem.Api.Controllers
             var profileId = User.FindFirstValue("ProfileId");
             var response = await _chatService.SendMessageAsync(userId, dto, role, profileId);
             return Ok(response);
+        }
+
+        // ── POST /api/chat/stream — SSE streaming (ChatGPT-style) ────────────
+
+        [HttpPost("stream")]
+        [EnableRateLimiting("AiPolicy")]
+        public async Task StreamMessage([FromBody] SendMessageDto dto, CancellationToken ct)
+        {
+            var (isSafe, reason) = _sanitizer.Validate(dto.Message ?? string.Empty);
+            if (!isSafe)
+            {
+                Response.StatusCode = 400;
+                await Response.WriteAsync($"data: {{\"type\":\"error\",\"message\":\"{reason}\"}}\n\n", ct);
+                return;
+            }
+
+            dto.Message = _sanitizer.Sanitize(dto.Message ?? string.Empty);
+
+            Ulid userId = await _systemUserResolver.ResolveSystemUserIdAsync(User);
+            var role      = User.FindFirstValue("role") ?? User.FindFirstValue(ClaimTypes.Role) ?? "student";
+            var profileId = User.FindFirstValue("ProfileId");
+
+            Response.ContentType = "text/event-stream";
+            Response.Headers["Cache-Control"]      = "no-cache";
+            Response.Headers["X-Accel-Buffering"]  = "no";
+            Response.Headers["Connection"]         = "keep-alive";
+
+            await foreach (var sseFrame in _streamingService.StreamAsync(userId, dto, role, profileId, ct))
+            {
+                if (ct.IsCancellationRequested) break;
+                await Response.WriteAsync(sseFrame, Encoding.UTF8, ct);
+                await Response.Body.FlushAsync(ct);
+            }
         }
 
         [HttpDelete("messages/{id}")]
