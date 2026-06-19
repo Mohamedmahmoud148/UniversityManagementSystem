@@ -101,7 +101,10 @@ namespace UniversityManagementSystem.Infrastructure.Services
             var fullText = new StringBuilder();
             string? intent = null, tool = null, model = null;
             bool streamFailed = false;
+            bool cancelled = false;
+            string? earlyError = null;
 
+            // ── Connect to FastAPI (no yield inside try-catch) ────────────────
             HttpResponseMessage? resp = null;
             try
             {
@@ -110,87 +113,38 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     Content = JsonContent.Create(payload, options: _json)
                 };
                 req.Headers.Add("Accept", "text/event-stream");
-
-                resp = await httpClient.SendAsync(
-                    req, HttpCompletionOption.ResponseHeadersRead, ct);
-
+                resp = await httpClient.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
                 if (!resp.IsSuccessStatusCode)
                 {
-                    yield return Sse("error", new { message = $"AI service error {(int)resp.StatusCode}." });
+                    earlyError = $"AI service error {(int)resp.StatusCode}.";
                     streamFailed = true;
                 }
             }
-            catch (OperationCanceledException)
-            {
-                yield return Sse("cancelled", new { message = "Generation cancelled." });
-                yield break;
-            }
+            catch (OperationCanceledException) { cancelled = true; }
             catch (Exception ex)
             {
                 logger.LogError(ex, "ChatStreamingService: FastAPI connection failed");
-                yield return Sse("error", new { message = "AI service unavailable." });
+                earlyError = "AI service unavailable.";
                 streamFailed = true;
             }
 
+            // Yield connection-level events outside try-catch
+            if (cancelled) { yield return Sse("cancelled", new { message = "Generation cancelled." }); yield break; }
+            if (earlyError != null) { yield return Sse("error", new { message = earlyError }); }
+
+            // ── Read stream — collect pending events, yield OUTSIDE try-catch ──
             if (!streamFailed && resp != null)
             {
-                try
-                {
-                    await using var responseStream = await resp.Content.ReadAsStreamAsync(ct);
-                    using var reader = new StreamReader(responseStream, Encoding.UTF8);
+                var pending = new System.Collections.Generic.Queue<string>();
 
-                    while (!reader.EndOfStream && !ct.IsCancellationRequested)
-                    {
-                        string? line;
-                        try { line = await reader.ReadLineAsync(ct); }
-                        catch (OperationCanceledException) { break; }
-                        catch (Exception ex) { logger.LogWarning(ex, "stream read error"); break; }
+                await ReadStreamIntoQueueAsync(resp, pending, fullText,
+                    ref intent, ref tool, ref model, ct);
 
-                        if (string.IsNullOrWhiteSpace(line)) continue;
-                        if (!line.StartsWith("data: ")) continue;
+                resp.Dispose();
 
-                        var raw = line["data: ".Length..].Trim();
-                        if (raw == "[DONE]") break;
-
-                        JsonElement frame;
-                        try { frame = JsonSerializer.Deserialize<JsonElement>(raw); }
-                        catch { continue; }
-
-                        var type = frame.TryGetProperty("type", out var tp) ? tp.GetString() : null;
-
-                        switch (type)
-                        {
-                            case "token":
-                            case "thinking":
-                                var content = frame.TryGetProperty("content", out var cv) ? cv.GetString() : null;
-                                if (!string.IsNullOrEmpty(content))
-                                {
-                                    fullText.Append(content);
-                                    yield return Sse("token", new { content });
-                                }
-                                break;
-
-                            case "meta":
-                                intent = frame.TryGetProperty("intent", out var iv) ? iv.GetString() : null;
-                                tool   = frame.TryGetProperty("tool",   out var tv) ? tv.GetString() : null;
-                                model  = frame.TryGetProperty("model",  out var mv) ? mv.GetString() : null;
-                                break;
-
-                            case "error":
-                                var errMsg = frame.TryGetProperty("message", out var em) ? em.GetString() : "AI error";
-                                yield return Sse("error", new { message = errMsg });
-                                break;
-
-                            case "done":
-                                goto exitLoop;
-                        }
-                    }
-                    exitLoop:;
-                }
-                finally
-                {
-                    resp.Dispose();
-                }
+                // Yield all collected SSE frames now (safe — outside try-catch)
+                while (pending.Count > 0)
+                    yield return pending.Dequeue();
             }
 
             // ── 6. Save assistant message ─────────────────────────────────────
@@ -229,6 +183,71 @@ namespace UniversityManagementSystem.Infrastructure.Services
                     model          = model ?? "unknown",
                     conversationId = conversation.Id.ToString()
                 });
+            }
+        }
+
+        // ── Stream reader (no yield — fills a queue instead) ─────────────────
+
+        private async Task ReadStreamIntoQueueAsync(
+            HttpResponseMessage resp,
+            System.Collections.Generic.Queue<string> queue,
+            StringBuilder fullText,
+            ref string? intent, ref string? tool, ref string? model,
+            CancellationToken ct)
+        {
+            try
+            {
+                await using var stream = await resp.Content.ReadAsStreamAsync(ct);
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+
+                while (!reader.EndOfStream && !ct.IsCancellationRequested)
+                {
+                    string? line;
+                    try { line = await reader.ReadLineAsync(ct); }
+                    catch { break; }
+
+                    if (string.IsNullOrWhiteSpace(line) || !line.StartsWith("data: ")) continue;
+
+                    var raw = line["data: ".Length..].Trim();
+                    if (raw == "[DONE]") break;
+
+                    JsonElement frame;
+                    try { frame = JsonSerializer.Deserialize<JsonElement>(raw); }
+                    catch { continue; }
+
+                    var type = frame.TryGetProperty("type", out var tp) ? tp.GetString() : null;
+
+                    switch (type)
+                    {
+                        case "token":
+                        case "thinking":
+                            var content = frame.TryGetProperty("content", out var cv) ? cv.GetString() : null;
+                            if (!string.IsNullOrEmpty(content))
+                            {
+                                fullText.Append(content);
+                                queue.Enqueue(Sse("token", new { content }));
+                            }
+                            break;
+
+                        case "meta":
+                            intent = frame.TryGetProperty("intent", out var iv) ? iv.GetString() : intent;
+                            tool   = frame.TryGetProperty("tool",   out var tv) ? tv.GetString() : tool;
+                            model  = frame.TryGetProperty("model",  out var mv) ? mv.GetString() : model;
+                            break;
+
+                        case "error":
+                            var errMsg = frame.TryGetProperty("message", out var em) ? em.GetString() : "AI error";
+                            queue.Enqueue(Sse("error", new { message = errMsg }));
+                            return;
+
+                        case "done":
+                            return;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "ChatStreamingService: stream reading failed");
             }
         }
 
