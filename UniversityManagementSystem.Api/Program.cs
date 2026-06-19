@@ -525,10 +525,8 @@ using (var scope = app.Services.CreateScope())
         try { db.Database.ExecuteSqlRaw("CREATE EXTENSION IF NOT EXISTS citext;"); }
         catch (Exception) { /* may lack superuser — migration will try again */ }
 
-        // 1. Apply any pending EF Core migrations automatically
-        db.Database.Migrate();
-
-        // Patch: ExpandAuditLog migration — rename legacy columns + add new columns idempotently
+        // Patch: ExpandAuditLog migration — rename legacy columns BEFORE Migrate()
+        // (so EF migration doesn't fail trying to rename already-renamed columns)
         try
         {
             db.Database.ExecuteSqlRaw(@"
@@ -666,6 +664,10 @@ END $$;
             ");
         }
         catch (Exception ex) { Console.WriteLine($"[WARN] LectureRecording patch failed (non-fatal): {ex.Message}"); }
+
+        // 1. Apply any pending EF Core migrations (after manual patches so they don't conflict)
+        try { db.Database.Migrate(); }
+        catch (Exception ex) { Console.WriteLine($"[WARN] Migrate() failed (patches already applied): {ex.Message}"); }
 
         // Patch: AddStorageKeyToUploadedFiles migration was empty — add column manually
         try
