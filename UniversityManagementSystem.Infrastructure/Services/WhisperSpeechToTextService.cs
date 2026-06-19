@@ -1,7 +1,6 @@
 using System;
 using System.Net.Http;
 using System.Net.Http.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -11,35 +10,36 @@ using UniversityManagementSystem.Core.Interfaces;
 namespace UniversityManagementSystem.Infrastructure.Services
 {
     /// <summary>
-    /// Speech-to-Text via FastAPI /api/lecture/transcribe endpoint.
-    /// FastAPI calls OpenAI Whisper API internally.
-    /// This keeps the .NET side provider-agnostic — swap the FastAPI implementation
-    /// to switch to Azure Speech, AssemblyAI, or any other provider.
+    /// Speech-to-Text via FastAPI /api/lecture/transcribe-url endpoint.
+    /// Sends the R2 storage URL instead of raw bytes — FastAPI downloads
+    /// and sends to Whisper directly, avoiding large file transfers between services.
     /// </summary>
     public class WhisperSpeechToTextService(
         HttpClient httpClient,
         ILogger<WhisperSpeechToTextService> logger) : ISpeechToTextService
     {
-        public async Task<SpeechToTextResult?> TranscribeAsync(
-            byte[] audioBytes, string fileName, string mimeType,
+        public async Task<SpeechToTextResult?> TranscribeFromUrlAsync(
+            string audioUrl,
+            string fileName,
+            string mimeType,
             CancellationToken ct = default)
         {
             try
             {
-                using var content = new MultipartFormDataContent();
-                using var audioContent = new ByteArrayContent(audioBytes);
-                audioContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mimeType);
-                content.Add(audioContent, "file", fileName);
+                logger.LogInformation("WhisperSTT: transcribing via URL for {File}", fileName);
 
-                logger.LogInformation("WhisperSTT: sending {Bytes} bytes for {File}", audioBytes.Length, fileName);
+                var payload = new { audio_url = audioUrl, filename = fileName, mime_type = mimeType };
 
-                using var response = await httpClient.PostAsync("/api/lecture/transcribe", content, ct);
+                using var response = await httpClient.PostAsJsonAsync(
+                    "/api/lecture/transcribe-url", payload, ct);
                 response.EnsureSuccessStatusCode();
 
-                var result = await response.Content.ReadFromJsonAsync<FastApiTranscribeResponse>(cancellationToken: ct);
+                var result = await response.Content
+                    .ReadFromJsonAsync<FastApiTranscribeResponse>(cancellationToken: ct);
+
                 if (result == null || string.IsNullOrWhiteSpace(result.Transcript))
                 {
-                    logger.LogWarning("WhisperSTT: empty transcript returned for {File}", fileName);
+                    logger.LogWarning("WhisperSTT: empty transcript for {File}", fileName);
                     return null;
                 }
 
@@ -53,7 +53,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "WhisperSTT: transcription failed for {File}", fileName);
+                logger.LogError(ex, "WhisperSTT: failed for {File}", fileName);
                 return null;
             }
         }

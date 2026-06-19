@@ -250,17 +250,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             try
             {
-                // ── Step 1: Transcribe ─────────────────────────────────────────
+                // ── Step 1: Transcribe via URL (no byte transfer — FastAPI downloads from R2) ─
                 recording.Status = LectureRecordingStatus.Transcribing;
                 await context.SaveChangesAsync();
                 await PushStatus("LectureStatusChanged", new { recordingId = recordingId.ToString(), status = "Transcribing" });
 
-                var audioStream = await storage.DownloadAsync(recording.StoragePath);
-                using var ms = new System.IO.MemoryStream();
-                await audioStream.CopyToAsync(ms);
-                var audioBytes = ms.ToArray();
+                // Generate a 2-hour signed URL so FastAPI can download the audio directly
+                var audioUrl = await storage.GenerateSignedUrlAsync(recording.StoragePath, expiryMinutes: 120);
 
-                var sttResult = await stt.TranscribeAsync(audioBytes, recording.OriginalFileName, recording.MimeType);
+                var sttResult = await stt.TranscribeFromUrlAsync(audioUrl, recording.OriginalFileName, recording.MimeType);
                 if (sttResult == null || string.IsNullOrWhiteSpace(sttResult.Transcript))
                     throw new Exception("Speech-to-text returned empty transcript.");
 

@@ -12,15 +12,11 @@ namespace UniversityManagementSystem.Core.Interfaces
     public interface ISpeechToTextService
     {
         /// <summary>
-        /// Transcribes audio bytes and returns the full text transcript.
+        /// Transcribes audio from a storage URL.
+        /// FastAPI downloads the file directly — no large byte transfer between services.
         /// </summary>
-        /// <param name="audioBytes">Raw audio file bytes.</param>
-        /// <param name="fileName">Original file name (used to detect format).</param>
-        /// <param name="mimeType">MIME type of the audio file.</param>
-        /// <param name="ct">Cancellation token.</param>
-        /// <returns>Full transcript text, or null if transcription failed.</returns>
-        Task<SpeechToTextResult?> TranscribeAsync(
-            byte[] audioBytes,
+        Task<SpeechToTextResult?> TranscribeFromUrlAsync(
+            string audioUrl,
             string fileName,
             string mimeType,
             CancellationToken ct = default);
