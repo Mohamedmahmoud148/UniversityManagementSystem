@@ -324,7 +324,7 @@ public class AiCompanionController(
 
     /// <summary>
     /// Explain a specific course material by its ID using AI.
-    /// Students can click on any uploaded material and get an explanation.
+    /// Downloads the file from storage and sends to AI for explanation.
     /// </summary>
     [HttpPost("explain-material/{materialId}")]
     [Authorize(Roles = "Student,Doctor,TeachingAssistant,SuperAdmin")]
@@ -341,7 +341,6 @@ public class AiCompanionController(
         if (material == null)
             return NotFound("Material not found.");
 
-        // Get the signed URL from storage
         var storageKey = material.File?.StorageKey
             ?? material.StorageKey
             ?? material.StoredFileName;
@@ -349,28 +348,36 @@ public class AiCompanionController(
         if (string.IsNullOrEmpty(storageKey))
             return BadRequest("Material has no associated file.");
 
-        // Build the storage URL from the key
-        var fileUrl = material.File?.StorageKey ?? material.StorageKey ?? material.StoredFileName ?? "";
+        // Download file bytes from R2
+        byte[] fileBytes;
+        try
+        {
+            var stream = await storageService.DownloadAsync(storageKey);
+            using var ms = new System.IO.MemoryStream();
+            await stream.CopyToAsync(ms);
+            fileBytes = ms.ToArray();
+        }
+        catch
+        {
+            return StatusCode(502, "Could not download material from storage.");
+        }
 
-        // Build a compact explain request via QuickPrompt — we don't have file bytes here,
-        // but the FastAPI explain-material route can fetch via fileUrl
-        var explainResult = await aiService.ExplainFileAsync(
-            fileBytes: [],
-            fileName: material.FileName ?? "material",
-            contentType: material.ContentType ?? "application/pdf");
+        var fileName    = material.FileName ?? material.Title ?? "material.pdf";
+        var contentType = material.ContentType ?? "application/pdf";
 
-        // If no bytes available, fallback: return material metadata for the client
-        // to trigger the companion chat with the material URL in context
+        var explainResult = await aiService.ExplainFileAsync(fileBytes, fileName, contentType);
+
+        if (explainResult == null)
+            return StatusCode(503, "AI explanation service temporarily unavailable.");
+
         return Ok(new
         {
-            materialId   = material.Id.ToString(),
-            fileName     = material.FileName,
-            title        = material.Title,
-            description  = material.Description,
-            fileUrl      = fileUrl,
-            contentType  = material.ContentType,
-            suggestion   = "استخدم AI Companion وقوله 'اشرح المادة دي' وهيشرحها من الملف.",
-            suggestionEn = "Open AI Companion and say 'explain this material' to get an AI explanation."
+            materialId    = material.Id.ToString(),
+            fileName      = fileName,
+            title         = material.Title,
+            explanation   = explainResult.Explanation,
+            flashcards    = explainResult.Flashcards,
+            charsExtracted = explainResult.CharsExtracted,
         });
     }
 
