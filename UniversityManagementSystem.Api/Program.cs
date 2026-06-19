@@ -406,7 +406,6 @@ builder.Services.AddHttpClient("FastApi", client =>
     client.Timeout = TimeSpan.FromSeconds(120);
 });
 
-builder.Services.AddScoped<IRealtimeNotifier, SignalRRealtimeNotifier>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<SuspiciousActivityDetector>();
 builder.Services.AddScoped<IDeletionService, DeletionService>();
