@@ -375,6 +375,7 @@ builder.Services.AddScoped<IExamReminderJob, ExamReminderJob>();
 builder.Services.AddScoped<IAssignmentReminderJob, AssignmentReminderJob>();
 builder.Services.AddScoped<IRegulationService, RegulationService>();
 builder.Services.AddScoped<ISmartStringGenerator, SmartStringGenerator>();
+builder.Services.AddScoped<AcademicContextBuilder>(); // shared by ChatService + ChatStreamingService
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IChatStreamingService, ChatStreamingService>();
 builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();

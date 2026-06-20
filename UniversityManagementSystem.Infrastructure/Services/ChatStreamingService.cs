@@ -37,6 +37,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
     public class ChatStreamingService(
         AppDbContext context,
         HttpClient httpClient,
+        AcademicContextBuilder contextBuilder,
         ILogger<ChatStreamingService> logger) : IChatStreamingService
     {
         private static readonly JsonSerializerOptions _json = new()
@@ -71,7 +72,7 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .ToListAsync(ct);
 
             // ── 2. Academic context ───────────────────────────────────────────
-            var academicCtx = await BuildContextAsync(userId, role, profileId, ct);
+            var academicCtx = await contextBuilder.BuildAsync(userId, role, profileId, ct);
 
             // ── 3. Save user message ──────────────────────────────────────────
             var userMsg = new ChatMessage
@@ -278,44 +279,6 @@ namespace UniversityManagementSystem.Infrastructure.Services
             return $"data: {json}\n\n";
         }
 
-        // ── Academic context (mirrors ChatService) ────────────────────────────
-
-        private async Task<object> BuildContextAsync(
-            Ulid userId, string role, string? profileId, CancellationToken ct)
-        {
-            try
-            {
-                if (role == "student" && !string.IsNullOrEmpty(profileId) && Ulid.TryParse(profileId, out var sid))
-                {
-                    var s = await context.Students.AsNoTracking()
-                        .Include(x => x.Batch).Include(x => x.Department).Include(x => x.College)
-                        .FirstOrDefaultAsync(x => x.Id == sid, ct);
-                    if (s != null)
-                        return new
-                        {
-                            userId       = userId.ToString(),
-                            studentId    = sid.ToString(),
-                            studentName  = s.FullName,
-                            batchId      = s.BatchId.ToString(),
-                            batchName    = s.Batch?.Name ?? "",
-                            departmentId = s.DepartmentId.ToString(),
-                            departmentName = s.Department?.Name ?? "",
-                            collegeName  = s.College?.Name ?? "",
-                            role
-                        };
-                }
-
-                if (role == "doctor" && !string.IsNullOrEmpty(profileId) && Ulid.TryParse(profileId, out var did))
-                {
-                    var d = await context.Doctors.AsNoTracking()
-                        .FirstOrDefaultAsync(x => x.Id == did, ct);
-                    if (d != null)
-                        return new { userId = userId.ToString(), doctorId = did.ToString(), doctorName = d.FullName, role };
-                }
-            }
-            catch (Exception ex) { logger.LogWarning(ex, "ChatStreamingService: BuildContextAsync failed"); }
-
-            return new { userId = userId.ToString(), role };
-        }
     }
+    // AcademicContextBuilder handles context building — see AcademicContextBuilder.cs
 }
