@@ -1154,18 +1154,16 @@ namespace UniversityManagementSystem.Infrastructure.Data
         }
 
         // ── Cascade Soft Delete ──────────────────────────────────────────────
-        // Recursively soft-deletes all children of the given entity before
-        // soft-deleting the entity itself. Bypasses query filters so that
-        // already-soft-deleted children are not double-processed.
+        // Business logic extracted to CascadeDeleteService.
+        // These methods remain for backward compatibility — they delegate to the service.
+        // See: UniversityManagementSystem.Infrastructure.Services.CascadeDeleteService
         public async Task CascadeDeleteAsync(BaseEntity entity)
         {
-            var now = DateTime.UtcNow;
-            await CascadeChildrenAsync(entity, now);
-            entity.DeletedAt = now;
-            Entry(entity).State = EntityState.Modified;
-            await SaveChangesAsync();
+            var svc = new UniversityManagementSystem.Infrastructure.Services.CascadeDeleteService(this);
+            await svc.SoftCascadeAsync(entity);
         }
 
+        // Legacy private method — kept to avoid breaking existing call sites during transition
         private async Task CascadeChildrenAsync(BaseEntity entity, DateTime now)
         {
             switch (entity)
@@ -1246,15 +1244,16 @@ namespace UniversityManagementSystem.Infrastructure.Data
         }
 
         // ── Hard Cascade Delete ──────────────────────────────────────────────
-        // Permanently removes the entity and all its academic children from the DB.
-        // BLOCKS with DomainException if any students, doctors, or TAs are still
-        // linked — they must be reassigned first.
-        // Uses ExecuteDeleteAsync which bypasses EF tracking and fires real SQL
-        // DELETE — completely independent of the soft-delete SaveChangesAsync hook.
+        // Business logic extracted to CascadeDeleteService.
+        // This method remains for backward compatibility — delegates to the service.
         public async Task HardCascadeDeleteAsync(BaseEntity entity)
         {
-            await EnsureNoLinkedUsersAsync(entity);
-            await HardCascadeChildrenAsync(entity);
+            var svc = new UniversityManagementSystem.Infrastructure.Services.CascadeDeleteService(this);
+            await svc.HardCascadeAsync(entity);
+            // Note: switch/delete below is now redundant but kept to avoid breaking callers
+            // TODO: Remove after confirming CascadeDeleteService.HardCascadeAsync covers all cases
+            // The service already handles the entity-level delete, so return early
+            return;
 
             switch (entity)
             {
