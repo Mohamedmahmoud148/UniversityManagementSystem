@@ -1245,37 +1245,11 @@ namespace UniversityManagementSystem.Infrastructure.Data
 
         // ── Hard Cascade Delete ──────────────────────────────────────────────
         // Business logic extracted to CascadeDeleteService.
-        // This method remains for backward compatibility — delegates to the service.
-        public async Task HardCascadeDeleteAsync(BaseEntity entity)
+        // This method remains for backward compatibility — fully delegates to CascadeDeleteService.
+        public Task HardCascadeDeleteAsync(BaseEntity entity)
         {
             var svc = new UniversityManagementSystem.Infrastructure.Services.CascadeDeleteService(this);
-            await svc.HardCascadeAsync(entity);
-            // Note: switch/delete below is now redundant but kept to avoid breaking callers
-            // TODO: Remove after confirming CascadeDeleteService.HardCascadeAsync covers all cases
-            // The service already handles the entity-level delete, so return early
-            return;
-
-            switch (entity)
-            {
-                case University u:
-                    await Universities.IgnoreQueryFilters().Where(x => x.Id == u.Id).ExecuteDeleteAsync();
-                    break;
-                case College c:
-                    await Colleges.IgnoreQueryFilters().Where(x => x.Id == c.Id).ExecuteDeleteAsync();
-                    break;
-                case Department d:
-                    await Departments.IgnoreQueryFilters().Where(x => x.Id == d.Id).ExecuteDeleteAsync();
-                    break;
-                case Batch b:
-                    await Batches.IgnoreQueryFilters().Where(x => x.Id == b.Id).ExecuteDeleteAsync();
-                    break;
-                case Group g:
-                    await Groups.IgnoreQueryFilters().Where(x => x.Id == g.Id).ExecuteDeleteAsync();
-                    break;
-                case SubjectOffering so:
-                    await SubjectOfferings.IgnoreQueryFilters().Where(x => x.Id == so.Id).ExecuteDeleteAsync();
-                    break;
-            }
+            return svc.HardCascadeAsync(entity);
         }
 
         // Throws DomainException if students/doctors/TAs reference this entity.

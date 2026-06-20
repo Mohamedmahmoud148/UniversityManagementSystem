@@ -4,12 +4,13 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Serilog;
 using System;
 using UniversityManagementSystem.Api.Hubs;
 using UniversityManagementSystem.Api.Middleware;
 using UniversityManagementSystem.Infrastructure.Data;
+// Explicit alias to resolve ambiguity between Microsoft.Extensions.Logging.ILogger and Serilog.ILogger
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace UniversityManagementSystem.Api.Extensions
 {
