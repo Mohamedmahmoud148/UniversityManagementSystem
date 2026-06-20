@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using System;
+using UniversityManagementSystem.Api.Filters;
 using UniversityManagementSystem.Api.Hubs;
 using UniversityManagementSystem.Api.Middleware;
 using UniversityManagementSystem.Infrastructure.Data;

@@ -24,7 +24,7 @@ using UniversityManagementSystem.Infrastructure.Data;
 using UniversityManagementSystem.Infrastructure.Jobs;
 using UniversityManagementSystem.Infrastructure.Services;
 using UniversityManagementSystem.Infrastructure.Services.Deletion;
-using UniversityManagementSystem.Infrastructure.Storage;
+using UniversityManagementSystem.Infrastructure.Storage;   // R2StorageService
 
 namespace UniversityManagementSystem.Api.Extensions
 {
@@ -153,7 +153,7 @@ namespace UniversityManagementSystem.Api.Extensions
         public static IServiceCollection AddStorageServices(
             this IServiceCollection services, IConfiguration config)
         {
-            services.AddSingleton<IStorageService, CloudflareR2StorageService>();
+            services.AddSingleton<IStorageService, R2StorageService>();
             services.AddScoped<IFileService, FileService>();
             services.AddScoped<IStudentFileService, StudentFileService>();
             return services;
