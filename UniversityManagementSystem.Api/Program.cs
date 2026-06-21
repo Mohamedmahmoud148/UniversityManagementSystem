@@ -377,7 +377,13 @@ builder.Services.AddScoped<IRegulationService, RegulationService>();
 builder.Services.AddScoped<ISmartStringGenerator, SmartStringGenerator>();
 builder.Services.AddScoped<AcademicContextBuilder>(); // shared by ChatService + ChatStreamingService
 builder.Services.AddScoped<IChatService, ChatService>();
-builder.Services.AddScoped<IChatStreamingService, ChatStreamingService>();
+builder.Services.AddHttpClient<IChatStreamingService, ChatStreamingService>(client =>
+{
+    var aiUrl = Environment.GetEnvironmentVariable("AI_SERVICE_URL")
+                ?? "https://ai-orchestration-service-production.up.railway.app";
+    client.BaseAddress = new Uri(aiUrl);
+    client.Timeout = TimeSpan.FromSeconds(120); // streaming needs longer timeout
+});
 builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();
 builder.Services.AddScoped<IComplaintService, ComplaintService>();
 builder.Services.AddScoped<IComplaintIntelligenceJob, ComplaintIntelligenceJob>();
