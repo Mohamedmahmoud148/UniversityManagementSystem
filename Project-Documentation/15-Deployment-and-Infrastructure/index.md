@@ -15,7 +15,7 @@
 | RabbitMQ 3.13 | Plugin | Async event bus |
 | ChromaDB 0.5 | Web Service | Persistent volume for vectors |
 
-**Frontend:** Hosted separately on Vercel/CDN at `bsnu.web.app`
+**Frontend:** Hosted on Firebase Hosting (CDN) at `bsnu.web.app` — static SPA only, no Firebase backend services used
 
 **File Storage:** Cloudflare R2 (not on Railway)
 

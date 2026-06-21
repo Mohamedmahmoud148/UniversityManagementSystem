@@ -36,10 +36,8 @@ Three user roles share one unified backend:
 | ORM | Entity Framework Core | 9 |
 | Authentication | JWT Bearer | — |
 | Deployment | Railway (PaaS) | — |
-| Frontend | React 18 + Firebase + MUI + Tailwind | — |
-| Classroom Data | Firebase Firestore + Auth + Storage | — |
-| Serverless Functions | Firebase Functions (Node.js) | — |
-| In-browser AI | Google MediaPipe (face detection) | — |
+| Frontend | React 18 + TypeScript + MUI + Tailwind | — |
+| Frontend Deployment | Firebase Hosting (CDN only) | — |
 
 ---
 

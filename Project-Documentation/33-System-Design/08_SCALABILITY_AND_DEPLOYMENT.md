@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-The system is deployed across two cloud platforms: Railway PaaS hosts the .NET backend and the FastAPI AI service, while Firebase (Google Cloud) hosts the React frontend, Firestore, Cloud Functions, and Firebase Auth. This hybrid deployment strategy allows each component to scale according to its own workload characteristics.
+The system is deployed on Railway PaaS, which hosts all backend services: the .NET API, FastAPI AI service, PostgreSQL, Redis, and RabbitMQ. The React frontend is a static SPA deployed to Firebase Hosting (CDN only — no Firebase backend services are used). Cloudflare R2 handles object storage independently.
 
 ---
 
@@ -10,37 +10,35 @@ The system is deployed across two cloud platforms: Railway PaaS hosts the .NET b
 
 ```mermaid
 graph TD
+    subgraph FIREBASE["Firebase Hosting (CDN)"]
+        FHOSTING["React SPA\nbsnu.web.app"]
+    end
+
     subgraph RAILWAY["Railway PaaS"]
         DOTNET[".NET API Service\nASP.NET Core 9\nPort 8080"]
         FASTAPI["FastAPI AI Service\nPython 3.12\nPort 8000"]
         PG[("PostgreSQL 16\nRailway Plugin")]
         REDIS[("Redis\nRailway Plugin")]
-        CHROMA["ChromaDB\n(in-process with FastAPI)"]
-    end
-
-    subgraph FIREBASE["Firebase / Google Cloud"]
-        FHOSTING["Firebase Hosting\nReact SPA (CDN)"]
-        FAUTH["Firebase Auth"]
-        FSTORE["Firestore\nreal-time DB"]
-        FFUNC["Cloud Functions\nNode.js workers"]
-        FSTORAGE["Firebase Storage\nLecture PDFs"]
+        RABBIT[("RabbitMQ\nRailway Plugin")]
+        CHROMA["ChromaDB\n(persistent volume)"]
     end
 
     subgraph CDN["Cloudflare"]
-        R2["Cloudflare R2\nAssignments / Files"]
+        R2["Cloudflare R2\nFile Storage"]
     end
 
     subgraph OPENROUTER["OpenRouter"]
         LLM["Claude claude-sonnet\nLLM API"]
     end
 
-    FHOSTING -->|REST| DOTNET
-    FHOSTING -->|Firebase SDK| FSTORE
-    FFUNC -->|internal call| FASTAPI
-    FFUNC -->|Admin SDK| FSTORE
-    FASTAPI -->|REST| DOTNET
+    FHOSTING -->|JWT REST| DOTNET
+    FHOSTING -->|JWT REST| FASTAPI
+    FHOSTING -->|WebSocket SignalR| DOTNET
+    FASTAPI -->|internal REST| DOTNET
     DOTNET --- PG
     DOTNET --- R2
+    DOTNET --- REDIS
+    DOTNET --- RABBIT
     FASTAPI --- CHROMA
     FASTAPI --- REDIS
     FASTAPI --- LLM
@@ -79,7 +77,8 @@ Each Railway service is deployed from a GitHub repository via Railway's CI/CD in
 - `JWT_SECRET` — HMAC-SHA256 signing key
 - `CLOUDFLARE_R2_*` — R2 access key, secret, bucket name, endpoint
 - `REDIS_URL` — Redis connection string
-- `CORS_ORIGINS` — Comma-separated allowed origins
+- `RABBITMQ_URL` — RabbitMQ connection string
+- `CORS_ORIGINS` — `https://bsnu.web.app` (Firebase Hosting domain)
 
 ### 3.3 FastAPI Service
 
@@ -100,7 +99,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", 
 
 ### 3.4 Railway Auto-Scaling
 
-Railway scales services vertically (increasing CPU/RAM on the same instance) based on usage metrics. For the current load profile (university of ~2000 students), a single instance of each service is sufficient. Railway's configuration supports horizontal scaling via the `numReplicas` setting, which can be increased if needed.
+Railway scales services vertically (increasing CPU/RAM on the same instance) based on usage metrics. For the current load profile (university of ~2000 students), a single instance of each service is sufficient. Railway's configuration supports horizontal scaling via the `numReplicas` setting if needed.
 
 ### 3.5 Private Networking
 
@@ -108,11 +107,11 @@ Railway services within the same project communicate over Railway's private netw
 
 ---
 
-## 4. Firebase Deployment (Frontend + Classroom)
+## 4. Firebase Hosting (Frontend CDN)
 
-### 4.1 Firebase Hosting (React SPA)
+Firebase Hosting is used exclusively to serve the pre-built React SPA static files. No Firebase backend services (Firestore, Auth, Cloud Functions, Storage) are used.
 
-Firebase Hosting serves the React SPA from Google's global CDN. The Vite build output is deployed with:
+### 4.1 Deployment Command
 
 ```bash
 vite build && firebase deploy --only hosting
@@ -122,25 +121,9 @@ vite build && firebase deploy --only hosting
 - Global CDN with edge caching (sub-100ms load times worldwide).
 - Automatic HTTPS with Google-managed SSL certificates.
 - Single-command deployment with atomic snapshot promotion.
-- Custom domain support.
+- Custom domain support (`bsnu.web.app`).
 
-### 4.2 Firestore Scalability
-
-Firestore is a serverless, globally distributed NoSQL database. It automatically scales to handle:
-
-- Unlimited concurrent connections.
-- Thousands of simultaneous onSnapshot listeners.
-- Multi-region replication for high availability.
-
-**Write capacity:** Firestore supports up to 1 write/second per document. For high-frequency writes (quiz responses, engagement scores), documents are structured to spread load:
-- Each student's quiz response is a separate document (no contention).
-- Engagement scores use a per-student array within a daily document (reduces document count).
-
-### 4.3 Cloud Functions Scalability
-
-Firebase Cloud Functions are serverless and scale horizontally. Each function invocation is independent:
-- Cold starts are mitigated by minimum instance configuration (minimum 1 warm instance for the AI relay function).
-- Concurrent invocations are handled transparently by Firebase.
+The React app makes all dynamic requests to Railway-hosted services (`.NET` and `FastAPI`) — Firebase Hosting only serves the initial HTML/JS/CSS bundle.
 
 ---
 
@@ -162,7 +145,7 @@ ChromaDB runs in-process with the FastAPI service (embedded mode) for simplicity
 
 Redis is used for two purposes:
 1. **Conversation memory:** Per-session chat history (TTL: 24 hours).
-2. **Background job queues** (potentially, if Hangfire uses Redis as its backing store).
+2. **Distributed cache / rate limiting:** .NET uses Redis for rate limit counters.
 
 **Memory management strategy:**
 - All chat session keys have a 24-hour TTL, which automatically evicts stale sessions.
@@ -189,7 +172,7 @@ Npgsql (the .NET PostgreSQL driver) manages the pool internally. The application
 
 ## 8. Hangfire Background Jobs
 
-Hangfire is the .NET background job processing library. It runs 8 scheduled and triggered jobs:
+Hangfire is the .NET background job processing library. It runs scheduled and triggered jobs:
 
 | Job | Trigger | Description |
 |-----|---------|-------------|
@@ -197,14 +180,14 @@ Hangfire is the .NET background job processing library. It runs 8 scheduled and 
 | `EnrollmentWindowJob` | Cron (daily) | Opens/closes enrollment windows based on semester dates |
 | `DeadlineReminderJob` | Cron (daily 8AM) | Sends notifications for upcoming assignment deadlines |
 | `NotificationDispatchJob` | On announcement create | Sends announcement notifications to target role group |
-| `GradePublishReminderJob` | Cron (weekly) | Reminds professors with unpublished grades |
-| `RegulationAuditJob` | On semester end | Audits student progress against regulation requirements |
-| `ComplaintEscalationJob` | Cron (daily) | Escalates unresolved complaints older than 7 days |
-| `BackupMetadataJob` | Cron (weekly) | Snapshots metadata table counts for admin dashboard |
+| `AcademicRiskJob` | Cron (daily 6AM) | GPA + attendance risk scoring across all active offerings |
+| `RagIndexingJob` | Cron (daily) | Indexes unindexed materials into ChromaDB |
+| `ComplaintIntelligenceJob` | Daily / Weekly / Monthly | AI intelligence reports for admin |
+| `ExamReminderJob` | Cron (every 30 min) | 24h / 2h exam reminders to enrolled students |
 
 **Hangfire storage:** Hangfire uses the same PostgreSQL database for its job queue and execution history. A dedicated schema (`hangfire`) separates Hangfire tables from application tables.
 
-**Dashboard:** Hangfire's built-in dashboard is available at `/hangfire` (protected by `[Authorize(Roles = "Admin")]`), allowing admins to view job history, retry failed jobs, and monitor execution times.
+**Dashboard:** Hangfire's built-in dashboard is available at `/hangfire` (protected by admin auth), allowing admins to view job history, retry failed jobs, and monitor execution times.
 
 ---
 
@@ -227,11 +210,6 @@ Hangfire is the .NET background job processing library. It runs 8 scheduled and 
 - **Problem:** During peak enrollment (semester start), many students may attempt to enroll in the same offering simultaneously.
 - **Mitigation:** Optimistic concurrency with row-level locking on `SubjectOfferings`. The SQL update uses a `WHERE CurrentEnrollment < MaxEnrollment` condition — if it fails, the application returns a 409 Conflict.
 
-### 9.4 Firestore Write Rate on Engagement
-
-- **Problem:** With 100 students in a class, engagement writes could reach 20 writes/second if not throttled.
-- **Mitigation:** The browser-side score buffer averages over 5-second windows, reducing writes to 1 per student per 5 seconds (maximum 20 writes/second at 100 students), which is within Firestore's standard quota.
-
 ---
 
 ## 10. Future Scalability Recommendations
@@ -241,7 +219,7 @@ Hangfire is the .NET background job processing library. It runs 8 scheduled and 
 | Database reads | Add PostgreSQL read replica for reporting queries | Medium |
 | AI caching | Cache LLM responses for identical queries (regulations, course info) | High |
 | CDN for files | Serve lecture PDFs via Cloudflare CDN (R2 is already CDN-backed) | Low |
-| Load balancing | Add a second .NET instance behind Railway's load balancer for high-availability | Medium |
+| Load balancing | Add a second .NET instance behind Railway's load balancer | Medium |
 | ChromaDB | Migrate to ChromaDB server mode when FastAPI scales beyond 1 instance | Medium |
-| Monitoring | Add APM (Application Performance Monitoring) such as Sentry or Datadog | High |
-| Rate limiting | Implement per-student rate limiting on enrollment endpoint (currently per-IP) | Medium |
+| Monitoring | Add APM (Sentry or Datadog) | High |
+| Rate limiting | Implement per-student rate limiting on enrollment endpoint | Medium |

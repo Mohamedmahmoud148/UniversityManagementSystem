@@ -16,8 +16,8 @@ The documentation is organized into nine documents, each covering a distinct asp
 | 02 | [Database Design](02_DATABASE_DESIGN.md) | ER diagram, all major tables, relationships, indexes, GPA schema, soft-delete strategy |
 | 03 | [API Design](03_API_DESIGN.md) | REST principles, JWT lifecycle, endpoint groups, request/response conventions, error handling |
 | 04 | [AI System Design](04_AI_SYSTEM_DESIGN.md) | Orchestrator, RAG pipeline, Redis memory, modules, intent classification, LLM strategy |
-| 05 | [Frontend Architecture](05_FRONTEND_ARCHITECTURE.md) | Component hierarchy, Firebase data layer, state management, quiz engine, engagement tracker |
-| 06 | [Security Design](06_SECURITY_DESIGN.md) | Authentication, RBAC at 4 levels, Firebase rules, data protection, CORS |
+| 05 | [Frontend Architecture](05_FRONTEND_ARCHITECTURE.md) | Component hierarchy, JWT auth, SignalR real-time, state management, exam engine, proctoring hook |
+| 06 | [Security Design](06_SECURITY_DESIGN.md) | Authentication, RBAC at 4 levels, data protection, CORS |
 | 07 | [Data Flow Diagrams](07_DATA_FLOW_DIAGRAMS.md) | Mermaid sequence diagrams for 7 key system flows |
 | 08 | [Scalability and Deployment](08_SCALABILITY_AND_DEPLOYMENT.md) | Railway, Firebase, ChromaDB, Redis, connection pooling, Hangfire, recommendations |
 | 09 | [Design Decisions](09_DESIGN_DECISIONS.md) | Rationale for every major architectural choice |
@@ -45,10 +45,10 @@ University Management System
 │   └── Redis conversation memory
 │
 └── React Frontend (React 18)
-    ├── Firebase Firestore (quizzes, chat, attendance)
-    ├── Firebase Auth (custom RBAC claims)
-    ├── Firebase Cloud Functions (serverless)
-    ├── Google MediaPipe (face detection)
+    ├── JWT Auth (from .NET backend)
+    ├── SignalR (real-time notifications)
+    ├── Axios (REST calls to .NET + FastAPI)
+    ├── Firebase Hosting (CDN deployment only)
     └── Material UI + Tailwind CSS
 ```
 
@@ -73,11 +73,11 @@ University Management System
 | Vector DB | ChromaDB |
 | Cache / Memory | Redis |
 | Frontend | React 18 + TypeScript |
-| Realtime (academic) | SignalR (.NET) |
-| Realtime (classroom) | Firebase Firestore onSnapshot |
-| Auth | JWT (academic) + Firebase Auth (classroom) |
+| Realtime | SignalR (.NET) |
+| Auth | JWT Bearer — issued by .NET backend |
 | File Storage | Cloudflare R2 |
-| Deployment | Railway PaaS (.NET + FastAPI) + Firebase Hosting |
+| Deployment (backend) | Railway PaaS (.NET + FastAPI) |
+| Deployment (frontend) | Firebase Hosting (CDN only) |
 
 ---
 
