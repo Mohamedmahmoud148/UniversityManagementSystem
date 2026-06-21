@@ -117,6 +117,7 @@ const PRIORITY_CONFIG = {
 
 #### Sentiment Indicator Component
 
+{% raw %}
 ```typescript
 const SentimentBar = ({ score }: { score: number }) => {
   const pct = ((score + 1) / 2) * 100; // Convert -1..1 to 0%..100%
@@ -134,6 +135,7 @@ const SentimentBar = ({ score }: { score: number }) => {
   );
 };
 ```
+{% endraw %}
 
 ---
 

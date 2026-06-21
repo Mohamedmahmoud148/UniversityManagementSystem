@@ -1,9 +1,14 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+using Moq;
 using NUlid;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
+using UniversityManagementSystem.Core.Interfaces;
+using UniversityManagementSystem.Core.Settings;
+#pragma warning disable CS8019
 using UniversityManagementSystem.Infrastructure.Data;
 using UniversityManagementSystem.Infrastructure.Services;
 using Xunit;
@@ -32,7 +37,18 @@ public class AuthServiceTests : IDisposable
             })
             .Build();
 
-        _sut = new AuthService(_context, config);
+        var uniOptions = Options.Create(new UniversitySettings
+        {
+            StudentEmailDomain = "student.university.edu",
+            StaffEmailDomain   = "university.edu",
+            DefaultPassword    = "123456"
+        });
+        var emailGeneratorMock = new Mock<IUniversityEmailGenerator>();
+        emailGeneratorMock
+            .Setup(x => x.GenerateStudentEmailAsync(It.IsAny<string>()))
+            .ReturnsAsync((string name) => $"{name.ToLower().Replace(" ", "")}@university.edu");
+
+        _sut = new AuthService(_context, config, uniOptions, emailGeneratorMock.Object);
     }
 
     private SystemUser CreateActiveUser(string email, string password, int failedCount = 0, DateTime? lockoutEnd = null)

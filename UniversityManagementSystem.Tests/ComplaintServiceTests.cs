@@ -6,6 +6,7 @@ using Moq;
 using NUlid;
 using UniversityManagementSystem.Core.DTOs;
 using UniversityManagementSystem.Core.Entities;
+using UniversityManagementSystem.Core.Interfaces;
 using UniversityManagementSystem.Infrastructure.Data;
 using UniversityManagementSystem.Infrastructure.Services;
 using Xunit;
@@ -25,7 +26,8 @@ public class ComplaintServiceTests : IDisposable
             .Options;
         _context = new AppDbContext(options);
         _jobClientMock = new Mock<IBackgroundJobClient>();
-        _sut = new ComplaintService(_context, _jobClientMock.Object);
+        var notificationServiceMock = new Mock<INotificationService>();
+        _sut = new ComplaintService(_context, _jobClientMock.Object, notificationServiceMock.Object);
     }
 
     [Fact]
