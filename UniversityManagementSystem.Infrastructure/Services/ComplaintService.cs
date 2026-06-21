@@ -261,6 +261,241 @@ namespace UniversityManagementSystem.Infrastructure.Services
             }).ToList();
         }
 
+        public async Task<ClusterReplyResponseDto> ReplyToClusterAsync(Ulid clusterId, string message, Ulid repliedByUserId)
+        {
+            var cluster = await _context.ComplaintClusters
+                .FirstOrDefaultAsync(c => c.Id == clusterId && c.DeletedAt == null);
+            if (cluster == null) throw new KeyNotFoundException("Cluster not found.");
+
+            // Get all complaints in this cluster via DuplicateGroupId
+            var complaintIds = await _context.ComplaintAnalyses
+                .Where(a => a.DuplicateGroupId == clusterId.ToString() && a.DeletedAt == null)
+                .Select(a => a.ComplaintId)
+                .ToListAsync();
+
+            var complaints = await _context.Complaints
+                .Where(c => complaintIds.Contains(c.Id) && c.DeletedAt == null)
+                .ToListAsync();
+
+            // Update each complaint
+            foreach (var complaint in complaints)
+            {
+                complaint.ResolutionNote = message;
+                complaint.Status = "Resolved";
+                complaint.ResolvedAt = DateTime.UtcNow;
+            }
+
+            // Send individual notifications
+            int notificationsSent = 0;
+            var studentIds = complaints.Select(c => c.StudentId).Distinct().ToList();
+            foreach (var studentId in studentIds)
+            {
+                try
+                {
+                    await _notificationService.SendNotificationAsync(
+                        studentId,
+                        "Response to your complaint",
+                        $"A response has been issued for the topic: '{cluster.Topic}'. Message: {message}");
+                    notificationsSent++;
+                }
+                catch { /* notification failure must not break the flow */ }
+            }
+
+            // Store reply history
+            var reply = new ClusterReply
+            {
+                ClusterId = clusterId,
+                RepliedByUserId = repliedByUserId,
+                Message = message,
+                AffectedStudents = studentIds.Count,
+                NotificationsSent = notificationsSent,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.ClusterReplies.Add(reply);
+
+            // Update cluster status
+            cluster.Status = "Resolved";
+            cluster.ResolvedAt = DateTime.UtcNow;
+            cluster.LastUpdated = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return new ClusterReplyResponseDto
+            {
+                ClusterId = clusterId.ToString(),
+                Topic = cluster.Topic,
+                AffectedStudents = studentIds.Count,
+                NotificationsSent = notificationsSent,
+                Message = message,
+                RepliedAt = DateTime.UtcNow
+            };
+        }
+
+        public async Task<EnhancedComplaintClusterDto> GetClusterByIdAsync(Ulid clusterId)
+        {
+            var cluster = await _context.ComplaintClusters
+                .Include(c => c.Replies)
+                .Include(c => c.StatusHistory)
+                .FirstOrDefaultAsync(c => c.Id == clusterId && c.DeletedAt == null);
+            if (cluster == null) throw new KeyNotFoundException("Cluster not found.");
+            return MapToEnhancedDto(cluster);
+        }
+
+        public async Task UpdateClusterStatusAsync(Ulid clusterId, string newStatus, Ulid changedByUserId, string? reason)
+        {
+            var validStatuses = new[] { "Open", "Investigating", "Resolved", "Archived" };
+            if (!validStatuses.Contains(newStatus))
+                throw new ArgumentException($"Invalid status. Valid: {string.Join(", ", validStatuses)}");
+
+            var cluster = await _context.ComplaintClusters
+                .FirstOrDefaultAsync(c => c.Id == clusterId && c.DeletedAt == null);
+            if (cluster == null) throw new KeyNotFoundException("Cluster not found.");
+
+            var history = new ClusterStatusHistory
+            {
+                ClusterId = clusterId,
+                OldStatus = cluster.Status,
+                NewStatus = newStatus,
+                ChangedByUserId = changedByUserId,
+                Reason = reason,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.ClusterStatusHistories.Add(history);
+
+            cluster.Status = newStatus;
+            if (newStatus == "Resolved") cluster.ResolvedAt = DateTime.UtcNow;
+            cluster.LastUpdated = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<ComplaintDashboardDto> GetDashboardAsync()
+        {
+            var since30Days = DateTime.UtcNow.AddDays(-30);
+
+            var totalComplaints = await _context.Complaints.CountAsync(c => c.DeletedAt == null);
+            var pending = await _context.Complaints.CountAsync(c => c.DeletedAt == null && c.Status == "Pending");
+            var underReview = await _context.Complaints.CountAsync(c => c.DeletedAt == null && c.Status == "UnderReview");
+            var resolved = await _context.Complaints.CountAsync(c => c.DeletedAt == null && c.Status == "Resolved");
+            var dismissed = await _context.Complaints.CountAsync(c => c.DeletedAt == null && c.Status == "Dismissed");
+            var critical = await _context.Complaints.CountAsync(c => c.DeletedAt == null && c.Priority == "Critical");
+            var totalClusters = await _context.ComplaintClusters.CountAsync(c => c.DeletedAt == null);
+
+            var categories = await _context.ComplaintAnalyses
+                .Where(a => a.DeletedAt == null && a.Category != null)
+                .GroupBy(a => a.Category)
+                .Select(g => new CategoryCountDto { Name = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .Take(10)
+                .ToListAsync();
+
+            var severities = await _context.ComplaintAnalyses
+                .Where(a => a.DeletedAt == null && a.Severity != null)
+                .GroupBy(a => a.Severity)
+                .Select(g => new SeverityCountDto { Severity = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .ToListAsync();
+
+            var topClusters = await _context.ComplaintClusters
+                .Where(c => c.DeletedAt == null)
+                .OrderByDescending(c => c.ComplaintCount)
+                .Take(5)
+                .ToListAsync();
+
+            // Average resolution time (hours)
+            var resolvedComplaints = await _context.Complaints
+                .Where(c => c.DeletedAt == null && c.Status == "Resolved" && c.ResolvedAt != null)
+                .Select(c => new { c.CreatedAt, c.ResolvedAt })
+                .ToListAsync();
+
+            double avgResolutionHours = resolvedComplaints.Any()
+                ? resolvedComplaints.Average(c => (c.ResolvedAt!.Value - c.CreatedAt).TotalHours)
+                : 0;
+
+            double avgSentiment = await _context.ComplaintAnalyses
+                .Where(a => a.DeletedAt == null)
+                .Select(a => (double?)a.SentimentScore)
+                .AverageAsync() ?? 0;
+
+            int trendingCount = await _context.ComplaintClusters
+                .CountAsync(c => c.DeletedAt == null && c.TrendDirection == "Increasing");
+
+            // Complaints over time (last 30 days)
+            var overTime = await _context.Complaints
+                .Where(c => c.DeletedAt == null && c.CreatedAt >= since30Days)
+                .GroupBy(c => c.CreatedAt.Date)
+                .Select(g => new DailyComplaintCountDto { Date = g.Key, Count = g.Count() })
+                .OrderBy(x => x.Date)
+                .ToListAsync();
+
+            return new ComplaintDashboardDto
+            {
+                Summary = new ComplaintSummaryDto
+                {
+                    TotalComplaints = totalComplaints,
+                    Pending = pending,
+                    UnderReview = underReview,
+                    Resolved = resolved,
+                    Dismissed = dismissed,
+                    Critical = critical,
+                    TotalClusters = totalClusters
+                },
+                Categories = categories,
+                Severities = severities,
+                TopClusters = topClusters.Select(MapToEnhancedDto).ToList(),
+                Metrics = new ComplaintMetricsDto
+                {
+                    AverageResolutionHours = Math.Round(avgResolutionHours, 1),
+                    AverageSentiment = Math.Round(avgSentiment, 3),
+                    TrendingClustersCount = trendingCount
+                },
+                OverTime = overTime
+            };
+        }
+
+        private static EnhancedComplaintClusterDto MapToEnhancedDto(ComplaintCluster c)
+        {
+            List<string> recommendations = new();
+            if (!string.IsNullOrWhiteSpace(c.AiRecommendations))
+            {
+                try { recommendations = System.Text.Json.JsonSerializer.Deserialize<List<string>>(c.AiRecommendations) ?? new(); }
+                catch { }
+            }
+
+            return new EnhancedComplaintClusterDto
+            {
+                Id = c.Id.ToString(),
+                Topic = c.Topic,
+                TargetType = c.TargetType,
+                TargetId = c.TargetId,
+                ComplaintCount = c.ComplaintCount,
+                CriticalCount = c.CriticalCount,
+                AiSummary = c.AiSummary,
+                AiRecommendations = recommendations,
+                Status = c.Status,
+                TrendDirection = c.TrendDirection,
+                AverageSentiment = c.AverageSentiment,
+                FirstComplaintAt = c.FirstComplaintAt,
+                LastUpdated = c.LastUpdated,
+                ResolvedAt = c.ResolvedAt,
+                Replies = (c.Replies ?? new()).Select(r => new ClusterReplyDto
+                {
+                    Id = r.Id.ToString(),
+                    Message = r.Message,
+                    AffectedStudents = r.AffectedStudents,
+                    NotificationsSent = r.NotificationsSent,
+                    RepliedAt = r.CreatedAt
+                }).ToList(),
+                StatusHistory = (c.StatusHistory ?? new()).Select(h => new ClusterStatusHistoryDto
+                {
+                    OldStatus = h.OldStatus,
+                    NewStatus = h.NewStatus,
+                    Reason = h.Reason,
+                    ChangedAt = h.CreatedAt
+                }).OrderByDescending(h => h.ChangedAt).ToList()
+            };
+        }
+
         private static ComplaintDto MapToDto(Complaint c, bool maskStudent = false, Student? studentProfile = null)
         {
             var dto = new ComplaintDto

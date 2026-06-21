@@ -100,5 +100,60 @@ namespace UniversityManagementSystem.Api.Controllers
                 return Forbid();
             }
         }
+
+        [HttpPut("clusters/{clusterId}/reply")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
+        public async Task<IActionResult> ReplyToCluster(string clusterId, [FromBody] ClusterReplyRequestDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!Ulid.TryParse(clusterId, out var id)) return BadRequest(new { error = "Invalid cluster ID." });
+
+            var userId = _userContext.GetUserId();
+            try
+            {
+                var result = await _complaintService.ReplyToClusterAsync(id, dto.Message, userId);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+            catch (UnauthorizedAccessException) { return Forbid(); }
+        }
+
+        [HttpGet("clusters/{clusterId}")]
+        [Authorize(Roles = "Admin,SuperAdmin,Doctor")]
+        public async Task<IActionResult> GetCluster(string clusterId)
+        {
+            if (!Ulid.TryParse(clusterId, out var id)) return BadRequest(new { error = "Invalid cluster ID." });
+            try
+            {
+                var result = await _complaintService.GetClusterByIdAsync(id);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        }
+
+        [HttpPatch("clusters/{clusterId}/status")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> UpdateClusterStatus(string clusterId, [FromBody] UpdateClusterStatusDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!Ulid.TryParse(clusterId, out var id)) return BadRequest(new { error = "Invalid cluster ID." });
+
+            var userId = _userContext.GetUserId();
+            try
+            {
+                await _complaintService.UpdateClusterStatusAsync(id, dto.Status, userId, dto.Reason);
+                return NoContent();
+            }
+            catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+            catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
+        [HttpGet("dashboard")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> GetDashboard()
+        {
+            var result = await _complaintService.GetDashboardAsync();
+            return Ok(result);
+        }
     }
 }

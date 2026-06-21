@@ -45,6 +45,8 @@ namespace UniversityManagementSystem.Infrastructure.Data
         public DbSet<Complaint> Complaints { get; set; } = null!;
         public DbSet<ComplaintAnalysis> ComplaintAnalyses { get; set; } = null!;
         public DbSet<ComplaintCluster> ComplaintClusters { get; set; } = null!;
+        public DbSet<ClusterReply> ClusterReplies { get; set; } = null!;
+        public DbSet<ClusterStatusHistory> ClusterStatusHistories { get; set; } = null!;
         public DbSet<AcademicYearDepartment> AcademicYearDepartments { get; set; } = null!;
         public DbSet<ScheduleEntry> ScheduleEntries { get; set; } = null!;
         public DbSet<AcademicYear> AcademicYears { get; set; } = null!;
@@ -796,6 +798,37 @@ namespace UniversityManagementSystem.Infrastructure.Data
                 entity.Property(cc => cc.TargetType).HasMaxLength(50);
                 entity.Property(cc => cc.TargetId).HasMaxLength(100);
                 entity.Property(cc => cc.Topic).HasMaxLength(255);
+
+                // Enhancement fields
+                entity.Property(c => c.Status).HasMaxLength(50).HasDefaultValue("Open");
+                entity.Property(c => c.TrendDirection).HasMaxLength(20).HasDefaultValue("Stable");
+                entity.Property(c => c.AiRecommendations).HasColumnType("text");
+            });
+
+            // --------------------------------------------------------
+            // ClusterReply
+            // --------------------------------------------------------
+            modelBuilder.Entity<ClusterReply>(entity =>
+            {
+                entity.HasOne(r => r.Cluster)
+                      .WithMany(c => c.Replies)
+                      .HasForeignKey(r => r.ClusterId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(r => r.Message).HasMaxLength(2000);
+            });
+
+            // --------------------------------------------------------
+            // ClusterStatusHistory
+            // --------------------------------------------------------
+            modelBuilder.Entity<ClusterStatusHistory>(entity =>
+            {
+                entity.HasOne(h => h.Cluster)
+                      .WithMany(c => c.StatusHistory)
+                      .HasForeignKey(h => h.ClusterId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                entity.Property(h => h.OldStatus).HasMaxLength(50);
+                entity.Property(h => h.NewStatus).HasMaxLength(50);
+                entity.Property(h => h.Reason).HasMaxLength(500);
             });
 
             // --------------------------------------------------------
