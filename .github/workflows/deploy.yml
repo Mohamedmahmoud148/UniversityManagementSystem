@@ -91,7 +91,13 @@ jobs:
           echo "✅ RAILWAY_TOKEN is present"
 
       - name: Deploy to Railway
-        run: railway up --detach --no-gitignore
+        # Railway project has multiple services (.NET backend, FastAPI AI, etc.)
+        # so `railway up` MUST be told which one to deploy via --service, otherwise
+        # it errors with "Multiple services found. Please specify a service".
+        # Service name is read from the RAILWAY_SERVICE repo variable, falling back
+        # to the .NET backend's name. Change the variable in
+        # Settings → Secrets and variables → Actions → Variables (no workflow edit needed).
+        run: railway up --detach --no-gitignore --service "${{ vars.RAILWAY_SERVICE || 'UniversityManagementSystem' }}"
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         timeout-minutes: 10
