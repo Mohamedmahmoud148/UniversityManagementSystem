@@ -50,8 +50,10 @@ title: University Management System
 | 29 | [API Reference — Full Endpoint List](Project-Documentation/29-API-Reference/) | 🆕 All 33 controllers, roles, request/response |
 | 30 | [Feature Guide — "How to do X"](Project-Documentation/30-Feature-Guide/) | 🆕 Step-by-step guide for every feature |
 | 31 | [What Makes Us Different](Project-Documentation/31-What-Makes-Us-Different/) | 🆕 Comparison vs typical university systems |
-| 32 | [React Frontend — Complete Guide](Project-Documentation/32-React-Frontend/) | 🆕 React 18 + Firebase + AI — full frontend docs |
+| 32 | [React Frontend — Complete Guide](Project-Documentation/32-React-Frontend/) | 🆕 React 18 + AI — full frontend docs |
 | 33 | [System Design — Complete](Project-Documentation/33-System-Design/) | 🆕 Architecture, DB, API, AI, Security, Data Flow |
+| 34 | [Complaint Intelligence Platform](Project-Documentation/34-Complaint-Intelligence/COMPLAINT_INTELLIGENCE_ARCHITECTURE.md) | 🆕 AI clustering, cluster reply, dashboard, audit |
+| 35 | [AI Service — Production Hardening](Project-Documentation/35-AI-Service-Hardening/) | 🆕 Embeddings, RAG, model routing, perf, health |
 
 ---
 
