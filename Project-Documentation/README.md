@@ -41,6 +41,8 @@
 | [31](./31-What-Makes-Us-Different/index.md) | **What Makes Us Different** | Committee, presentations |
 | [32](./32-React-Frontend/index.md) | **React Frontend — Complete Guide** | Frontend devs, committee |
 | [33](./33-System-Design/index.md) | **System Design — Complete (AI + Backend + Frontend)** | Committee, architects, all devs |
+| [34](./34-Complaint-Intelligence/COMPLAINT_INTELLIGENCE_ARCHITECTURE.md) | **Complaint Intelligence Platform** | Backend + Frontend devs, committee |
+| [35](./35-AI-Service-Hardening/index.md) | **AI Service — Production Hardening & Intelligence Upgrade** | AI engineers, DevOps, committee |
 | — | [**Randomized Exam Guide**](./RANDOMIZED_EXAM_FRONTEND_GUIDE.md) | Frontend developers |
 
 ---
