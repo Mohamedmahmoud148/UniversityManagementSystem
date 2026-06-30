@@ -540,5 +540,20 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             return dto;
         }
+
+        public async Task<int> ReprocessUnanalyzedComplaintsAsync()
+        {
+            var pendingIds = await _context.Complaints
+                .Where(c => c.DeletedAt == null && c.Analysis == null)
+                .Select(c => c.Id)
+                .ToListAsync();
+
+            foreach (var id in pendingIds)
+            {
+                _backgroundJobClient.Enqueue<IComplaintIntelligenceJob>(job => job.ProcessNewComplaintAsync(id));
+            }
+
+            return pendingIds.Count;
+        }
     }
 }

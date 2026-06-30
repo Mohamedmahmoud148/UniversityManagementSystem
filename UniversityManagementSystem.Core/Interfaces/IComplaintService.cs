@@ -20,5 +20,6 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<EnhancedComplaintClusterDto> GetClusterByIdAsync(Ulid clusterId);
         Task UpdateClusterStatusAsync(Ulid clusterId, string newStatus, Ulid changedByUserId, string? reason);
         Task<ComplaintDashboardDto> GetDashboardAsync();
+        Task<int> ReprocessUnanalyzedComplaintsAsync();
     }
 }

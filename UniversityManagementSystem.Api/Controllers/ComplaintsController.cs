@@ -155,5 +155,13 @@ namespace UniversityManagementSystem.Api.Controllers
             var result = await _complaintService.GetDashboardAsync();
             return Ok(result);
         }
+
+        [HttpPost("reprocess-pending")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> ReprocessPending()
+        {
+            var count = await _complaintService.ReprocessUnanalyzedComplaintsAsync();
+            return Ok(new { requeued = count });
+        }
     }
 }
