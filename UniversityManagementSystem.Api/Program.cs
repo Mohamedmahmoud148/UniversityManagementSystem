@@ -698,6 +698,55 @@ END $$;
         }
         catch (Exception ex) { Console.WriteLine($"[WARN] LectureRecording patch failed (non-fatal): {ex.Message}"); }
 
+        // Patch: AddComplaintIntelligenceEnhancements migration — its AuditLogs RenameColumn
+        // steps fail once the AuditLog patch above has already renamed those columns, which
+        // aborts the whole migration transaction (including these unrelated ComplaintCluster
+        // changes). Apply them idempotently here instead.
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+DO $$
+BEGIN
+    ALTER TABLE ""ComplaintClusters"" ADD COLUMN IF NOT EXISTS ""AiRecommendations"" text;
+    ALTER TABLE ""ComplaintClusters"" ADD COLUMN IF NOT EXISTS ""AverageSentiment""  double precision NOT NULL DEFAULT 0.0;
+    ALTER TABLE ""ComplaintClusters"" ADD COLUMN IF NOT EXISTS ""CriticalCount""     integer NOT NULL DEFAULT 0;
+    ALTER TABLE ""ComplaintClusters"" ADD COLUMN IF NOT EXISTS ""FirstComplaintAt""  timestamp with time zone NOT NULL DEFAULT NOW();
+    ALTER TABLE ""ComplaintClusters"" ADD COLUMN IF NOT EXISTS ""ResolvedAt""        timestamp with time zone;
+    ALTER TABLE ""ComplaintClusters"" ADD COLUMN IF NOT EXISTS ""Status""            character varying(50) NOT NULL DEFAULT 'Open';
+    ALTER TABLE ""ComplaintClusters"" ADD COLUMN IF NOT EXISTS ""TrendDirection""    character varying(20) NOT NULL DEFAULT 'Stable';
+
+    CREATE TABLE IF NOT EXISTS ""ClusterReplies"" (
+        ""Id""                 varchar(26) NOT NULL PRIMARY KEY,
+        ""ClusterId""          varchar(26) NOT NULL,
+        ""RepliedByUserId""    varchar(26) NOT NULL,
+        ""Message""            character varying(2000) NOT NULL DEFAULT '',
+        ""AffectedStudents""   integer NOT NULL DEFAULT 0,
+        ""NotificationsSent""  integer NOT NULL DEFAULT 0,
+        ""Code""               text NOT NULL DEFAULT '',
+        ""CreatedAt""          timestamp with time zone NOT NULL DEFAULT NOW(),
+        ""DeletedAt""          timestamp with time zone,
+        CONSTRAINT ""FK_ClusterReplies_ComplaintClusters"" FOREIGN KEY (""ClusterId"") REFERENCES ""ComplaintClusters""(""Id"") ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS ""IX_ClusterReplies_ClusterId"" ON ""ClusterReplies""(""ClusterId"");
+
+    CREATE TABLE IF NOT EXISTS ""ClusterStatusHistories"" (
+        ""Id""               varchar(26) NOT NULL PRIMARY KEY,
+        ""ClusterId""        varchar(26) NOT NULL,
+        ""OldStatus""        character varying(50) NOT NULL DEFAULT '',
+        ""NewStatus""        character varying(50) NOT NULL DEFAULT '',
+        ""ChangedByUserId""  varchar(26) NOT NULL,
+        ""Reason""           character varying(500),
+        ""Code""             text NOT NULL DEFAULT '',
+        ""CreatedAt""        timestamp with time zone NOT NULL DEFAULT NOW(),
+        ""DeletedAt""        timestamp with time zone,
+        CONSTRAINT ""FK_ClusterStatusHistories_ComplaintClusters"" FOREIGN KEY (""ClusterId"") REFERENCES ""ComplaintClusters""(""Id"") ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS ""IX_ClusterStatusHistories_ClusterId"" ON ""ClusterStatusHistories""(""ClusterId"");
+END $$;
+            ");
+        }
+        catch (Exception ex) { Console.WriteLine($"[WARN] ComplaintCluster enhancements patch failed (non-fatal): {ex.Message}"); }
+
         // 1. Apply any pending EF Core migrations (after manual patches so they don't conflict)
         try { db.Database.Migrate(); }
         catch (Exception ex) { Console.WriteLine($"[WARN] Migrate() failed (patches already applied): {ex.Message}"); }
