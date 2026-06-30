@@ -387,6 +387,7 @@ builder.Services.AddHttpClient<IChatStreamingService, ChatStreamingService>(clie
 builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();
 builder.Services.AddScoped<IComplaintService, ComplaintService>();
 builder.Services.AddScoped<IComplaintIntelligenceJob, ComplaintIntelligenceJob>();
+builder.Services.AddHostedService<ComplaintReprocessBackgroundService>();
 // AiToolRegistry and IAiTool registrations removed — tool execution
 // is handled entirely inside the FastAPI AI service. The .NET backend
 // no longer re-executes tools; it only calls AI and saves the response.

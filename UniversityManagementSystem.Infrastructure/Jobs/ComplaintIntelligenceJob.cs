@@ -48,6 +48,22 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
 
                 var aiResponse = await _aiService.AnalyzeComplaintAsync(request);
 
+                // AiService swallows HTTP/timeout errors and returns an empty DTO instead of
+                // throwing. Treat that as "analysis not available yet" rather than saving a
+                // blank ComplaintAnalysis row — otherwise the complaint looks "analyzed" with
+                // garbage data and never gets retried by the reprocess background service.
+                bool aiCallFailed = string.IsNullOrWhiteSpace(aiResponse.Category)
+                    && string.IsNullOrWhiteSpace(aiResponse.Severity)
+                    && string.IsNullOrWhiteSpace(aiResponse.Summary);
+
+                if (aiCallFailed)
+                {
+                    _logger.LogWarning(
+                        "AI analysis returned no data for complaint {ComplaintId} — will retry later.",
+                        complaintId);
+                    return;
+                }
+
                 var analysis = new ComplaintAnalysis
                 {
                     ComplaintId = complaint.Id,
