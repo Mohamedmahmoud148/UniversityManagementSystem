@@ -488,7 +488,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
         public async Task RefreshSnapshotAsync(Ulid subjectOfferingId)
         {
+            // IgnoreQueryFilters() + manual DeletedAt check: a bare Id-equality lookup like
+            // this (no other real predicate) was observed collapsing to a permanently-empty
+            // result via EF Core's automatic filter propagation through SubjectOffering's
+            // required navigations (Subject/Semester/Doctor/Department/Batch) — see the
+            // identical fix in TeachingIntelligenceBackgroundService for the confirmed
+            // "WHERE FALSE" log evidence.
             var offering = await _context.SubjectOfferings
+                .IgnoreQueryFilters()
+                .Where(o => o.DeletedAt == null)
                 .Include(o => o.Subject)
                 .Include(o => o.Batch)
                 .Include(o => o.Group)

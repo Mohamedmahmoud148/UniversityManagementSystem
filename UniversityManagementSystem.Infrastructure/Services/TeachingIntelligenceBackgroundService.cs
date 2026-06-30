@@ -61,8 +61,15 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 "TeachingIntelligenceBackgroundService: starting snapshot cycle at {Time}",
                 DateTime.UtcNow);
 
-            // Get all active offerings that need a snapshot refresh
+            // Get all active offerings that need a snapshot refresh.
+            // IgnoreQueryFilters() + manual DeletedAt check is intentional: SubjectOffering
+            // has five required navigations (Subject/Semester/Doctor/Department/Batch) that
+            // are each individually soft-delete-filtered, and EF Core's automatic filter
+            // propagation through required navigations was collapsing this particular
+            // Where+Select(Id) shape to a constant "WHERE FALSE" (confirmed via query logs),
+            // silently returning zero offerings every cycle regardless of real data.
             var activeOfferingIds = await context.SubjectOfferings
+                .IgnoreQueryFilters()
                 .Where(o => o.DeletedAt == null)
                 .Select(o => o.Id)
                 .ToListAsync(ct);
