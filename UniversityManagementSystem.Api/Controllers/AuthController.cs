@@ -147,17 +147,27 @@ namespace UniversityManagementSystem.Api.Controllers
             var userId = _userContext.GetUserId();
             await _authService.RevokeTokenAsync(dto.RefreshToken);
 
+            var user = await _context.SystemUsers.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            var ua = Request.Headers["User-Agent"].ToString();
+
             await _auditService.LogAsync(new AuditLogEntry
             {
                 Action      = AuditActions.Logout,
                 Entity      = "SystemUser",
                 EntityId    = userId.ToString(),
-                Description = "User logged out",
+                Description = $"{user?.FullName ?? userId.ToString()} logged out",
                 Severity    = AuditSeverity.Info,
                 Status      = "Success",
                 UserId      = userId,
+                UserName    = user?.FullName,
+                Email       = user?.Email,
+                Role        = user?.Role.ToString(),
                 IpAddress   = HttpContext.Connection.RemoteIpAddress?.ToString(),
-                UserAgent   = Request.Headers["User-Agent"].ToString()
+                UserAgent   = ua,
+                Browser     = ParseBrowser(ua),
+                Device      = ParseDevice(ua)
             });
 
             return Ok("Logged out.");
