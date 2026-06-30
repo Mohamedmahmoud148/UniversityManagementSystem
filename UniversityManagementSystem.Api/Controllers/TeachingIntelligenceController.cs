@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using NUlid;
 using UniversityManagementSystem.Core.DTOs.TeachingIntelligence;
 using UniversityManagementSystem.Core.Interfaces;
@@ -22,7 +23,8 @@ namespace UniversityManagementSystem.Api.Controllers;
 [Authorize(Roles = "Doctor,SuperAdmin")]
 public class TeachingIntelligenceController(
     ITeachingIntelligenceService service,
-    IUserContextService userContext) : ControllerBase
+    IUserContextService userContext,
+    IServiceScopeFactory scopeFactory) : ControllerBase
 {
     // ── Dashboard ──────────────────────────────────────────────────────────
 
@@ -323,10 +325,15 @@ public class TeachingIntelligenceController(
         if (!Ulid.TryParse(offeringId, out var id))
             return BadRequest("Invalid offering ID.");
 
-        // Fire-and-forget (background task)
+        // Fire-and-forget on its own DI scope — the request-scoped `service`/its
+        // AppDbContext gets disposed as soon as this action returns, so reusing it
+        // here would throw ObjectDisposedException (silently swallowed by the
+        // catch below), meaning the refresh never actually ran.
         _ = Task.Run(async () =>
         {
-            try { await service.RefreshSnapshotAsync(id); }
+            using var scope = scopeFactory.CreateScope();
+            var scopedService = scope.ServiceProvider.GetRequiredService<ITeachingIntelligenceService>();
+            try { await scopedService.RefreshSnapshotAsync(id); }
             catch { /* logged inside service */ }
         });
 
@@ -343,7 +350,9 @@ public class TeachingIntelligenceController(
         var userId = userContext.GetUserId();
         _ = Task.Run(async () =>
         {
-            try { await service.RefreshAllDoctorSnapshotsAsync(userId); }
+            using var scope = scopeFactory.CreateScope();
+            var scopedService = scope.ServiceProvider.GetRequiredService<ITeachingIntelligenceService>();
+            try { await scopedService.RefreshAllDoctorSnapshotsAsync(userId); }
             catch { /* logged inside service */ }
         });
         return Accepted(new { message = "Full snapshot refresh started for all your offerings." });
