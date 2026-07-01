@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NUlid;
 using UniversityManagementSystem.Core.DTOs.TeachingIntelligence;
 using UniversityManagementSystem.Core.Interfaces;
@@ -24,7 +25,8 @@ namespace UniversityManagementSystem.Api.Controllers;
 public class TeachingIntelligenceController(
     ITeachingIntelligenceService service,
     IUserContextService userContext,
-    IServiceScopeFactory scopeFactory) : ControllerBase
+    IServiceScopeFactory scopeFactory,
+    ILogger<TeachingIntelligenceController> logger) : ControllerBase
 {
     // ── Dashboard ──────────────────────────────────────────────────────────
 
@@ -357,7 +359,10 @@ public class TeachingIntelligenceController(
             using var scope = scopeFactory.CreateScope();
             var scopedService = scope.ServiceProvider.GetRequiredService<ITeachingIntelligenceService>();
             try { await scopedService.RefreshSnapshotAsync(id); }
-            catch { /* logged inside service */ }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "RefreshSnapshot: failed for offering {OfferingId}", id);
+            }
         });
 
         return Accepted(new { message = "Snapshot refresh started. Data will be updated shortly." });
@@ -376,7 +381,10 @@ public class TeachingIntelligenceController(
             using var scope = scopeFactory.CreateScope();
             var scopedService = scope.ServiceProvider.GetRequiredService<ITeachingIntelligenceService>();
             try { await scopedService.RefreshAllDoctorSnapshotsAsync(userId); }
-            catch { /* logged inside service */ }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "RefreshAll: failed for doctor user {UserId}", userId);
+            }
         });
         return Accepted(new { message = "Full snapshot refresh started for all your offerings." });
     }

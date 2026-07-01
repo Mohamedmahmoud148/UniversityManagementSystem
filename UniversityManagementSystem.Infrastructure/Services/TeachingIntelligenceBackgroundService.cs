@@ -90,9 +90,12 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(
+                    // Log the full exception (with InnerException) — constraint violations from
+                    // Npgsql surface their real detail in InnerException.Message, which ex.Message
+                    // alone does not show.
+                    logger.LogError(ex,
                         "TeachingIntelligenceBackgroundService: failed for offering {Id}: {Err}",
-                        offeringId, ex.Message);
+                        offeringId, ex.InnerException?.Message ?? ex.Message);
                     failed++;
                 }
 
