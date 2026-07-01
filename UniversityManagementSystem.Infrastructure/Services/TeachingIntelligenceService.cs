@@ -547,13 +547,17 @@ namespace UniversityManagementSystem.Infrastructure.Services
                 .ToListAsync();
 
             // Companion profiles
+            // NOTE: filter on the raw Ulid list (not .ToString()) — EF Core cannot translate
+            // `list.Contains(p.UserId.ToString())` into SQL (object.ToString() inside a
+            // Contains predicate isn't translatable), which was throwing an
+            // InvalidOperationException and silently aborting every snapshot refresh.
             var studentUserIds = enrollments
-                .Select(e => e.Student?.SystemUserId.ToString())
-                .Where(id => id != null)
+                .Where(e => e.Student != null)
+                .Select(e => e.Student!.SystemUserId)
                 .ToList();
 
             var companionProfiles = await _context.AiCompanionProfiles
-                .Where(p => studentUserIds.Contains(p.UserId.ToString()))
+                .Where(p => studentUserIds.Contains(p.UserId))
                 .ToListAsync();
             var profileByUserId = companionProfiles.ToDictionary(p => p.UserId.ToString());
 
