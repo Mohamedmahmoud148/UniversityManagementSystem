@@ -506,17 +506,25 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             if (offering == null) return;
 
+            // IgnoreQueryFilters() on all queries that touch entities with required
+            // navigations back to SubjectOffering: EF Core auto-propagates the
+            // soft-delete filter through required-nav chains (Enrollment→SubjectOffering
+            // →{Subject/Semester/Doctor/Department/Batch}) which collapses to WHERE FALSE
+            // for the same reason documented on the offering lookup above.
             var enrollments = await _context.Enrollments
-                .Where(e => e.SubjectOfferingId == subjectOfferingId && e.IsActive)
+                .IgnoreQueryFilters()
+                .Where(e => e.SubjectOfferingId == subjectOfferingId && e.IsActive && e.DeletedAt == null)
                 .Include(e => e.Student)
                     .ThenInclude(s => s.SystemUser)
                 .ToListAsync();
 
             var grades = await _context.StudentGrades
-                .Where(g => g.SubjectOfferingId == subjectOfferingId)
+                .IgnoreQueryFilters()
+                .Where(g => g.SubjectOfferingId == subjectOfferingId && g.DeletedAt == null)
                 .ToDictionaryAsync(g => g.StudentId);
 
             var assignments = await _context.Assignments
+                .IgnoreQueryFilters()
                 .Where(a => a.SubjectOfferingId == subjectOfferingId && a.DeletedAt == null)
                 .Select(a => a.Id)
                 .ToListAsync();
@@ -527,7 +535,8 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
             // Exams
             var exams = await _context.Exams
-                .Where(e => e.SubjectOfferingId == subjectOfferingId && e.Status != ExamStatus.Draft)
+                .IgnoreQueryFilters()
+                .Where(e => e.SubjectOfferingId == subjectOfferingId && e.DeletedAt == null && e.Status != ExamStatus.Draft)
                 .ToListAsync();
             var examIds = exams.Select(e => e.Id).ToList();
 
