@@ -336,14 +336,20 @@ namespace UniversityManagementSystem.Api.Controllers
             if (!Ulid.TryParse(doctorId, out var parsedId))
                 return BadRequest("Invalid doctor ID format.");
 
-            var doctorExists = await _context.Doctors.AnyAsync(d => d.Id == parsedId);
-            if (!doctorExists)
+            // Callers (including the AI agent, which substitutes the caller's JWT "user_id" —
+            // i.e. SystemUserId — into any {id}-shaped path segment) may pass either the
+            // Doctor row's own Id or the linked SystemUser's Id. Accept both instead of
+            // requiring the caller to know which one this endpoint expects.
+            var doctor = await _context.Doctors
+                .AsNoTracking()
+                .FirstOrDefaultAsync(d => d.Id == parsedId || d.SystemUserId == parsedId);
+            if (doctor == null)
                 return NotFound($"Doctor '{doctorId}' not found.");
 
             var subjects = await _context.SubjectOfferings
                 .AsNoTracking()
                 .Include(o => o.Subject)
-                .Where(o => o.DoctorId == parsedId)
+                .Where(o => o.DoctorId == doctor.Id)
                 .Select(o => new DoctorSubjectItem(
                     o.SubjectId.ToString(),
                     o.Subject.Name,
