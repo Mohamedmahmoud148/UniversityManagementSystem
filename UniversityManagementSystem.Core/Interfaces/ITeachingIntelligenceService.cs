@@ -62,6 +62,11 @@ namespace UniversityManagementSystem.Core.Interfaces
         Task<ExcelExportMetaDto> GetBatchExportDataAsync(
             Ulid batchId, Ulid doctorUserId, Ulid? subjectOfferingId = null);
 
+        /// Generate a grades-entry template .xlsx — columns match ImportGradesFromExcelAsync
+        /// so the doctor can fill in grades and re-upload without errors.
+        Task<(byte[] bytes, string fileName)> GenerateGradesTemplateAsync(
+            Ulid subjectOfferingId, Ulid doctorUserId);
+
         // ── Snapshot management (called by background job) ────────────────
         Task RefreshSnapshotAsync(Ulid subjectOfferingId);
         Task RefreshAllDoctorSnapshotsAsync(Ulid doctorUserId);

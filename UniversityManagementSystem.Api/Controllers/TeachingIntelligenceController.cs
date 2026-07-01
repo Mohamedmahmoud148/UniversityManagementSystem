@@ -312,6 +312,29 @@ public class TeachingIntelligenceController(
         catch (UnauthorizedAccessException) { return Forbid(); }
     }
 
+    /// <summary>
+    /// Download a blank grades-entry template (.xlsx) for a subject offering.
+    ///
+    /// Columns: University ID | Full Name | Midterm | Coursework | Final Exam
+    /// Column headers match the dynamic keyword detection in ImportGradesFromExcelAsync,
+    /// so the doctor can fill in grades and re-upload this file without errors.
+    /// </summary>
+    [HttpGet("offerings/{offeringId}/grades-template")]
+    public async Task<IActionResult> DownloadGradesTemplate(string offeringId)
+    {
+        if (!Ulid.TryParse(offeringId, out var id))
+            return BadRequest("Invalid offering ID.");
+
+        try
+        {
+            var userId = userContext.GetUserId();
+            var (bytes, fileName) = await service.GenerateGradesTemplateAsync(id, userId);
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
+        }
+        catch (KeyNotFoundException ex) { return NotFound(ex.Message); }
+        catch (UnauthorizedAccessException) { return Forbid(); }
+    }
+
     // ── Manual snapshot refresh ───────────────────────────────────────────
 
     /// <summary>

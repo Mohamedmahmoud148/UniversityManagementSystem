@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using ClosedXML.Excel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NUlid;
@@ -664,6 +666,78 @@ namespace UniversityManagementSystem.Infrastructure.Services
             _logger.LogInformation(
                 "TeachingIntelligence: refreshed snapshot for offering {Id} — {Count} students",
                 subjectOfferingId, enrollments.Count);
+        }
+
+        public async Task<(byte[] bytes, string fileName)> GenerateGradesTemplateAsync(
+            Ulid subjectOfferingId, Ulid doctorUserId)
+        {
+            var doctor = await GetDoctorAsync(doctorUserId);
+            if (doctor == null)
+                throw new UnauthorizedAccessException();
+
+            var offering = await _context.SubjectOfferings
+                .IgnoreQueryFilters()
+                .Where(o => o.DeletedAt == null)
+                .Include(o => o.Subject)
+                .FirstOrDefaultAsync(o => o.Id == subjectOfferingId);
+
+            if (offering == null)
+                throw new KeyNotFoundException("Offering not found.");
+
+            if (offering.DoctorId != doctor.Id)
+                throw new UnauthorizedAccessException();
+
+            var enrollments = await _context.Enrollments
+                .IgnoreQueryFilters()
+                .Where(e => e.SubjectOfferingId == subjectOfferingId && e.IsActive && e.DeletedAt == null)
+                .Include(e => e.Student)
+                .OrderBy(e => e.Student.FullName)
+                .ToListAsync();
+
+            using var workbook = new XLWorkbook();
+            var ws = workbook.Worksheets.Add("Grades");
+
+            // Header row — names chosen to match ImportGradesFromExcelAsync keyword detection:
+            //   "University ID" → EndsWith("id")  → idCol
+            //   "Full Name"     → no keyword match → display-only, ignored by import
+            //   "Midterm"       → Contains("midterm") → midtermCol
+            //   "Coursework"    → Contains("coursework") → courseworkCol
+            //   "Final Exam"    → Contains("final") → finalCol
+            ws.Cell(1, 1).Value = "University ID";
+            ws.Cell(1, 2).Value = "Full Name";
+            ws.Cell(1, 3).Value = "Midterm";
+            ws.Cell(1, 4).Value = "Coursework";
+            ws.Cell(1, 5).Value = "Final Exam";
+
+            var headerRange = ws.Range(1, 1, 1, 5);
+            headerRange.Style.Font.Bold = true;
+            headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#2E75B6");
+            headerRange.Style.Font.FontColor = XLColor.White;
+            headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            headerRange.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+
+            for (int i = 0; i < enrollments.Count; i++)
+            {
+                var student = enrollments[i].Student;
+                if (student == null) continue;
+                int row = i + 2;
+                ws.Cell(row, 1).Value = student.UniversityStudentId;
+                ws.Cell(row, 2).Value = student.FullName;
+                // Columns 3-5 intentionally blank — doctor fills in grades
+            }
+
+            ws.Column(1).Width = 22;
+            ws.Column(2).Width = 32;
+            ws.Column(3).Width = 14;
+            ws.Column(4).Width = 14;
+            ws.Column(5).Width = 14;
+            ws.SheetView.FreezeRows(1);
+
+            using var stream = new MemoryStream();
+            workbook.SaveAs(stream);
+
+            string code = offering.Subject?.Code ?? "grades";
+            return (stream.ToArray(), $"{code}_grades_template.xlsx");
         }
 
         public async Task RefreshAllDoctorSnapshotsAsync(Ulid doctorUserId)
