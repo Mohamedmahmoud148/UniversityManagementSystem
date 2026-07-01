@@ -113,7 +113,7 @@ namespace UniversityManagementSystem.Infrastructure.Jobs
                     {
                         cluster.ComplaintCount++;
                         cluster.LastUpdated = DateTime.UtcNow;
-                        cluster.AiSummary = "Updated summary based on latest complaint.";
+                        cluster.AiSummary = aiResponse.Summary;
                     }
 
                     if (cluster.ComplaintCount >= 3)

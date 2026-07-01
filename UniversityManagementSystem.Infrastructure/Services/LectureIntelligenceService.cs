@@ -360,6 +360,14 @@ namespace UniversityManagementSystem.Infrastructure.Services
 
                 logger.LogInformation("LectureIntelligence: processing completed for {Id}", recordingId);
             }
+            catch (HttpRequestException ex)
+            {
+                // Transient AI/network failure — leave status as Analyzing so Hangfire retries
+                // the job automatically (setting Failed here would swallow the exception and
+                // Hangfire would mark the job "succeeded", blocking any retry).
+                logger.LogWarning(ex, "LectureIntelligence: AI service call failed for {Id} — Hangfire will retry", recordingId);
+                throw;
+            }
             catch (Exception ex)
             {
                 logger.LogError(ex, "LectureIntelligence: processing failed for {Id}", recordingId);
